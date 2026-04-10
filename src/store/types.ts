@@ -199,6 +199,7 @@ export interface GameState {
   logout: () => void;
   fetchGameState: () => Promise<void>;
   syncAdvanceDay: () => Promise<void>;
+  syncToServer: () => Promise<void>;
 
   // Player Data
   company: Company | null;

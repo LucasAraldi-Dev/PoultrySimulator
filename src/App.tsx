@@ -41,7 +41,7 @@ function AnimatedRoutes() {
 }
 
 function App() {
-  const { isAuthenticated, fetchGameState } = useGameStore();
+  const { isAuthenticated, fetchGameState, syncToServer } = useGameStore();
 
   // Ao iniciar a aplicação, se tiver token, tenta buscar os dados
   // Se falhar, ou não tiver, o jogo usa o estado inicial normal (Offline)
@@ -50,6 +50,27 @@ function App() {
       fetchGameState();
     }
   }, [isAuthenticated, fetchGameState]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log("Conexão restabelecida. Sincronizando com o servidor...");
+      syncToServer();
+    };
+
+    window.addEventListener('online', handleOnline);
+    
+    // Sincronização periódica a cada 30 segundos
+    const syncInterval = setInterval(() => {
+      if (isAuthenticated && navigator.onLine) {
+        syncToServer();
+      }
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      clearInterval(syncInterval);
+    };
+  }, [syncToServer, isAuthenticated]);
 
   return (
     <Router>
