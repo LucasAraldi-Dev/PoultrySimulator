@@ -256,7 +256,13 @@ export const useGameStore = create<GameState>()(
   },
 
   // Async Economy Actions (Para Nuvem - Híbrido)
-  buyItemApi: async (itemId, quantity, totalCost) => {
+  buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
+    const scheduledDays = Math.max(0, Math.floor(scheduledInDays || 0));
+    if (scheduledDays > 0 || useOwnTruck) {
+      get().buyFeed(itemId, quantity, totalCost, scheduledDays, useOwnTruck);
+      return;
+    }
+
     const isAuth = get().isAuthenticated;
     const isOnline = navigator.onLine;
     if (isAuth && isOnline) {
