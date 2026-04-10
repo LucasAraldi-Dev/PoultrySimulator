@@ -71,62 +71,72 @@ export default function MarketPage() {
           Vendas
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex flex-col justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-orange-100 text-orange-600 rounded-xl">
-                <Egg size={32} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-zinc-800">Ovos em Estoque</h3>
-                <p className="text-zinc-500">Você possui {products.eggs.toLocaleString()} ovos.</p>
-                <p className="text-sm text-emerald-600 font-medium">Preço de mercado: R$ {marketPrices.egg.toFixed(2)} / un</p>
+          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col justify-between group">
+            <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=crate%20full%20of%20fresh%20farm%20eggs%2C%20realistic%20photography&image_size=landscape_16_9')` }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-3 left-4 flex items-center gap-3">
+                <div className="p-2 bg-orange-500 text-white rounded-lg shadow-lg">
+                  <Egg size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-white">Ovos em Estoque</h3>
               </div>
             </div>
-            <button 
-              onClick={() => sellEggs(products.eggs, marketPrices.egg)}
-              disabled={products.eggs === 0}
-              className="w-full px-6 py-3 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
-              style={{ backgroundColor: company?.color || '#10b981' }}
-            >
-              Vender Tudo (R$ {(products.eggs * marketPrices.egg).toFixed(2)})
-            </button>
+            <div className="p-6 flex flex-col gap-4">
+              <div>
+                <p className="text-zinc-600 font-medium">Você possui <strong className="text-zinc-800">{products.eggs.toLocaleString()}</strong> ovos.</p>
+                <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.egg.toFixed(2)} / un</p>
+              </div>
+              <button 
+                onClick={() => sellEggs(products.eggs, marketPrices.egg)}
+                disabled={products.eggs === 0}
+                className="w-full px-6 py-3 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-lg"
+                style={{ backgroundColor: company?.color || '#10b981' }}
+              >
+                Vender Tudo (R$ {(products.eggs * marketPrices.egg).toFixed(2)})
+              </button>
+            </div>
           </div>
 
           {/* Venda de Carne Processada */}
-          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex flex-col justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-red-100 text-red-600 rounded-xl">
-                <Package size={32} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-zinc-800">Carne Processada (Abatedouro)</h3>
-                <p className="text-zinc-500">
-                  {useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity.toFixed(1) || '0.0'} kg em estoque.
-                </p>
-                <p className="text-sm text-emerald-600 font-medium">Preço de mercado: R$ {marketPrices.processedMeat.toFixed(2)} / kg</p>
+          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col justify-between group">
+            <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=packaged%20fresh%20chicken%20meat%20in%20supermarket%20display%2C%20realistic&image_size=landscape_16_9')` }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-3 left-4 flex items-center gap-3">
+                <div className="p-2 bg-red-500 text-white rounded-lg shadow-lg">
+                  <Package size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-white">Carne Processada</h3>
               </div>
             </div>
-            <button 
-              onClick={() => {
-                const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
-                if (qty > 0) {
-                  useGameStore.setState(state => {
-                    const newInv = state.inventory.filter(i => i.itemId !== 'processed_meat');
-                    const revenue = qty * state.marketPrices.processedMeat;
-                    return {
-                      inventory: newInv,
-                      money: state.money + revenue,
-                      totalProfit: state.totalProfit + revenue,
-                      currentMonthRevenue: state.currentMonthRevenue + revenue
-                    };
-                  });
-                }
-              }}
-              disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}
-              className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:bg-red-700"
-            >
-              Vender Estoque de Carne
-            </button>
+            <div className="p-6 flex flex-col gap-4">
+              <div>
+                <p className="text-zinc-600 font-medium">
+                  <strong className="text-zinc-800">{useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity.toFixed(1) || '0.0'} kg</strong> em estoque.
+                </p>
+                <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.processedMeat.toFixed(2)} / kg</p>
+              </div>
+              <button 
+                onClick={() => {
+                  const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
+                  if (qty > 0) {
+                    useGameStore.setState(state => {
+                      const newInv = state.inventory.filter(i => i.itemId !== 'processed_meat');
+                      const revenue = qty * state.marketPrices.processedMeat;
+                      return {
+                        inventory: newInv,
+                        money: state.money + revenue,
+                        totalProfit: state.totalProfit + revenue,
+                        currentMonthRevenue: state.currentMonthRevenue + revenue
+                      };
+                    });
+                  }
+                }}
+                disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}
+                className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-red-700 hover:shadow-lg"
+              >
+                Vender Estoque de Carne
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -146,6 +156,9 @@ export default function MarketPage() {
                   const canAfford = money >= totalCost;
                   const isInSanitaryVoid = barn.sanitaryVoidDays > 0;
                   const isDisabled = !canAfford || isInSanitaryVoid;
+                  const bgImage = barn.type === 'POSTURA' 
+                    ? "url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20young%20laying%20hens%20in%20a%20farm%2C%20realistic&image_size=landscape_16_9')"
+                    : "url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20yellow%20broiler%20chicks%20in%20a%20farm%2C%20realistic&image_size=landscape_16_9')";
 
                   return (
                     <motion.div 
@@ -153,9 +166,14 @@ export default function MarketPage() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="p-6 flex flex-col md:flex-row items-center justify-between gap-4"
+                      className="flex flex-col md:flex-row relative"
                     >
-                      <div className="flex-1">
+                      <div className="md:w-48 h-32 md:h-auto bg-cover bg-center shrink-0" style={{ backgroundImage: bgImage }}>
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white hidden md:block" />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent md:hidden" />
+                      </div>
+                      
+                      <div className="p-6 flex-1 flex flex-col justify-center">
                         <h3 className="text-lg font-bold text-zinc-800 flex items-center gap-2">
                           {barn.name} 
                           {barn.isRented && <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full uppercase">Integração</span>}
@@ -169,25 +187,29 @@ export default function MarketPage() {
                             : `Custo do lote: R$ ${totalCost.toFixed(2)}`}
                         </p>
                       </div>
-                      <motion.button
-                        whileTap={!isDisabled ? { scale: 0.95 } : {}}
-                        onClick={() => handleBuyFlock(barn.id, barn.type, barn.capacity, barn.isRented)}
-                        disabled={isDisabled}
-                        className={`px-6 py-3 rounded-lg font-bold transition-opacity whitespace-nowrap shadow-sm ${!isDisabled ? 'text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
-                        style={!isDisabled ? { backgroundColor: barn.isRented ? '#3b82f6' : (company?.color || '#10b981') } : {}}
-                      >
-                        {isInSanitaryVoid 
-                          ? `Vazio Sanitário (${barn.sanitaryVoidDays}d)` 
-                          : barn.isRented ? 'Solicitar Lote Integrado' : (canAfford ? 'Comprar e Alojar Lote' : 'Saldo Insuficiente')}
-                      </motion.button>
+                      <div className="p-6 flex items-center border-t md:border-t-0 md:border-l border-zinc-100 bg-zinc-50/50">
+                        <motion.button
+                          whileTap={!isDisabled ? { scale: 0.95 } : {}}
+                          onClick={() => handleBuyFlock(barn.id, barn.type, barn.capacity, barn.isRented)}
+                          disabled={isDisabled}
+                          className={`w-full md:w-auto px-6 py-3 rounded-lg font-bold transition-all whitespace-nowrap shadow-sm ${!isDisabled ? 'text-white hover:shadow-lg' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                          style={!isDisabled ? { backgroundColor: barn.isRented ? '#3b82f6' : (company?.color || '#10b981') } : {}}
+                        >
+                          {isInSanitaryVoid 
+                            ? `Vazio Sanitário (${barn.sanitaryVoidDays}d)` 
+                            : barn.isRented ? 'Solicitar Lote Integrado' : (canAfford ? 'Comprar e Alojar Lote' : 'Saldo Insuficiente')}
+                        </motion.button>
+                      </div>
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
             </div>
           ) : (
-            <div className="p-8 text-center text-zinc-500">
-              Todos os seus galpões já estão ocupados.
+            <div className="p-12 text-center flex flex-col items-center justify-center bg-zinc-50">
+              <Bird size={48} className="text-zinc-300 mb-4" />
+              <h3 className="text-lg font-bold text-zinc-700">Todos os seus galpões estão ocupados.</h3>
+              <p className="text-zinc-500 mt-2">Construa ou alugue novos galpões na aba Infraestrutura.</p>
             </div>
           )}
         </div>

@@ -8,9 +8,10 @@ interface TileProps {
   label: string;
   onClick?: () => void;
   active?: boolean;
+  index: number;
 }
 
-const IsometricTile = ({ type, label, onClick, active = true }: TileProps) => {
+const IsometricTile = ({ type, label, onClick, active = true, index }: TileProps) => {
   let mainColor = 'bg-emerald-500';
   let sideColor = 'bg-emerald-600';
   let topColor = 'bg-emerald-400';
@@ -76,11 +77,30 @@ const IsometricTile = ({ type, label, onClick, active = true }: TileProps) => {
   return (
     <div className="relative group">
       <motion.div
+        initial={{ opacity: 0, y: -80, scale: 0.5 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 200, 
+          damping: 15,
+          delay: index * 0.05 
+        }}
         whileHover={onClick || type === 'buy' ? { y: -8, scale: 1.05 } : { scale: 1.02 }}
         onClick={onClick}
-        className={`relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 ${onClick || type === 'buy' ? 'cursor-pointer' : ''}`}
+        className={`relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 ${onClick || type === 'buy' ? 'cursor-pointer z-20' : 'z-10'}`}
         style={{ transformStyle: 'preserve-3d' }}
       >
+        {/* Dust impact effect on load */}
+        {type !== 'empty' && type !== 'buy' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: [0, 0.5, 0], scale: [0.5, 1.5, 2] }}
+            transition={{ duration: 0.8, delay: index * 0.05 + 0.2, ease: "easeOut" }}
+            className="absolute inset-0 bg-white/40 rounded-full blur-md pointer-events-none"
+            style={{ transform: 'translateZ(-10px)' }}
+          />
+        )}
+        
         {/* Base Floor (The Tile) */}
         <div 
           className={`absolute inset-0 ${mainColor} rounded-sm transition-colors duration-300`} 
@@ -164,9 +184,15 @@ export function FarmMap() {
   }
 
   return (
-    <div className="bg-emerald-900/5 p-6 relative min-h-[400px] flex items-center justify-center perspective-[1000px]">
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0wIDEwaDQwTTEwIDB2NDAiIHN0cm9rZT0iIzEwYjk4MSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PC9zdmc+')] pointer-events-none" />
+    <div className="bg-emerald-950 p-6 relative min-h-[400px] flex items-center justify-center perspective-[1000px] overflow-hidden">
+      {/* Realistic Background Image */}
+      <div 
+        className="absolute inset-0 opacity-40 bg-cover bg-center pointer-events-none" 
+        style={{ backgroundImage: "url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=isometric%20lush%20green%20farm%20grass%20field%20texture%20realistic%20seamless%20top%20down%20nature%20drone%20view&image_size=landscape_16_9')" }}
+      />
+      
+      {/* Background overlay gradient */}
+      <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/80 to-transparent pointer-events-none" />
       
       <div className="relative z-10 w-full max-w-4xl mx-auto flex items-center justify-center py-20">
         
@@ -181,6 +207,7 @@ export function FarmMap() {
           {slots.map((slot, idx) => (
             <IsometricTile 
               key={idx} 
+              index={idx}
               type={slot.type as any} 
               label={slot.label} 
               active={slot.active}
