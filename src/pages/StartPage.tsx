@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
 import { Egg, Bird, Building2, MapPin } from 'lucide-react';
@@ -7,9 +7,12 @@ import { REGIONS } from '../store/constants';
 
 const COMPANY_COLORS = [
   { id: 'emerald', name: 'Verde Esmeralda', value: '#10b981', class: 'bg-emerald-500' },
-  { id: 'blue', name: 'Azul Corporativo', value: '#2563eb', class: 'bg-blue-600' },
+  { id: 'blue', name: 'Azul Elétrico', value: '#2563eb', class: 'bg-blue-600' },
+  { id: 'red', name: 'Vermelho Vivo', value: '#ef4444', class: 'bg-red-500' },
+  { id: 'yellow', name: 'Amarelo Solar', value: '#eab308', class: 'bg-yellow-500' },
   { id: 'orange', name: 'Laranja Rústico', value: '#f97316', class: 'bg-orange-500' },
   { id: 'purple', name: 'Roxo Premium', value: '#8b5cf6', class: 'bg-purple-500' },
+  { id: 'cyan', name: 'Ciano Neon', value: '#06b6d4', class: 'bg-cyan-500' },
   { id: 'slate', name: 'Cinza Industrial', value: '#64748b', class: 'bg-slate-500' },
 ];
 
@@ -22,6 +25,11 @@ export default function StartPage() {
   const [companyColor, setCompanyColor] = useState(COMPANY_COLORS[0].value);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [selected, setSelected] = useState<'POSTURA' | 'CORTE' | null>(null);
+  const [profileAnswers, setProfileAnswers] = useState<{
+    cashflow?: 'STEADY' | 'BURST';
+    risk?: 'LOW' | 'HIGH';
+    routine?: 'CALM' | 'INTENSE';
+  }>({});
 
   const handleNextStep1 = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +47,93 @@ export default function StartPage() {
 
 
   const currentColorObj = COMPANY_COLORS.find(c => c.value === companyColor) || COMPANY_COLORS[0];
+
+  const profileQuestions = [
+    {
+      id: 'cashflow' as const,
+      text: 'Antes de escolher seu primeiro galpão: você prefere uma renda mais constante ou um lucro maior por ciclo?',
+      options: [
+        { id: 'STEADY' as const, title: 'Renda constante', desc: 'Receber um pouco todo dia e ter previsibilidade.' },
+        { id: 'BURST' as const, title: 'Lucro por ciclo', desc: 'Aguardar o lote fechar para ganhar mais de uma vez.' },
+      ],
+    },
+    {
+      id: 'risk' as const,
+      text: 'Como você lida com risco e variação de preço (ração, mercado)?',
+      options: [
+        { id: 'LOW' as const, title: 'Prefiro segurança', desc: 'Quero menos sustos no caixa e decisões mais simples.' },
+        { id: 'HIGH' as const, title: 'Topo mais risco', desc: 'Aceito volatilidade para buscar margem maior.' },
+      ],
+    },
+    {
+      id: 'routine' as const,
+      text: 'Você curte um jogo mais “piloto automático” ou gosta de ficar otimizando lote e timing?',
+      options: [
+        { id: 'CALM' as const, title: 'Mais tranquilo', desc: 'Rotina constante e crescimento no ritmo.' },
+        { id: 'INTENSE' as const, title: 'Mais estratégico', desc: 'Decisões de timing e otimização de ciclo.' },
+      ],
+    },
+  ];
+
+  const answeredCount = profileQuestions.reduce((acc, q) => (profileAnswers[q.id] ? acc + 1 : acc), 0);
+  const isProfileComplete = answeredCount === profileQuestions.length;
+
+  const { recommendedStart, recommendationText, recommendationPros, recommendationCons } = (() => {
+    let postura = 0;
+    let corte = 0;
+
+    if (profileAnswers.cashflow === 'STEADY') postura += 2;
+    if (profileAnswers.cashflow === 'BURST') corte += 2;
+    if (profileAnswers.risk === 'LOW') postura += 1;
+    if (profileAnswers.risk === 'HIGH') corte += 1;
+    if (profileAnswers.routine === 'CALM') postura += 1;
+    if (profileAnswers.routine === 'INTENSE') corte += 1;
+
+    const pick: 'POSTURA' | 'CORTE' = postura >= corte ? 'POSTURA' : 'CORTE';
+
+    if (!isProfileComplete) {
+      return {
+        recommendedStart: null as 'POSTURA' | 'CORTE' | null,
+        recommendationText: null as string | null,
+        recommendationPros: [] as string[],
+        recommendationCons: [] as string[],
+      };
+    }
+
+    if (pick === 'POSTURA') {
+      return {
+        recommendedStart: pick,
+        recommendationText: 'Pelo seu perfil, Postura combina mais com você: fluxo de caixa diário, previsível e ótimo para aprender sem travar o dinheiro em ciclos longos.',
+        recommendationPros: [
+          'Renda contínua (ovos todo dia)',
+          'Gestão mais previsível e estável',
+          'Boa base para expandir depois para outras linhas',
+        ],
+        recommendationCons: [
+          'Margem por ave tende a ser menor',
+          'Mais sensível ao custo de ração no dia a dia',
+        ],
+      };
+    }
+
+    return {
+      recommendedStart: pick,
+      recommendationText: 'Pelo seu perfil, Corte combina mais com você: foco em ciclo, otimização e lucro concentrado no fim do lote, com potencial de margens maiores.',
+      recommendationPros: [
+        'Lucro mais alto por lote bem conduzido',
+        'Jogo mais “estratégico” de timing e decisões',
+        'Sinergia forte com abatedouro e processamento',
+      ],
+      recommendationCons: [
+        'Caixa oscila (períodos sem venda)',
+        'Mais exposição a variação de custo e mercado no ciclo',
+      ],
+    };
+  })();
+
+  useEffect(() => {
+    if (!selected && recommendedStart) setSelected(recommendedStart);
+  }, [recommendedStart, selected]);
 
   return (
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-4">
@@ -89,7 +184,7 @@ export default function StartPage() {
 
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-3">Cor da Marca</label>
-                <div className="flex gap-3 justify-center">
+                <div className="flex flex-wrap gap-3 justify-center">
                   {COMPANY_COLORS.map(color => (
                     <button
                       key={color.id}
@@ -190,8 +285,144 @@ export default function StartPage() {
               animate={{ opacity: 1, x: 0 }}
             >
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-semibold text-zinc-800">Selecione o seu primeiro Galpão</h2>
-                <p className="text-zinc-500 text-sm mt-2">Como a <strong>{companyName}</strong> vai iniciar as suas operações?</p>
+                <h2 className="text-2xl font-semibold text-zinc-800">Vamos montar seu perfil de jogo</h2>
+                <p className="text-zinc-500 text-sm mt-2">Responda rapidinho e eu sugiro o melhor início para a <strong>{companyName}</strong>.</p>
+              </div>
+
+              <div className="max-w-2xl mx-auto mb-10">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 sm:p-6 shadow-sm">
+                  <div className="space-y-4">
+                    {profileQuestions.map((q, idx) => {
+                      const answer = profileAnswers[q.id];
+                      if (!answer) {
+                        const canShow = profileQuestions.slice(0, idx).every(prev => !!profileAnswers[prev.id]);
+                        if (!canShow) return null;
+
+                        return (
+                          <motion.div
+                            key={q.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-3"
+                          >
+                            <div className="max-w-[36rem] rounded-2xl bg-white border border-zinc-200 px-4 py-3 text-zinc-800 shadow-sm">
+                              <p className="text-sm font-semibold">{q.text}</p>
+                            </div>
+                            <div className="grid sm:grid-cols-2 gap-3">
+                              {q.options.map(option => (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() => setProfileAnswers(prev => ({ ...prev, [q.id]: option.id }))}
+                                  className="text-left rounded-2xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-zinc-900">{option.title}</p>
+                                      <p className="text-xs text-zinc-600 mt-1 leading-snug">{option.desc}</p>
+                                    </div>
+                                    <div
+                                      className="w-3.5 h-3.5 rounded-full border-2 border-zinc-300 shrink-0 mt-1"
+                                      style={{ borderColor: currentColorObj.value }}
+                                    />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        );
+                      }
+
+                      const chosen = q.options.find(o => o.id === answer);
+                      if (!chosen) return null;
+
+                      return (
+                        <div key={q.id} className="space-y-2">
+                          <div className="max-w-[36rem] rounded-2xl bg-white border border-zinc-200 px-4 py-3 text-zinc-800 shadow-sm">
+                            <p className="text-sm font-semibold">{q.text}</p>
+                          </div>
+                          <div className="flex justify-end">
+                            <div
+                              className="max-w-[36rem] rounded-2xl px-4 py-3 text-white shadow-sm"
+                              style={{ backgroundColor: currentColorObj.value }}
+                            >
+                              <p className="text-sm font-bold">{chosen.title}</p>
+                              <p className="text-xs text-white/80 mt-1 leading-snug">{chosen.desc}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {isProfileComplete && recommendedStart && recommendationText && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="pt-2"
+                      >
+                        <div className="max-w-[44rem] rounded-2xl bg-white border border-zinc-200 p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-extrabold text-zinc-900">
+                                Minha sugestão: {recommendedStart === 'POSTURA' ? 'Postura' : 'Corte'}
+                              </p>
+                              <p className="text-sm text-zinc-700 mt-1 leading-snug">{recommendationText}</p>
+                            </div>
+                            <span
+                              className="shrink-0 text-xs font-extrabold px-2.5 py-1 rounded-full text-white"
+                              style={{ backgroundColor: currentColorObj.value }}
+                            >
+                              Recomendado
+                            </span>
+                          </div>
+
+                          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+                              <p className="text-xs font-extrabold text-emerald-900 uppercase tracking-wide">Prós</p>
+                              <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                                {recommendationPros.map((p) => (
+                                  <li key={p} className="flex items-start gap-2">
+                                    <span className="mt-0.5">✓</span>
+                                    <span>{p}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                              <p className="text-xs font-extrabold text-amber-900 uppercase tracking-wide">Contras</p>
+                              <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                                {recommendationCons.map((c) => (
+                                  <li key={c} className="flex items-start gap-2">
+                                    <span className="mt-0.5">•</span>
+                                    <span>{c}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between gap-3">
+                    <div className="text-xs font-bold text-zinc-500">
+                      Progresso: {answeredCount}/{profileQuestions.length}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileAnswers({});
+                          setSelected(null);
+                        }}
+                        className="px-3 py-2 rounded-xl text-xs font-extrabold text-zinc-600 hover:bg-zinc-100 transition-colors"
+                      >
+                        Refazer
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -209,7 +440,9 @@ export default function StartPage() {
                     <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
                       <Egg size={32} />
                     </div>
-                    <span className="px-3 py-1 bg-zinc-100 text-zinc-600 text-sm rounded-full font-medium">Fluxo Contínuo</span>
+                    <span className={`px-3 py-1 text-sm rounded-full font-bold ${recommendedStart === 'POSTURA' ? 'text-white' : 'bg-zinc-100 text-zinc-600'}`} style={recommendedStart === 'POSTURA' ? { backgroundColor: currentColorObj.value } : {}}>
+                      {recommendedStart === 'POSTURA' ? 'Recomendado' : 'Fluxo Contínuo'}
+                    </span>
                   </div>
                   <h3 className="text-xl font-bold text-zinc-800 mb-2">Galpão de Postura</h3>
                   <p className="text-zinc-600 mb-4">Comece com galinhas adultas já na fase de produção. Produza ovos diariamente para ter uma renda constante.</p>
@@ -234,7 +467,9 @@ export default function StartPage() {
                     <div className="p-3 bg-orange-100 rounded-lg text-orange-600">
                       <Bird size={32} />
                     </div>
-                    <span className="px-3 py-1 bg-zinc-100 text-zinc-600 text-sm rounded-full font-medium">Ciclo por Lotes</span>
+                    <span className={`px-3 py-1 text-sm rounded-full font-bold ${recommendedStart === 'CORTE' ? 'text-white' : 'bg-zinc-100 text-zinc-600'}`} style={recommendedStart === 'CORTE' ? { backgroundColor: currentColorObj.value } : {}}>
+                      {recommendedStart === 'CORTE' ? 'Recomendado' : 'Ciclo por Lotes'}
+                    </span>
                   </div>
                   <h3 className="text-xl font-bold text-zinc-800 mb-2">Galpão de Corte</h3>
                   <p className="text-zinc-600 mb-4">Comece com pintinhos de 1 dia. Engorde o lote e venda-o para o abatedouro para obter um lucro massivo.</p>
