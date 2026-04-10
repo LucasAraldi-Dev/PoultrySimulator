@@ -19,18 +19,43 @@ export default function FinancePage() {
   const takeLoan = useGameStore(state => state.takeLoan);
   const payLoan = useGameStore(state => state.payLoan);
 
+  const payInstallment = useGameStore(state => state.payInstallment);
+  const loanInstallment = useGameStore(state => state.loanInstallment);
+  const loanInstallmentsRemaining = useGameStore(state => state.loanInstallmentsRemaining);
+  const nextLoanPaymentDay = useGameStore(state => state.nextLoanPaymentDay);
+  const missedPayments = useGameStore(state => state.missedPayments);
+  const lastMonthRevenue = useGameStore(state => state.lastMonthRevenue);
+
   const balance = totalProfit - totalExpenses;
   const isProfitable = balance >= 0;
 
   const handleTakeLoan = () => {
-    const amount = Number(prompt('Valor do empréstimo (R$):', '5000'));
+    if (bankLoan > 0) {
+      alert('Você já possui um empréstimo ativo. Quite-o antes de pegar outro.');
+      return;
+    }
+    const maxSafeInstallment = lastMonthRevenue > 0 ? lastMonthRevenue * 0.3 : 5000;
+    const amountStr = prompt(`Valor do empréstimo (R$):\nLembre-se: sua parcela não pode exceder R$ ${maxSafeInstallment.toFixed(2)}`, '5000');
+    const amount = Number(amountStr);
     if (!isNaN(amount) && amount > 0) {
-      takeLoan(amount);
+      const installmentsStr = prompt('Em quantas parcelas? (Ex: 12, 24, 36)', '12');
+      const installments = Number(installmentsStr);
+      if (!isNaN(installments) && installments > 0) {
+        takeLoan(amount, installments);
+      }
     }
   };
 
+  const handlePayInstallment = () => {
+    if (money < loanInstallment) {
+      alert('Você não tem dinheiro suficiente para pagar a parcela!');
+      return;
+    }
+    payInstallment();
+  };
+
   const handlePayLoan = () => {
-    const amount = Number(prompt(`Valor para amortizar (Saldo: R$ ${money.toFixed(2)}, Dívida: R$ ${bankLoan.toFixed(2)}):`, bankLoan.toFixed(2)));
+    const amount = Number(prompt(`Valor para amortizar do saldo total (Saldo da conta: R$ ${money.toFixed(2)}, Dívida Total: R$ ${bankLoan.toFixed(2)}):`, bankLoan.toFixed(2)));
     if (!isNaN(amount) && amount > 0) {
       payLoan(amount);
     }
@@ -86,18 +111,51 @@ export default function FinancePage() {
             </p>
           </div>
 
-          <div className="bg-zinc-900 p-6 rounded-xl shadow-lg border border-zinc-800 text-white relative overflow-hidden">
-            <div className="flex items-center gap-3 mb-2 relative z-10">
-              <DollarSign size={20} className="text-amber-400" />
-              <h3 className="text-lg font-medium text-zinc-300">Banco do Brasil (PRONAF)</h3>
+          <div className={`p-6 rounded-xl shadow-lg border relative overflow-hidden ${bankLoan > 0 ? (missedPayments > 0 ? 'bg-red-900 border-red-800' : 'bg-zinc-900 border-zinc-800') : 'bg-zinc-900 border-zinc-800'} text-white`}>
+            <div className="flex items-center justify-between mb-2 relative z-10">
+              <div className="flex items-center gap-3">
+                <DollarSign size={20} className={missedPayments > 0 ? "text-red-400" : "text-amber-400"} />
+                <h3 className="text-lg font-medium text-zinc-300">Banco do Brasil (PRONAF)</h3>
+              </div>
+              {missedPayments > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">Atrasado!</span>}
             </div>
-            <p className="text-3xl font-bold text-amber-400 relative z-10">R$ {bankLoan.toFixed(2)}</p>
-            <p className="text-xs text-amber-500/80 mb-3 relative z-10">Juros: 5.5% a.a.</p>
-            <div className="mt-2 flex gap-2 relative z-10">
-              <button onClick={handleTakeLoan} className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-bold py-2 rounded transition-colors border border-amber-500/30">Pegar</button>
-              <button onClick={handlePayLoan} disabled={bankLoan <= 0} className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-sm font-bold py-2 rounded transition-colors border border-emerald-500/30 disabled:opacity-50">Pagar</button>
+            
+            <p className={`text-3xl font-bold relative z-10 ${missedPayments > 0 ? "text-red-400" : "text-amber-400"}`}>R$ {bankLoan.toFixed(2)}</p>
+            
+            {bankLoan > 0 ? (
+              <div className="mt-2 text-sm text-zinc-400 relative z-10">
+                <div className="flex justify-between">
+                  <span>Parcela Mensal:</span>
+                  <span className="font-bold text-zinc-200">R$ {loanInstallment.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Vencimento:</span>
+                  <span className={`font-bold ${currentDay > nextLoanPaymentDay ? 'text-red-400' : 'text-zinc-200'}`}>
+                    Dia {nextLoanPaymentDay} {currentDay > nextLoanPaymentDay && `(${currentDay - nextLoanPaymentDay} dias atraso)`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Restantes:</span>
+                  <span className="font-bold text-zinc-200">{loanInstallmentsRemaining}x</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-amber-500/80 mb-3 relative z-10 mt-2">Limite Pré-Aprovado: R$ {lastMonthRevenue > 0 ? (lastMonthRevenue * 0.3 * 12).toFixed(2) : '60000.00'}</p>
+            )}
+
+            <div className="mt-4 flex gap-2 relative z-10">
+              {!bankLoan ? (
+                <button onClick={handleTakeLoan} className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-bold py-2 rounded transition-colors border border-amber-500/30">Solicitar Empréstimo</button>
+              ) : (
+                <>
+                  <button onClick={handlePayInstallment} disabled={currentDay < nextLoanPaymentDay - 15} className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-bold py-2 rounded transition-colors border border-amber-500/30 disabled:opacity-50" title="Pagar Parcela">
+                    Pagar Parcela
+                  </button>
+                  <button onClick={handlePayLoan} className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-sm font-bold py-2 rounded transition-colors border border-emerald-500/30">Amortizar</button>
+                </>
+              )}
             </div>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+            <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none ${missedPayments > 0 ? 'bg-red-500/10' : 'bg-amber-500/10'}`}></div>
           </div>
         </div>
       </section>

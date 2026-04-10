@@ -65,6 +65,10 @@ export const useGameStore = create<GameState>((set) => ({
   level: 1,
   xp: 0,
   bankLoan: 0,
+  loanInstallment: 0,
+  loanInstallmentsRemaining: 0,
+  nextLoanPaymentDay: 0,
+  missedPayments: 0,
   dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)),
   marketPrices: {
     egg: EGG_PRICE,
@@ -88,6 +92,8 @@ export const useGameStore = create<GameState>((set) => ({
   financialBuffDays: 0,
   totalProfit: 0,
   totalExpenses: 0,
+  currentMonthRevenue: 0,
+  lastMonthRevenue: 0,
   detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
   history: [],
   activeEvent: null,
@@ -124,6 +130,10 @@ export const useGameStore = create<GameState>((set) => ({
       level: 1,
       xp: 0,
       bankLoan: 0,
+      loanInstallment: 0,
+      loanInstallmentsRemaining: 0,
+      nextLoanPaymentDay: 0,
+      missedPayments: 0,
       dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)),
       marketPrices: {
         egg: EGG_PRICE * region.productSaleModifier,
@@ -270,6 +280,8 @@ export const useGameStore = create<GameState>((set) => ({
                 totalFeedConsumed: 0,
                 mortalityCount: 0,
                 activeDisease: null,
+                vaccineProtectionDays: 0,
+                hygieneLevel: 100,
               }
             };
           }
@@ -291,6 +303,7 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         money: state.money + revenue,
         totalProfit: state.totalProfit + revenue,
+        currentMonthRevenue: state.currentMonthRevenue + revenue,
         products: {
           ...state.products,
           eggs: state.products.eggs - quantity
@@ -349,6 +362,7 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         money: state.money + revenue,
         totalProfit: state.totalProfit + revenue,
+        currentMonthRevenue: state.currentMonthRevenue + revenue,
         barns: newBarns,
         history: historyEntry ? [...state.history, historyEntry] : state.history,
         products: {
@@ -392,6 +406,7 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         money: state.money + revenue,
         totalProfit: state.totalProfit + revenue,
+        currentMonthRevenue: state.currentMonthRevenue + revenue,
         barns: newBarns,
         history: historyEntry ? [...state.history, historyEntry] : state.history,
       };
@@ -473,11 +488,36 @@ export const useGameStore = create<GameState>((set) => ({
     let currentLoan = state.bankLoan;
     let currentFeedPriceHistory = [...state.feedPriceHistory];
     let currentFinancialBuff = state.financialBuffDays;
+    let currentMonthRev = state.currentMonthRevenue;
+    let lastMonthRev = state.lastMonthRevenue;
+    
+    let currentLoanInstallment = state.loanInstallment;
+    let currentLoanInstallmentsRemaining = state.loanInstallmentsRemaining;
+    let currentNextLoanPaymentDay = state.nextLoanPaymentDay;
+    let currentMissedPayments = state.missedPayments;
+    let penaltyApplied = 0;
 
     for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
       
+      // Fechamento do mês (a cada 30 dias)
+      if (currentDay % 30 === 0) {
+        lastMonthRev = currentMonthRev;
+        currentMonthRev = 0;
+      }
+      
+      // Verificação de Atraso do Empréstimo
+      if (currentLoan > 0 && currentNextLoanPaymentDay > 0 && currentDay > currentNextLoanPaymentDay) {
+        // Atrasou a parcela
+        currentMissedPayments += 1;
+        currentNextLoanPaymentDay += 30; // Joga pra frente
+        // Multa de 2% sobre o saldo devedor + Juros moratórios pesados
+        const penalty = currentLoan * 0.02;
+        currentLoan += penalty;
+        penaltyApplied += penalty;
+      }
+
       if (currentFinancialBuff > 0) currentFinancialBuff -= 1;
 
       // Despesas com funcionários e Buffs
@@ -728,6 +768,7 @@ export const useGameStore = create<GameState>((set) => ({
           });
         }
 
+        const diseaseSpikeMod = currentEvent?.effectType === 'DISEASE_SPIKE' ? currentEvent.severity : 1;
         // Doenças Aleatórias
         if (!newBatch.activeDisease) {
           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
@@ -764,8 +805,6 @@ export const useGameStore = create<GameState>((set) => ({
              eventMortal = currentEvent.severity;
            }
         }
-
-        const diseaseSpikeMod = currentEvent?.effectType === 'DISEASE_SPIKE' ? currentEvent.severity : 1;
 
         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
@@ -828,6 +867,12 @@ export const useGameStore = create<GameState>((set) => ({
       currentDay,
       money,
       bankLoan: currentLoan,
+      loanInstallment: currentLoanInstallment,
+      loanInstallmentsRemaining: currentLoanInstallmentsRemaining,
+      nextLoanPaymentDay: currentNextLoanPaymentDay,
+      missedPayments: currentMissedPayments,
+      currentMonthRevenue: currentMonthRev,
+      lastMonthRevenue: lastMonthRev,
       totalExpenses,
       detailedExpenses,
       marketPrices: currentMarketPrices,
@@ -873,22 +918,67 @@ export const useGameStore = create<GameState>((set) => ({
     return {
       money: newMoney,
       totalProfit: state.totalProfit + mission.rewardMoney,
+      currentMonthRevenue: state.currentMonthRevenue + mission.rewardMoney,
       products: newProducts,
       activeMissions: state.activeMissions.map(m => m.id === missionId ? { ...m, completed: true } : m),
     };
   }),
 
-  takeLoan: (amount) => set((state) => ({
-    money: state.money + amount,
-    bankLoan: state.bankLoan + amount
-  })),
+  takeLoan: (amount, installments) => set((state) => {
+    // Validação de faturamento mensal: A parcela não pode exceder 30% do faturamento do último mês
+    // Se for o primeiro mês (lastMonthRevenue = 0), permite um valor base de empréstimo.
+    const interestRate = 0.055; // 5.5%
+    const totalToPay = amount * (1 + interestRate);
+    const installmentValue = totalToPay / installments;
+    
+    const allowedInstallment = state.lastMonthRevenue > 0 ? state.lastMonthRevenue * 0.3 : 5000;
+    
+    if (installmentValue > allowedInstallment) {
+      alert(`Empréstimo negado! A parcela de R$ ${installmentValue.toFixed(2)} excede seu limite seguro baseado no faturamento do último mês (R$ ${state.lastMonthRevenue.toFixed(2)}).`);
+      return state;
+    }
+
+    return {
+      money: state.money + amount,
+      bankLoan: state.bankLoan + totalToPay,
+      loanInstallment: installmentValue,
+      loanInstallmentsRemaining: installments,
+      nextLoanPaymentDay: state.currentDay + 30
+    };
+  }),
+
+  payInstallment: () => set((state) => {
+    if (state.loanInstallmentsRemaining <= 0 || state.money < state.loanInstallment) return state;
+
+    const remaining = state.loanInstallmentsRemaining - 1;
+    let newLoan = state.bankLoan - state.loanInstallment;
+    if (newLoan < 0) newLoan = 0;
+
+    return {
+      money: state.money - state.loanInstallment,
+      bankLoan: remaining === 0 ? 0 : newLoan,
+      loanInstallmentsRemaining: remaining,
+      nextLoanPaymentDay: remaining > 0 ? state.currentDay + 30 : 0,
+      loanInstallment: remaining === 0 ? 0 : state.loanInstallment,
+      missedPayments: 0, // Reseta multas se pagou a parcela (ou poderia manter)
+      totalExpenses: state.totalExpenses + state.loanInstallment
+    };
+  }),
 
   payLoan: (amount) => set((state) => {
     const actualAmount = Math.min(amount, state.bankLoan, state.money);
     if (actualAmount <= 0) return state;
+    
+    const newLoan = state.bankLoan - actualAmount;
+    
     return {
       money: state.money - actualAmount,
-      bankLoan: state.bankLoan - actualAmount
+      bankLoan: newLoan,
+      // Se quitou tudo, reseta as configurações do empréstimo
+      loanInstallment: newLoan <= 0 ? 0 : state.loanInstallment,
+      loanInstallmentsRemaining: newLoan <= 0 ? 0 : state.loanInstallmentsRemaining,
+      nextLoanPaymentDay: newLoan <= 0 ? 0 : state.nextLoanPaymentDay,
+      totalExpenses: state.totalExpenses + actualAmount
     };
   }),
 
@@ -953,7 +1043,7 @@ export const useGameStore = create<GameState>((set) => ({
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
-        barns: state.barns.map(barn => barn.batch ? { ...barn, batch: { ...barn.batch, activeDisease: null } } : barn)
+        barns: state.barns.map((barn): Barn => barn.batch ? { ...barn, batch: { ...barn.batch, activeDisease: null } } : barn)
       };
     }
     return state;
