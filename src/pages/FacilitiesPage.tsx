@@ -96,6 +96,8 @@ export default function FacilitiesPage() {
         sanitaryVoidDays: 0,
         batch: null,
         selectedFeedId: 'feed_basic',
+        siloBalance: 0,
+        siloCapacity: model.size === 'PEQUENO' ? 5000 : model.size === 'MEDIO' ? 10000 : 20000,
       };
       buyBarn(newBarn, cost);
     }
@@ -118,6 +120,8 @@ export default function FacilitiesPage() {
         sanitaryVoidDays: 0,
         batch: null,
         selectedFeedId: 'feed_basic',
+        siloBalance: 0,
+        siloCapacity: 10000,
       };
       buyBarn(newBarn, initialDeposit);
     }

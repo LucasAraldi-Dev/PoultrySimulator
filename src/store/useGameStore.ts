@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
-import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS } from './constants';
+import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS, RESEARCHES } from './constants';
 import { getGameMonth } from '../lib/utils';
 
 const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
@@ -84,6 +84,8 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       dailyCost: 10 * landMod,
       isRented: false,
       sanitaryVoidDays: 0,
+      siloBalance: 0,
+      siloCapacity: 5000,
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -109,6 +111,8 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     dailyCost: 15 * landMod,
     isRented: false,
     sanitaryVoidDays: 0,
+    siloBalance: 0,
+    siloCapacity: 10000,
     batch: {
       id: 'batch_1',
       animalCount: 1000,
@@ -131,6 +135,7 @@ export const useGameStore = create<GameState>((set) => ({
   currentDay: 0, // starts at 0 to prevent running before init
   level: 1,
   xp: 0,
+  unlockedResearches: [],
   bankLoan: 0,
   loanInstallment: 0,
   loanInstallmentsRemaining: 0,
@@ -219,6 +224,7 @@ export const useGameStore = create<GameState>((set) => ({
         { itemId: 'parts', quantity: 5 }
       ],
       pendingDeliveries: [],
+      unlockedResearches: [],
       ownedMachinery: [],
       employees: [],
       products: { eggs: 0, meat: 0 },
@@ -921,36 +927,17 @@ export const useGameStore = create<GameState>((set) => ({
           }
         }
         
-        // Procura ração no inventário (prioridade para a selecionada, mas usa outras se faltar)
+        // Procura ração no SILO do galpão
         let feedFed = 0;
         let usedFeedId = barn.selectedFeedId || 'feed_basic';
         
-        // Tenta achar a selecionada primeiro
-        const selectedFeedIdx = currentInventory.findIndex(i => i.itemId === usedFeedId);
-        if (selectedFeedIdx >= 0 && currentInventory[selectedFeedIdx].quantity > 0) {
-          if (currentInventory[selectedFeedIdx].quantity >= dailyFeedNeeded) {
-            currentInventory[selectedFeedIdx].quantity -= dailyFeedNeeded;
+        if (barn.siloBalance > 0) {
+          if (barn.siloBalance >= dailyFeedNeeded) {
+            barn.siloBalance -= dailyFeedNeeded;
             feedFed = dailyFeedNeeded;
           } else {
-            feedFed += currentInventory[selectedFeedIdx].quantity;
-            currentInventory[selectedFeedIdx].quantity = 0;
-          }
-        }
-
-        // Se ainda faltar, pega a próxima disponível
-        if (feedFed < dailyFeedNeeded) {
-          for (let i = 0; i < currentInventory.length; i++) {
-            if (currentInventory[i].quantity > 0 && feedFed < dailyFeedNeeded) {
-              const needed = dailyFeedNeeded - feedFed;
-              usedFeedId = currentInventory[i].itemId; // Muda para a que está comendo
-              if (currentInventory[i].quantity >= needed) {
-                currentInventory[i].quantity -= needed;
-                feedFed += needed;
-              } else {
-                feedFed += currentInventory[i].quantity;
-                currentInventory[i].quantity = 0;
-              }
-            }
+            feedFed = barn.siloBalance;
+            barn.siloBalance = 0;
           }
         }
 
@@ -958,6 +945,31 @@ export const useGameStore = create<GameState>((set) => ({
         
         const feedData = FEEDS[usedFeedId] || FEEDS['feed_basic'];
         const starved = feedFed < dailyFeedNeeded;
+
+        // Penalidade por Ração Incorreta (Tipo ou Fase)
+        let feedTypePenalty = 1.0;
+        let feedPhasePenalty = 1.0;
+
+        if (barn.type === 'CORTE' && usedFeedId.includes('layers')) {
+          feedTypePenalty = 0.5; // Cresce 50% menos se comer ração de postura
+        } else if (barn.type === 'POSTURA' && (usedFeedId.includes('broiler') || usedFeedId.includes('terminacao'))) {
+          feedTypePenalty = 0.3; // Bota 70% menos ovo se comer ração de engorda (fica gorda e não bota)
+        }
+
+        // Penalidade por fase de idade
+        if (barn.type === 'CORTE') {
+          if (newBatch.ageDays <= 21 && usedFeedId === 'feed_terminacao') {
+            feedPhasePenalty = 0.7; // Ração muito grossa para pintinho
+          } else if (newBatch.ageDays > 21 && usedFeedId === 'feed_broiler_pre') {
+            feedPhasePenalty = 0.8; // Ração pré-inicial não dá conta do frango grande
+          }
+        } else if (barn.type === 'POSTURA') {
+          if (newBatch.ageDays < 120 && (usedFeedId === 'feed_layers' || usedFeedId === 'feed_layers_premium')) {
+            feedPhasePenalty = 0.6; // Muito cálcio para franga jovem, danifica os rins
+          } else if (newBatch.ageDays >= 120 && usedFeedId === 'feed_layers_start') {
+            feedPhasePenalty = 0.4; // Falta cálcio para botar ovo
+          }
+        }
 
         // Consumo de Gás para Aquecimento (Pintinhos até 14 dias)
         let missingGas = false;
@@ -1052,7 +1064,7 @@ export const useGameStore = create<GameState>((set) => ({
 
         if (barn.type === 'POSTURA' && newBatch.ageDays >= 120) {
           if (!starved) {
-            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus);
+            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty;
             // Reduz drasticamente a postura se passar da idade máxima
             if (newBatch.ageDays > 600) {
               postureRate *= 0.1; // 90% de queda na postura
@@ -1067,7 +1079,7 @@ export const useGameStore = create<GameState>((set) => ({
           if (!starved) {
             // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
             // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
-            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus); 
+            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty; 
             // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
             // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
             const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
@@ -1209,8 +1221,23 @@ export const useGameStore = create<GameState>((set) => ({
     };
   }),
 
+  unlockResearch: (researchId) => set((state) => {
+    const r = RESEARCHES[researchId];
+    if (!r || state.unlockedResearches.includes(researchId)) return state;
+    if (state.money >= r.costMoney && state.xp >= r.costXP) {
+      return {
+        money: state.money - r.costMoney,
+        xp: state.xp - r.costXP,
+        totalExpenses: state.totalExpenses + r.costMoney,
+        unlockedResearches: [...state.unlockedResearches, researchId]
+      };
+    }
+    return state;
+  }),
+
   vaccinateBatch: (barnId, cost) => set((state) => {
     if (state.money >= cost) {
+      const duration = state.unlockedResearches.includes('hea_2') ? 25 : 15;
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
@@ -1218,7 +1245,7 @@ export const useGameStore = create<GameState>((set) => ({
           if (barn.id === barnId && barn.batch) {
             return {
               ...barn,
-              batch: { ...barn.batch, vaccineProtectionDays: 15 } // 15 dias de proteção
+              batch: { ...barn.batch, vaccineProtectionDays: duration }
             };
           }
           return barn;
@@ -1345,6 +1372,29 @@ export const useGameStore = create<GameState>((set) => ({
   selectFeed: (barnId, feedId) => set((state) => ({
     barns: state.barns.map(barn => barn.id === barnId ? { ...barn, selectedFeedId: feedId } : barn)
   })),
+
+  fillSilo: (barnId, amountKg) => set((state) => {
+    const barn = state.barns.find(b => b.id === barnId);
+    if (!barn) return state;
+
+    const spaceLeft = barn.siloCapacity - barn.siloBalance;
+    const actualAmount = Math.min(amountKg, spaceLeft);
+    if (actualAmount <= 0) return state;
+
+    const feedIdx = state.inventory.findIndex(i => i.itemId === barn.selectedFeedId);
+    if (feedIdx < 0 || state.inventory[feedIdx].quantity < actualAmount) {
+      alert(`Quantidade insuficiente de ${FEEDS[barn.selectedFeedId]?.name} no estoque geral!`);
+      return state;
+    }
+
+    const newInventory = [...state.inventory];
+    newInventory[feedIdx].quantity -= actualAmount;
+
+    return {
+      inventory: newInventory,
+      barns: state.barns.map(b => b.id === barnId ? { ...b, siloBalance: b.siloBalance + actualAmount } : b)
+    };
+  }),
 
   startTask: (taskId) => set((state) => ({
     dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)

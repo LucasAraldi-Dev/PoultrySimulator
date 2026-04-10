@@ -88,6 +88,8 @@ export interface Barn {
   isRented: boolean; // Indica se é alugado
   sanitaryVoidDays: number; // Dias restantes de vazio sanitário (0 = liberado)
   selectedFeedId: string; // Ração selecionada para o galpão
+  siloBalance: number; // kg de ração no silo do galpão
+  siloCapacity: number; // kg máximos que o silo aguenta
 }
 
 export interface InventoryItem {
@@ -196,6 +198,10 @@ export interface GameState {
   currentDay: number;
   level: number;
   xp: number;
+
+  // Research
+  unlockedResearches: string[];
+  unlockResearch: (researchId: string) => void;
   
   // Bank Loan
   bankLoan: number;
@@ -282,6 +288,7 @@ export interface GameState {
   
   // Feed Management
   selectFeed: (barnId: string, feedId: string) => void;
+  fillSilo: (barnId: string, amountKg: number) => void;
   
   // Novas Ações - Fábrica
   buildFeedMill: (cost: number) => void;

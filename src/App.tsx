@@ -8,6 +8,7 @@ import MarketPage from './pages/MarketPage';
 import FacilitiesPage from './pages/FacilitiesPage';
 import FinancePage from './pages/FinancePage';
 import RHPage from './pages/RHPage';
+import { ResearchPage } from './pages/ResearchPage';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -24,6 +25,7 @@ function AnimatedRoutes() {
           <Route path="/fabricas" element={<FacilitiesPage />} />
           <Route path="/financas" element={<FinancePage />} />
           <Route path="/rh" element={<RHPage />} />
+          <Route path="/research" element={<ResearchPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

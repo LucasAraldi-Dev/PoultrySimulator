@@ -1,7 +1,24 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
-import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle, Calendar, Users } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { 
+  LayoutDashboard, 
+  Home, 
+  ShoppingCart, 
+  Settings, 
+  DollarSign, 
+  Clock, 
+  Wallet, 
+  Play, 
+  CheckSquare, 
+  Loader2, 
+  AlertCircle, 
+  Calendar, 
+  Users, 
+  Microscope,
+  Sun,
+  Moon
+} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatGameDate } from '../lib/utils';
 
@@ -21,6 +38,27 @@ export default function GameLayout() {
   const [isAnimatingDay, setIsAnimatingDay] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [moneyChanges, setMoneyChanges] = useState<{id: number, val: number, x: number, y: number}[]>([]);
+  const prevMoney = useRef(money);
+
+  useEffect(() => {
+    if (prevMoney.current !== money) {
+      const diff = money - prevMoney.current;
+      if (Math.abs(diff) > 1) { // Ignore tiny changes
+        const newChange = {
+          id: Date.now() + Math.random(),
+          val: diff,
+          x: Math.random() * 60 - 30, // Random X offset
+          y: Math.random() * 20 - 10,
+        };
+        setMoneyChanges(prev => [...prev, newChange]);
+        setTimeout(() => {
+          setMoneyChanges(prev => prev.filter(c => c.id !== newChange.id));
+        }, 2000);
+      }
+      prevMoney.current = money;
+    }
+  }, [money]);
 
   // Force re-render for active timers
   useEffect(() => {
@@ -75,6 +113,7 @@ export default function GameLayout() {
     { to: '/fabricas', icon: Settings, label: 'Fábricas' },
     { to: '/rh', icon: Users, label: 'RH/Consultoria' },
     { to: '/financas', icon: DollarSign, label: 'Finanças' },
+    { to: '/research', icon: Microscope, label: 'Pesquisas' },
   ];
 
   return (
@@ -86,18 +125,36 @@ export default function GameLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900 text-white"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-zinc-950"
           >
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.2, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-center flex flex-col items-center"
+            {/* Stars background */}
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
+            
+            <motion.div
+              initial={{ y: 200, opacity: 0, rotate: -45 }}
+              animate={{ y: 0, opacity: 1, rotate: 0 }}
+              exit={{ y: -200, opacity: 0, rotate: 45 }}
+              transition={{ duration: 0.8, ease: "backInOut" }}
+              className="absolute"
             >
-              <Clock size={64} className="mb-4 animate-spin-slow text-indigo-400" style={{ animationDuration: '3s' }} />
-              <h2 className="text-4xl font-bold mb-2">Fim do Dia {currentDay}</h2>
-              <p className="text-xl text-zinc-400">Processando vendas, consumo de ração e crescimento...</p>
+              <Moon size={120} className="text-indigo-300 drop-shadow-[0_0_15px_rgba(165,180,252,0.6)]" />
+            </motion.div>
+
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 1.1, opacity: 0, y: -50 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-center flex flex-col items-center relative z-10"
+            >
+              <h2 className="text-5xl font-black mb-3 text-white tracking-tight drop-shadow-md">
+                Dia {currentDay}
+              </h2>
+              <div className="h-1 w-24 bg-indigo-500 rounded-full mb-4"></div>
+              <p className="text-lg text-indigo-200 font-medium tracking-wide">
+                A noite cai na granja...
+              </p>
             </motion.div>
           </motion.div>
         )}
@@ -159,7 +216,21 @@ export default function GameLayout() {
 
             <div className="flex gap-2 items-center justify-end w-1/2">
               <div className="flex flex-col items-end">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base relative">
+                  <AnimatePresence>
+                    {moneyChanges.map((change) => (
+                      <motion.div
+                        key={change.id}
+                        initial={{ opacity: 1, y: 0, x: change.x, scale: 0.5 }}
+                        animate={{ opacity: 0, y: -50, scale: 1.2 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className={`absolute left-0 right-0 text-center pointer-events-none font-black text-lg drop-shadow-md z-50 ${change.val > 0 ? 'text-emerald-600' : 'text-red-600'}`}
+                      >
+                        {change.val > 0 ? '+' : '-'} R$ {Math.abs(change.val).toFixed(2)}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                   <Wallet size={18} />
                   R$ {money.toFixed(2)}
                 </div>

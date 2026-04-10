@@ -47,15 +47,14 @@ export default function BarnsPage() {
 
   return (
     <PageTransition className="space-y-6">
-      {/* Alerta de Alimentação Automática */}
-      <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex gap-3 text-blue-800">
+      {/* Alerta de Alimentação Manual no Silo */}
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3 text-amber-800">
         <Info className="shrink-0" />
         <div>
-          <p className="font-bold">Alimentação Automática</p>
+          <p className="font-bold">Manejo de Ração (Silo)</p>
           <p className="text-sm mt-1">
-            Suas aves consomem a ração do estoque central automaticamente cada vez que você clica em <strong>Passar Dia</strong>. 
-            Você possui <strong>{totalFeed.toFixed(1)} kg</strong> de ração no momento. 
-            Mantenha o estoque cheio para evitar mortalidade!
+            As aves se alimentam do <strong>Silo do Galpão</strong>. Se o silo esvaziar, as aves começam a morrer de fome! 
+            Lembre-se de transferir a ração correta do Estoque Geral para o Silo de cada galpão.
           </p>
         </div>
       </div>
@@ -166,18 +165,31 @@ export default function BarnsPage() {
                   </div>
                   
                   {/* Controles de Lote */}
-                  <div className="col-span-2 md:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Ração do Galpão</label>
-                      <select 
-                        value={barn.selectedFeedId || 'feed_basic'}
-                        onChange={(e) => selectFeed(barn.id, e.target.value)}
-                        className="w-full p-2 rounded border border-zinc-300 text-sm focus:ring-2 focus:ring-indigo-500"
-                      >
-                        {Object.values(FEEDS).map(feed => (
-                          <option key={feed.id} value={feed.id}>{feed.name}</option>
-                        ))}
-                      </select>
+                  <div className="col-span-2 md:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-2 flex flex-col justify-between">
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Ração no Silo ({barn.siloBalance.toFixed(0)} kg / {barn.siloCapacity} kg)</label>
+                      <div className="flex gap-2">
+                        <select 
+                          value={barn.selectedFeedId || 'feed_basic'}
+                          onChange={(e) => selectFeed(barn.id, e.target.value)}
+                          className="flex-1 p-2 rounded border border-zinc-300 text-sm focus:ring-2 focus:ring-indigo-500"
+                        >
+                          {Object.values(FEEDS).map(feed => (
+                            <option key={feed.id} value={feed.id}>{feed.name}</option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => {
+                            const amount = Number(prompt(`Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} transferir do estoque geral para o silo? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
+                            if (!isNaN(amount) && amount > 0) {
+                              useGameStore.getState().fillSilo(barn.id, amount);
+                            }
+                          }}
+                          className="px-3 py-2 bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 rounded font-bold text-sm"
+                        >
+                          Abastecer
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex flex-col justify-end">
