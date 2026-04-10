@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { GameState, Barn, Batch, Disease } from './types';
-import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS } from './constants';
+import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS } from './constants';
 
 const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
   const landMod = REGIONS[regionId]?.landCostModifier || 1;
@@ -64,7 +64,7 @@ export const useGameStore = create<GameState>((set) => ({
   level: 1,
   xp: 0,
   bankLoan: 0,
-  tasksCompleted: false,
+  dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)),
   marketPrices: {
     egg: EGG_PRICE,
     meat: MEAT_PRICE_PER_KG,
@@ -120,7 +120,7 @@ export const useGameStore = create<GameState>((set) => ({
       level: 1,
       xp: 0,
       bankLoan: 0,
-      tasksCompleted: false,
+      dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)),
       marketPrices: {
         egg: EGG_PRICE * region.productSaleModifier,
         meat: MEAT_PRICE_PER_KG * region.productSaleModifier,
@@ -285,6 +285,7 @@ export const useGameStore = create<GameState>((set) => ({
   sellBatch: (barnId, pricePerKg, isProcessed = false) => set((state) => {
     let revenue = 0;
     let historyEntry = null;
+    let addedMeat = 0;
 
     const newBarns = state.barns.map(barn => {
       if (barn.id === barnId && barn.batch && barn.type === 'CORTE') {
@@ -299,6 +300,7 @@ export const useGameStore = create<GameState>((set) => ({
         }
 
         revenue = totalKg * finalPrice;
+        addedMeat = totalKg;
 
         historyEntry = {
           id: barn.batch.id,
@@ -326,6 +328,10 @@ export const useGameStore = create<GameState>((set) => ({
         totalProfit: state.totalProfit + revenue,
         barns: newBarns,
         history: historyEntry ? [...state.history, historyEntry] : state.history,
+        products: {
+          ...state.products,
+          meat: state.products.meat + addedMeat
+        }
       };
     }
     return state;
@@ -434,7 +440,19 @@ export const useGameStore = create<GameState>((set) => ({
         // money -= interest;
       }
 
-      // Dá XP a cada dia passado
+      // Analisa tarefas diárias não feitas e aplica penalidades
+      let diseasePenalty = 1;
+      let growthPenalty = 1;
+      let mortalityPenalty = 1;
+      
+      state.dailyTasks.forEach(task => {
+        if (!task.completed) {
+          if (task.effectType === 'DISEASE') diseasePenalty *= 1.5; // +50% chance
+          if (task.effectType === 'GROWTH') growthPenalty *= 0.9; // -10% growth
+          if (task.effectType === 'MORTALITY') mortalityPenalty *= 2.0; // +100% mortality
+        }
+      });
+      
       state.addXp(10);
       
       // Update missions
@@ -443,21 +461,51 @@ export const useGameStore = create<GameState>((set) => ({
 
       // Chance de nova missão (5% por dia se tiver menos de 3)
       if (newMissions.length < 3 && Math.random() < 0.05) {
-        const targetEggs = 1000 * state.level;
-        const rewardMoney = targetEggs * EGG_PRICE * 1.5; // Paga bem mais
-        newMissions.push({
-          id: `mission_${Date.now()}_${Math.random()}`,
-          title: `Demanda Urgente de Ovos`,
-          description: `Um supermercado local precisa de ${targetEggs.toLocaleString()} ovos. Paga 50% acima do mercado!`,
-          type: 'DELIVER_EGGS',
-          targetAmount: targetEggs,
-          currentAmount: 0,
-          rewardMoney,
-          rewardXp: 500 * state.level,
-          deadlineDays: 7,
-          daysPassed: 0,
-          completed: false
-        });
+        const hasLayers = state.barns.some(b => b.type === 'POSTURA');
+        const hasBroilers = state.barns.some(b => b.type === 'CORTE');
+        
+        let missionType: 'EGGS' | 'MEAT' | null = null;
+        if (hasLayers && hasBroilers) {
+          missionType = Math.random() > 0.5 ? 'EGGS' : 'MEAT';
+        } else if (hasLayers) {
+          missionType = 'EGGS';
+        } else if (hasBroilers) {
+          missionType = 'MEAT';
+        }
+
+        if (missionType === 'EGGS') {
+          const targetEggs = 1000 * state.level;
+          const rewardMoney = targetEggs * EGG_PRICE * 1.5; // Paga bem mais
+          newMissions.push({
+            id: `mission_${Date.now()}_${Math.random()}`,
+            title: `Demanda Urgente de Ovos`,
+            description: `Um supermercado local precisa de ${targetEggs.toLocaleString()} ovos. Paga 50% acima do mercado!`,
+            type: 'DELIVER_EGGS',
+            targetAmount: targetEggs,
+            currentAmount: 0,
+            rewardMoney,
+            rewardXp: 500 * state.level,
+            deadlineDays: 7,
+            daysPassed: 0,
+            completed: false
+          });
+        } else if (missionType === 'MEAT') {
+          const targetMeatKg = 500 * state.level;
+          const rewardMoney = targetMeatKg * MEAT_PRICE_PER_KG * 1.5;
+          newMissions.push({
+            id: `mission_${Date.now()}_${Math.random()}`,
+            title: `Falta de Frango no Mercado`,
+            description: `Um frigorífico está desesperado por ${targetMeatKg.toLocaleString()} kg de frango vivo. Pagamento premium garantido!`,
+            type: 'DELIVER_MEAT',
+            targetAmount: targetMeatKg,
+            currentAmount: 0,
+            rewardMoney,
+            rewardXp: 500 * state.level,
+            deadlineDays: 7,
+            daysPassed: 0,
+            completed: false
+          });
+        }
       }
 
       if (Math.random() < 0.02) { // 2% chance per day
@@ -543,8 +591,20 @@ export const useGameStore = create<GameState>((set) => ({
         let newBatch = { ...barn.batch };
         
         // Lógica de consumo de ração diária
-        // Média de 100g a 120g por ave adulta, e menos quando jovem
-        const dailyFeedNeeded = newBatch.animalCount * (barn.type === 'POSTURA' ? 0.11 : Math.min(0.15, 0.02 + (newBatch.ageDays * 0.003)));
+        let dailyFeedNeeded = 0;
+        let baseMortality = 0.001; // 0.1% normal para postura
+        let expectedWeightG = 0; // Para atualizar peso
+
+        if (barn.type === 'CORTE') {
+          const cobbData = getCobb500Data(newBatch.ageDays);
+          // O consumo é em gramas na tabela, converte para kg
+          dailyFeedNeeded = newBatch.animalCount * (cobbData.dailyFeedG / 1000);
+          baseMortality = cobbData.dailyMortalityPct / 100; // 0.1% -> 0.001
+          expectedWeightG = cobbData.weightG;
+        } else {
+          // Postura: Média de 100g a 120g por ave adulta, e menos quando jovem
+          dailyFeedNeeded = newBatch.animalCount * Math.min(0.12, 0.02 + (newBatch.ageDays * 0.001));
+        }
         
         // Procura ração no inventário (prioridade para a selecionada, mas usa outras se faltar)
         let feedFed = 0;
@@ -608,6 +668,7 @@ export const useGameStore = create<GameState>((set) => ({
         if (!newBatch.activeDisease) {
           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
+          diseaseChance *= diseasePenalty;
           
           if (newBatch.vaccineProtectionDays > 0) {
             diseaseChance *= 0.1; // 90% menos chance com vacina
@@ -650,10 +711,9 @@ export const useGameStore = create<GameState>((set) => ({
           newBatch.mortalityCount += dead;
         } else {
           // Mortalidade normal reduzida pelo bônus da ração e multiplicada pela doença e eventos
-          const baseMortality = 0.001; // 0.1% normal
-          const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * diseaseMortal * eventMortal * 10;
+          const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * diseaseMortal * eventMortal * mortalityPenalty * 10;
           if (Math.random() < mortalityChance) {
-            const dead = Math.max(1, Math.floor(newBatch.animalCount * 0.001 * diseaseMortal * eventMortal));
+            const dead = Math.max(1, Math.floor(newBatch.animalCount * baseMortality * diseaseMortal * eventMortal * mortalityPenalty));
             newBatch.animalCount -= dead;
             newBatch.mortalityCount += dead;
           }
@@ -674,8 +734,15 @@ export const useGameStore = create<GameState>((set) => ({
           }
         } else if (barn.type === 'CORTE') {
           if (!starved) {
-            const weightGain = 0.08 * feedData.bonus.growthModifier * diseaseGrowth * (1 + equipmentGrowthBonus); 
-            newBatch.currentWeight += weightGain;
+            // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
+            // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
+            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus); 
+            // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
+            // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
+            const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
+            const baseGainKg = (expectedWeightG - yesterdayCobb.weightG) / 1000;
+            const actualGainKg = Math.max(0, baseGainKg * growthFactor);
+            newBatch.currentWeight += actualGainKg;
           }
         }
 
@@ -701,7 +768,7 @@ export const useGameStore = create<GameState>((set) => ({
       feedPriceHistory: currentFeedPriceHistory,
       activeEvent: currentEvent,
       activeMissions: newMissions,
-      tasksCompleted: false, // Reseta tarefas diárias
+      dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)), // Reseta tarefas diárias
       products: {
         ...state.products,
         eggs: newEggs
@@ -800,5 +867,11 @@ export const useGameStore = create<GameState>((set) => ({
     barns: state.barns.map(barn => barn.id === barnId ? { ...barn, selectedFeedId: feedId } : barn)
   })),
 
-  completeDailyTasks: () => set({ tasksCompleted: true }),
+  startTask: (taskId) => set((state) => ({
+    dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+  })),
+
+  completeTask: (taskId) => set((state) => ({
+    dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, completed: true } : t)
+  })),
 }));

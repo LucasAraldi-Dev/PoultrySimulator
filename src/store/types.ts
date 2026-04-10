@@ -158,6 +158,16 @@ export interface DailyExpenses {
   freight: number;
 }
 
+export interface DailyTask {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  startedAt: number | null; // timestamp in ms
+  completed: boolean;
+  effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
+  description: string;
+}
+
 export interface GameState {
   // Player Data
   company: Company | null;
@@ -171,7 +181,9 @@ export interface GameState {
   bankLoan: number;
   
   // Tasks
-  tasksCompleted: boolean;
+  dailyTasks: DailyTask[];
+  startTask: (taskId: string) => void;
+  completeTask: (taskId: string) => void;
   
   // Market State
   marketPrices: MarketPrices;

@@ -10,18 +10,18 @@ import FinancePage from './pages/FinancePage';
 
 function AnimatedRoutes() {
   const location = useLocation();
-  
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<StartPage />} />
-        
+
         <Route element={<GameLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/barns" element={<BarnsPage />} />
-          <Route path="/market" element={<MarketPage />} />
-          <Route path="/facilities" element={<FacilitiesPage />} />
-          <Route path="/finance" element={<FinancePage />} />
+          <Route path="/painel" element={<Dashboard />} />
+          <Route path="/galpoes" element={<BarnsPage />} />
+          <Route path="/mercado" element={<MarketPage />} />
+          <Route path="/fabricas" element={<FacilitiesPage />} />
+          <Route path="/financas" element={<FinancePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
