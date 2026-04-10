@@ -61,6 +61,8 @@ export interface Batch {
   totalFeedConsumed: number;
   mortalityCount: number;
   activeDisease: Disease | null; // Doença ativa no lote
+  vaccineProtectionDays: number; // Dias restantes de proteção da vacina
+  hygieneLevel: number; // Nível de higiene do lote (0-100)
 }
 
 export interface Disease {
@@ -85,6 +87,7 @@ export interface Barn {
   dailyCost: number; // Custo operacional diário
   isRented: boolean; // Indica se é alugado
   sanitaryVoidDays: number; // Dias restantes de vazio sanitário (0 = liberado)
+  selectedFeedId: string; // Ração selecionada para o galpão
 }
 
 export interface InventoryItem {
@@ -155,6 +158,16 @@ export interface DailyExpenses {
   freight: number;
 }
 
+export interface DailyTask {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  startedAt: number | null; // timestamp in ms
+  completed: boolean;
+  effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
+  description: string;
+}
+
 export interface GameState {
   // Player Data
   company: Company | null;
@@ -164,8 +177,17 @@ export interface GameState {
   level: number;
   xp: number;
   
+  // Bank Loan
+  bankLoan: number;
+  
+  // Tasks
+  dailyTasks: DailyTask[];
+  startTask: (taskId: string) => void;
+  completeTask: (taskId: string) => void;
+  
   // Market State
   marketPrices: MarketPrices;
+  feedPriceHistory: { day: number; priceModifier: number }[];
   
   // Assets
   barns: Barn[];
@@ -204,6 +226,20 @@ export interface GameState {
   resetGame: (initialChoice: 'POSTURA' | 'CORTE', companyName: string, companyColor: string, regionId: string) => void;
   addXp: (amount: number) => void;
   deliverMission: (missionId: string) => void;
+  
+  // Bank Loan
+  takeLoan: (amount: number) => void;
+  payLoan: (amount: number) => void;
+  
+  // Batch Management
+  vaccinateBatch: (barnId: string, cost: number) => void;
+  cleanBarn: (barnId: string, cost: number) => void;
+  
+  // Feed Management
+  selectFeed: (barnId: string, feedId: string) => void;
+  
+  // Daily Tasks
+  completeDailyTasks: () => void;
   
   // Novas Ações - Fábrica
   buildFeedMill: (cost: number) => void;

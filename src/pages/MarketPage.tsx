@@ -168,25 +168,35 @@ export default function MarketPage() {
 }
 
 // Componente auxiliar para não repetir o código do card
+import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
+
 function FeedCard({ feed, marketPrices, level, feedAmounts, setFeedAmounts, handleBuyFeed, money }: any) {
   const currentCost = feed.costPerKg * marketPrices.feedModifier;
-  const isLocked = level < feed.requiredLevel;
+  const feedPriceHistory = useGameStore(state => state.feedPriceHistory);
+  
+  // Historico de preço local desse card
+  const chartData = feedPriceHistory.map(h => ({
+    price: feed.costPerKg * h.priceModifier
+  }));
 
   return (
-    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between ${isLocked ? 'opacity-70' : ''}`}>
-      {isLocked && (
-        <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10">
-          <div className="bg-zinc-800 text-white text-sm font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
-            <Lock size={16} /> Nível {feed.requiredLevel}
-          </div>
-        </div>
-      )}
+    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
       <div>
         <h3 className="text-lg font-bold text-zinc-800 mb-2">{feed.name}</h3>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <p className="text-2xl font-bold text-emerald-600">R$ {currentCost.toFixed(2)}<span className="text-sm text-zinc-500 font-normal">/kg</span></p>
           {marketPrices.feedModifier > 1.1 && <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">ALTA</span>}
           {marketPrices.feedModifier < 0.9 && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">BAIXA</span>}
+        </div>
+        
+        {/* Mini Gráfico */}
+        <div className="h-12 w-full mb-4 opacity-50">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <YAxis domain={['dataMin', 'dataMax']} hide />
+              <Line type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
         
         <ul className="space-y-2 mb-6 text-sm text-zinc-600">
@@ -221,7 +231,7 @@ function FeedCard({ feed, marketPrices, level, feedAmounts, setFeedAmounts, hand
         />
         <button
           onClick={() => handleBuyFeed(feed.id)}
-          disabled={money < ((feedAmounts[feed.id] || 100) * currentCost) || isLocked}
+          disabled={money < ((feedAmounts[feed.id] || 100) * currentCost)}
           className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ShoppingCart size={18} />

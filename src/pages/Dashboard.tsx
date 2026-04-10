@@ -208,7 +208,7 @@ export default function Dashboard() {
                 <Home size={20} className="text-zinc-500" />
                 Status dos Galpões
               </h2>
-              <Link to="/barns" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+              <Link to="/galpoes" className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
                 Ver todos <ArrowRight size={16} />
               </Link>
             </div>

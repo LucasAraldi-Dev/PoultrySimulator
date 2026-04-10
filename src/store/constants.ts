@@ -4,60 +4,60 @@ export const FEEDS: Record<string, FeedItem> = {
   // Broilers
   'feed_broiler_pre': {
     id: 'feed_broiler_pre',
-    name: 'Ração Pré-Inicial (Broiler)',
+    name: 'Ração Pré-Inicial Guabi (Corte)',
     costPerKg: 3.5,
     requiredLevel: 1,
     bonus: { mortalityModifier: 0.8, growthModifier: 1.2, eggModifier: 1.0 },
   },
   'feed_basic': {
     id: 'feed_basic',
-    name: 'Ração Crescimento (Milho e Soja)',
+    name: 'Ração Crescimento BRF (Milho/Soja)',
     costPerKg: 1.5,
     requiredLevel: 1,
     bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
   },
   'feed_terminacao': {
     id: 'feed_terminacao',
-    name: 'Ração Terminação (Engorda Rápida)',
+    name: 'Ração Terminação Seara (Engorda)',
     costPerKg: 2.2,
-    requiredLevel: 3,
+    requiredLevel: 1,
     bonus: { mortalityModifier: 1.1, growthModifier: 1.3, eggModifier: 1.0 },
   },
   'feed_premium': {
     id: 'feed_premium',
-    name: 'Ração Premium Super (+ Crescimento)',
+    name: 'Ração Premium Supra (Corte)',
     costPerKg: 2.8,
-    requiredLevel: 6,
+    requiredLevel: 1,
     bonus: { mortalityModifier: 0.9, growthModifier: 1.5, eggModifier: 1.0 },
   },
   // Layers
   'feed_layers_start': {
     id: 'feed_layers_start',
-    name: 'Ração Cria e Recria (Postura)',
+    name: 'Ração Cria e Recria Presence (Postura)',
     costPerKg: 1.8,
-    requiredLevel: 2,
+    requiredLevel: 1,
     bonus: { mortalityModifier: 0.9, growthModifier: 1.1, eggModifier: 1.0 },
   },
   'feed_layers': {
     id: 'feed_layers',
-    name: 'Ração Postura Fase 1 (Alta Produção)',
+    name: 'Ração Postura Fase 1 Guabi',
     costPerKg: 2.0,
-    requiredLevel: 4,
+    requiredLevel: 1,
     bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.2 },
   },
   'feed_layers_premium': {
     id: 'feed_layers_premium',
-    name: 'Ração Postura Premium (Ovos Grandes)',
+    name: 'Ração Postura Premium Presence',
     costPerKg: 3.0,
-    requiredLevel: 8,
+    requiredLevel: 1,
     bonus: { mortalityModifier: 0.95, growthModifier: 1.0, eggModifier: 1.4 },
   },
   // Medicada
   'feed_medicada': {
     id: 'feed_medicada',
-    name: 'Ração Medicada (Alta Sobrevivência)',
+    name: 'Ração Medicada Supra (Alta Sobrevivência)',
     costPerKg: 3.5,
-    requiredLevel: 5,
+    requiredLevel: 1,
     bonus: { mortalityModifier: 0.3, growthModifier: 0.9, eggModifier: 0.9 },
   },
 };
@@ -374,6 +374,88 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     description: 'Exige Abatedouro. Logística refrigerada premium que garante +15% de receita na carne abatida.'
   }
 };
+
+// Tabela Base Cobb500 (Dias 1 a 42)
+// Referência aproximada de ganho de peso (g) e consumo diário (g)
+export const COBB500_TABLE: Record<number, { weightG: number, dailyFeedG: number, dailyMortalityPct: number }> = {
+  1: { weightG: 42, dailyFeedG: 14, dailyMortalityPct: 0.15 },
+  2: { weightG: 58, dailyFeedG: 16, dailyMortalityPct: 0.10 },
+  3: { weightG: 77, dailyFeedG: 19, dailyMortalityPct: 0.10 },
+  4: { weightG: 101, dailyFeedG: 23, dailyMortalityPct: 0.08 },
+  5: { weightG: 130, dailyFeedG: 28, dailyMortalityPct: 0.08 },
+  6: { weightG: 164, dailyFeedG: 34, dailyMortalityPct: 0.08 },
+  7: { weightG: 203, dailyFeedG: 41, dailyMortalityPct: 0.08 },
+  8: { weightG: 247, dailyFeedG: 48, dailyMortalityPct: 0.05 },
+  9: { weightG: 297, dailyFeedG: 56, dailyMortalityPct: 0.05 },
+  10: { weightG: 353, dailyFeedG: 64, dailyMortalityPct: 0.05 },
+  14: { weightG: 645, dailyFeedG: 99, dailyMortalityPct: 0.03 },
+  21: { weightG: 1318, dailyFeedG: 154, dailyMortalityPct: 0.03 },
+  28: { weightG: 2154, dailyFeedG: 197, dailyMortalityPct: 0.04 },
+  35: { weightG: 3040, dailyFeedG: 224, dailyMortalityPct: 0.05 },
+  42: { weightG: 3904, dailyFeedG: 238, dailyMortalityPct: 0.08 },
+};
+
+// Função auxiliar para interpolar dias não listados
+export const getCobb500Data = (day: number) => {
+  if (day <= 0) return COBB500_TABLE[1];
+  if (day > 42) return COBB500_TABLE[42]; // Limita a 42 dias para crescimento máximo base
+  
+  if (COBB500_TABLE[day]) return COBB500_TABLE[day];
+  
+  // Interpolação simples
+  let lowerDay = 1;
+  let upperDay = 42;
+  const days = Object.keys(COBB500_TABLE).map(Number).sort((a,b) => a - b);
+  for (let i = 0; i < days.length; i++) {
+    if (days[i] < day) lowerDay = days[i];
+    if (days[i] > day) {
+      upperDay = days[i];
+      break;
+    }
+  }
+  
+  const range = upperDay - lowerDay;
+  const progress = (day - lowerDay) / range;
+  
+  const lowerData = COBB500_TABLE[lowerDay];
+  const upperData = COBB500_TABLE[upperDay];
+  
+  return {
+    weightG: lowerData.weightG + (upperData.weightG - lowerData.weightG) * progress,
+    dailyFeedG: lowerData.dailyFeedG + (upperData.dailyFeedG - lowerData.dailyFeedG) * progress,
+    dailyMortalityPct: lowerData.dailyMortalityPct + (upperData.dailyMortalityPct - lowerData.dailyMortalityPct) * progress,
+  };
+};
+
+export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
+  {
+    id: 'clean_drinkers',
+    name: 'Limpar Bebedouros',
+    description: 'Evita a proliferação de bactérias na água.',
+    durationMinutes: 1,
+    startedAt: null,
+    completed: false,
+    effectType: 'DISEASE',
+  },
+  {
+    id: 'check_temperature',
+    name: 'Checar Climatização',
+    description: 'Ajusta a temperatura para o conforto térmico ideal.',
+    durationMinutes: 2,
+    startedAt: null,
+    completed: false,
+    effectType: 'GROWTH',
+  },
+  {
+    id: 'remove_dead',
+    name: 'Retirar Aves Mortas',
+    description: 'Evita contaminação do lote e doenças.',
+    durationMinutes: 3,
+    startedAt: null,
+    completed: false,
+    effectType: 'MORTALITY',
+  }
+];
 
 export const INITIAL_MONEY = 15000; // Rebalanceado: De 5000 para 15000 para conseguir concluir 1º lote com folga
 export const CHICK_COST = 1.2; // Pintinho 1 dia

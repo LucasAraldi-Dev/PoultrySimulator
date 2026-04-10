@@ -33,9 +33,10 @@ export default function StartPage() {
   const handleStart = () => {
     if (selected && companyName && selectedRegion) {
       resetGame(selected, companyName, companyColor, selectedRegion);
-      navigate('/dashboard');
+      navigate('/painel');
     }
   };
+
 
   const currentColorObj = COMPANY_COLORS.find(c => c.value === companyColor) || COMPANY_COLORS[0];
 
