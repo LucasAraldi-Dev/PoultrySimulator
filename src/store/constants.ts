@@ -1,0 +1,386 @@
+import { FeedItem, Equipment } from './types';
+
+export const FEEDS: Record<string, FeedItem> = {
+  // Broilers
+  'feed_broiler_pre': {
+    id: 'feed_broiler_pre',
+    name: 'Ração Pré-Inicial (Broiler)',
+    costPerKg: 3.5,
+    requiredLevel: 1,
+    bonus: { mortalityModifier: 0.8, growthModifier: 1.2, eggModifier: 1.0 },
+  },
+  'feed_basic': {
+    id: 'feed_basic',
+    name: 'Ração Crescimento (Milho e Soja)',
+    costPerKg: 1.5,
+    requiredLevel: 1,
+    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
+  },
+  'feed_terminacao': {
+    id: 'feed_terminacao',
+    name: 'Ração Terminação (Engorda Rápida)',
+    costPerKg: 2.2,
+    requiredLevel: 3,
+    bonus: { mortalityModifier: 1.1, growthModifier: 1.3, eggModifier: 1.0 },
+  },
+  'feed_premium': {
+    id: 'feed_premium',
+    name: 'Ração Premium Super (+ Crescimento)',
+    costPerKg: 2.8,
+    requiredLevel: 6,
+    bonus: { mortalityModifier: 0.9, growthModifier: 1.5, eggModifier: 1.0 },
+  },
+  // Layers
+  'feed_layers_start': {
+    id: 'feed_layers_start',
+    name: 'Ração Cria e Recria (Postura)',
+    costPerKg: 1.8,
+    requiredLevel: 2,
+    bonus: { mortalityModifier: 0.9, growthModifier: 1.1, eggModifier: 1.0 },
+  },
+  'feed_layers': {
+    id: 'feed_layers',
+    name: 'Ração Postura Fase 1 (Alta Produção)',
+    costPerKg: 2.0,
+    requiredLevel: 4,
+    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.2 },
+  },
+  'feed_layers_premium': {
+    id: 'feed_layers_premium',
+    name: 'Ração Postura Premium (Ovos Grandes)',
+    costPerKg: 3.0,
+    requiredLevel: 8,
+    bonus: { mortalityModifier: 0.95, growthModifier: 1.0, eggModifier: 1.4 },
+  },
+  // Medicada
+  'feed_medicada': {
+    id: 'feed_medicada',
+    name: 'Ração Medicada (Alta Sobrevivência)',
+    costPerKg: 3.5,
+    requiredLevel: 5,
+    bonus: { mortalityModifier: 0.3, growthModifier: 0.9, eggModifier: 0.9 },
+  },
+};
+
+export const REGIONS: Record<string, import('./types').Region> = {
+  'pe_sao_bento': {
+    id: 'pe_sao_bento',
+    name: 'São Bento do Una',
+    state: 'PE',
+    description: 'Polo forte em ovos no Nordeste. O clima é mais quente, mas a ração chega um pouco mais cara pelo frete longo.',
+    feedCostModifier: 1.15, // +15% no custo base da ração (frete embutido)
+    productSaleModifier: 1.05, // +5% no preço de venda (forte demanda regional)
+    landCostModifier: 0.8, // Terra mais barata (-20% pra construir)
+    freightCostPerKg: 0.15, // Frete caro
+  },
+  'sp_rio_preto': {
+    id: 'sp_rio_preto',
+    name: 'São José do Rio Preto',
+    state: 'SP',
+    description: 'Região rica com logística excelente. Consumo forte no Sudeste puxa os preços pra cima, mas a terra é cara.',
+    feedCostModifier: 1.05, 
+    productSaleModifier: 1.15, // +15% no preço de venda (mercado paulista)
+    landCostModifier: 1.3, // +30% no custo da terra
+    freightCostPerKg: 0.05, // Frete barato
+  },
+  'mt_lucas': {
+    id: 'mt_lucas',
+    name: 'Lucas do Rio Verde',
+    state: 'MT',
+    description: 'O coração do agro. Milho e soja abundantes fazem a ração ser barata, porém o frete pra escoar o frango é caro.',
+    feedCostModifier: 0.7, // -30% no custo da ração
+    productSaleModifier: 0.85, // -15% no preço de venda (muita oferta, longe do consumo)
+    landCostModifier: 1.0, 
+    freightCostPerKg: 0.02, // Frete da ração muito barato
+  },
+  'ms_campo_grande': {
+    id: 'ms_campo_grande',
+    name: 'Campo Grande',
+    state: 'MS',
+    description: 'Meio-termo perfeito do Centro-Oeste. Boa produção de grãos e proximidade razoável com o Sul/Sudeste.',
+    feedCostModifier: 0.85, 
+    productSaleModifier: 0.95, 
+    landCostModifier: 0.9, 
+    freightCostPerKg: 0.04,
+  },
+  'sc_chapeco': {
+    id: 'sc_chapeco',
+    name: 'Chapecó',
+    state: 'SC',
+    description: 'Capital nacional da agroindústria. Muitas cooperativas e frigoríficos. Alta tecnologia, mas muita concorrência.',
+    feedCostModifier: 1.0, 
+    productSaleModifier: 1.0, 
+    landCostModifier: 1.1, 
+    freightCostPerKg: 0.08,
+  }
+};
+
+export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
+  'pequeno_postura': {
+    id: 'pequeno_postura',
+    name: 'Galpão Pequeno',
+    size: 'PEQUENO',
+    baseCapacity: 1000,
+    baseCost: 15000,
+    baseDailyCost: 10,
+    requiredLevel: 1,
+    description: 'Estrutura básica de madeira. Baixo custo, mas capacidade limitada.',
+  },
+  'medio_postura': {
+    id: 'medio_postura',
+    name: 'Galpão Médio',
+    size: 'MEDIO',
+    baseCapacity: 3000,
+    baseCost: 40000,
+    baseDailyCost: 25,
+    requiredLevel: 4,
+    description: 'Galpão de alvenaria com melhor isolamento térmico.',
+  },
+  'grande_postura': {
+    id: 'grande_postura',
+    name: 'Galpão Industrial',
+    size: 'GRANDE',
+    baseCapacity: 10000,
+    baseCost: 120000,
+    baseDailyCost: 70,
+    requiredLevel: 8,
+    description: 'Galpão de grande escala. Alto custo inicial, mas excelente para produção em massa.',
+  },
+  'pequeno_corte': {
+    id: 'pequeno_corte',
+    name: 'Galpão Pequeno',
+    size: 'PEQUENO',
+    baseCapacity: 2000,
+    baseCost: 20000,
+    baseDailyCost: 15,
+    requiredLevel: 1,
+    description: 'Galpão de piso simples, ideal para iniciantes.',
+  },
+  'medio_corte': {
+    id: 'medio_corte',
+    name: 'Galpão Médio',
+    size: 'MEDIO',
+    baseCapacity: 6000,
+    baseCost: 55000,
+    baseDailyCost: 35,
+    requiredLevel: 4,
+    description: 'Estrutura reforçada, comporta uma quantidade média de aves.',
+  },
+  'grande_corte': {
+    id: 'grande_corte',
+    name: 'Galpão Industrial',
+    size: 'GRANDE',
+    baseCapacity: 20000,
+    baseCost: 160000,
+    baseDailyCost: 100,
+    requiredLevel: 8,
+    description: 'Megagalpão focado em escala industrial e grandes abates.',
+  }
+};
+
+export const EQUIPMENTS: Record<string, import('./types').Equipment> = {
+  'eq_ventilador': {
+    id: 'eq_ventilador',
+    name: 'Ventilador Industrial',
+    cost: 500,
+    requiredLevel: 2,
+    description: 'Melhora a circulação de ar, essencial para dias quentes. Aumenta levemente a conta de luz.',
+    effect: { mortalityReduction: 0.1, dailyCostIncrease: 2 },
+  },
+  'eq_aquecedor_gas': {
+    id: 'eq_aquecedor_gas',
+    name: 'Aquecedor a Gás (Campânula)',
+    cost: 1500,
+    requiredLevel: 3,
+    description: 'Mantém os pintinhos aquecidos nos primeiros dias. Custo diário com gás.',
+    effect: { mortalityReduction: 0.15, dailyCostIncrease: 5 },
+  },
+  'eq_comedouro_auto': {
+    id: 'eq_comedouro_auto',
+    name: 'Comedouro Automático',
+    cost: 1200,
+    requiredLevel: 4,
+    description: 'Distribui ração automaticamente. Otimiza o espaço, permitindo mais aves no galpão, mas gasta energia.',
+    effect: { capacityIncrease: 500, dailyCostIncrease: 3 }, 
+  },
+  'eq_bebedouro_nipple': {
+    id: 'eq_bebedouro_nipple',
+    name: 'Bebedouro Tipo Nipple',
+    cost: 800,
+    requiredLevel: 5,
+    description: 'Fornece água limpa sem molhar a cama. Reduz doenças e mortalidade.',
+    effect: { mortalityReduction: 0.05 },
+  },
+  'eq_nebulizador': {
+    id: 'eq_nebulizador',
+    name: 'Linha de Nebulização',
+    cost: 2500,
+    requiredLevel: 6,
+    description: 'Borrifa microgotas de água para resfriar o galpão. Muito eficaz no calor, mas gasta água e energia.',
+    effect: { mortalityReduction: 0.20, dailyCostIncrease: 8 },
+  },
+  'eq_placa_evap': {
+    id: 'eq_placa_evap',
+    name: 'Placa Evaporativa (Climatização)',
+    cost: 4500,
+    requiredLevel: 7,
+    description: 'Resfria o ar que entra no galpão de forma muito eficiente. Custo diário moderado.',
+    effect: { mortalityReduction: 0.25, dailyCostIncrease: 10 },
+  },
+  'eq_silo_grande': {
+    id: 'eq_silo_grande',
+    name: 'Silo de Armazenagem 10T',
+    cost: 4000,
+    requiredLevel: 9,
+    description: 'Silo externo conectado ao galpão. Libera espaço interno, aumentando drasticamente a capacidade.',
+    effect: { capacityIncrease: 2000 },
+  },
+  'eq_dark_house': {
+    id: 'eq_dark_house',
+    name: 'Sistema Dark House',
+    cost: 15000,
+    requiredLevel: 12,
+    description: 'Isolamento total de luz e ventilação exaustora. Crescimento espetacular e baixíssima mortalidade, porém altíssimo custo de energia.',
+    effect: { mortalityReduction: 0.40, capacityIncrease: 1000, growthBonus: 0.15, dailyCostIncrease: 30 },
+  }
+};
+
+export const DISEASES: Record<string, Omit<import('./types').Disease, 'daysActive'>> = {
+  'gripe_aviaria_leve': {
+    id: 'gripe_aviaria_leve',
+    name: 'Gripe Aviária (Leve)',
+    mortalityModifier: 5.0, // Multiplica a mortalidade por 5
+    growthModifier: 0.8, // Cresce 20% menos
+    eggModifier: 0.5, // Bota 50% menos ovos
+    durationDays: 7,
+  },
+  'bronquite_infecciosa': {
+    id: 'bronquite_infecciosa',
+    name: 'Bronquite Infecciosa',
+    mortalityModifier: 2.0,
+    growthModifier: 0.9,
+    eggModifier: 0.3, // Queda brusca na postura
+    durationDays: 14,
+  },
+  'doenca_newcastle': {
+    id: 'doenca_newcastle',
+    name: 'Doença de Newcastle',
+    mortalityModifier: 10.0, // Alta mortalidade
+    growthModifier: 0.5,
+    eggModifier: 0.1,
+    durationDays: 5,
+  }
+};
+
+export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
+  'gen_generator': {
+    id: 'gen_generator',
+    name: 'Gerador a Diesel',
+    brand: 'Branco (Usado)',
+    type: 'GENERATOR',
+    tier: 'GENERIC',
+    cost: 15000,
+    requiredLevel: 3,
+    description: 'Evita a quebra de equipamentos durante quedas de energia (50% de chance de acionar a tempo).'
+  },
+  'prem_generator': {
+    id: 'prem_generator',
+    name: 'Gerador Cabinado Automático',
+    brand: 'Stemac',
+    type: 'GENERATOR',
+    tier: 'PREMIUM',
+    cost: 45000,
+    requiredLevel: 10,
+    description: 'Proteção total garantida contra quedas de energia. Acionamento em 3 segundos.'
+  },
+  'gen_tractor': {
+    id: 'gen_tractor',
+    name: 'Trator Leve',
+    brand: 'Agrale 4100',
+    type: 'TRACTOR',
+    tier: 'GENERIC',
+    cost: 35000,
+    requiredLevel: 2,
+    description: 'Agiliza a limpeza e o manejo. Reduz o custo diário de todos os galpões em 5%.'
+  },
+  'prem_tractor': {
+    id: 'prem_tractor',
+    name: 'Trator Cabinado com Ar',
+    brand: 'John Deere Série 5',
+    type: 'TRACTOR',
+    tier: 'PREMIUM',
+    cost: 120000,
+    requiredLevel: 9,
+    description: 'Manejo impecável de alto rendimento. Reduz o custo diário dos galpões em 15%.'
+  },
+  'gen_truck_small': {
+    id: 'gen_truck_small',
+    name: 'Caminhonete 3/4',
+    brand: 'F-4000 / MB 710',
+    type: 'TRUCK_FEED',
+    tier: 'GENERIC',
+    cost: 50000,
+    requiredLevel: 4,
+    description: 'Veículo básico para buscar carga leve. Reduz o frete em 10% (Economia de combustível em curtas distâncias).'
+  },
+  'gen_truck_toco': {
+    id: 'gen_truck_toco',
+    name: 'Caminhão Toco',
+    brand: 'MB 1620 / Ford Cargo 1317',
+    type: 'TRUCK_FEED',
+    tier: 'GENERIC',
+    cost: 110000,
+    requiredLevel: 6,
+    description: 'O clássico guerreiro das rodovias. Reduz o frete em 25% (melhor custo-benefício em médias distâncias).'
+  },
+  'gen_truck_feed': {
+    id: 'gen_truck_feed',
+    name: 'Caminhão Truck Graneleiro',
+    brand: 'VW Worker 24.220',
+    type: 'TRUCK_FEED',
+    tier: 'GENERIC',
+    cost: 185000,
+    requiredLevel: 8,
+    description: 'Transporte pesado de ração. Reduz o custo do frete no mercado em 50%.'
+  },
+  'prem_truck_feed': {
+    id: 'prem_truck_feed',
+    name: 'Carreta Bi-Trem (LS)',
+    brand: 'Volvo FH 460 / Scania R440',
+    type: 'TRUCK_FEED',
+    tier: 'PREMIUM',
+    cost: 380000,
+    requiredLevel: 12,
+    description: 'Compra direto das gigantes da soja. Corta todo o custo de frete na compra da ração e ganha -5% no valor do insumo.'
+  },
+  'gen_truck_live': {
+    id: 'gen_truck_live',
+    name: 'Caminhão Baú de Transporte',
+    brand: 'MB Atego 2426',
+    type: 'TRUCK_LIVE',
+    tier: 'GENERIC',
+    cost: 210000,
+    requiredLevel: 7,
+    description: 'Transporte de aves vivas com baixo estresse: Aumenta o preço de venda de frangos vivos em 5%.'
+  },
+  'prem_truck_cold': {
+    id: 'prem_truck_cold',
+    name: 'Carreta Frigorífica',
+    brand: 'Scania R450',
+    type: 'TRUCK_COLD',
+    tier: 'PREMIUM',
+    cost: 450000,
+    requiredLevel: 15,
+    description: 'Exige Abatedouro. Logística refrigerada premium que garante +15% de receita na carne abatida.'
+  }
+};
+
+export const INITIAL_MONEY = 15000; // Rebalanceado: De 5000 para 15000 para conseguir concluir 1º lote com folga
+export const CHICK_COST = 1.2; // Pintinho 1 dia
+export const EGG_PRICE = 0.5; // Venda de ovo unitário
+export const MEAT_PRICE_PER_KG = 6.0; // Venda de frango vivo por KG
+export const MEAT_PROCESSED_PRICE_PER_KG = 10.0; // Venda frango abatido
+export const LAYER_COST = 15.0; // Galinha de postura pronta
+export const MAX_LAYER_AGE_DAYS = 600; // Idade em que as galinhas de postura param de botar bem
+export const DISCARD_BIRD_PRICE = 3.5; // Valor de venda da galinha de descarte
+export const SANITARY_VOID_DAYS = 15; // Dias que o galpão deve ficar vazio para desinfecção após a saída de um lote

@@ -1,0 +1,41 @@
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import StartPage from './pages/StartPage';
+import GameLayout from './components/GameLayout';
+import Dashboard from './pages/Dashboard';
+import BarnsPage from './pages/BarnsPage';
+import MarketPage from './pages/MarketPage';
+import FacilitiesPage from './pages/FacilitiesPage';
+import FinancePage from './pages/FinancePage';
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<StartPage />} />
+        
+        <Route element={<GameLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/barns" element={<BarnsPage />} />
+          <Route path="/market" element={<MarketPage />} />
+          <Route path="/facilities" element={<FacilitiesPage />} />
+          <Route path="/finance" element={<FinancePage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AnimatedRoutes />
+    </Router>
+  );
+}
+
+export default App;
