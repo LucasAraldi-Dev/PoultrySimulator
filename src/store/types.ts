@@ -219,6 +219,8 @@ export interface GameState {
   // Metrics & History
   totalProfit: number;
   totalExpenses: number;
+  currentMonthRevenue: number;
+  lastMonthRevenue: number;
   detailedExpenses: DailyExpenses; // Gastos acumulados por categoria
   history: BatchHistory[]; // Histórico de lotes vendidos
   activeEvent: RandomEvent | null;
@@ -241,8 +243,14 @@ export interface GameState {
   deliverMission: (missionId: string) => void;
   
   // Bank Loan
-  takeLoan: (amount: number) => void;
+  loanInstallment: number; // Valor da parcela mensal
+  loanInstallmentsRemaining: number; // Quantas parcelas faltam
+  nextLoanPaymentDay: number; // Dia de vencimento da próxima parcela
+  missedPayments: number; // Quantidade de parcelas em atraso
+  
+  takeLoan: (amount: number, installments: number) => void;
   payLoan: (amount: number) => void;
+  payInstallment: () => void;
   
   // Employees
   hireEmployee: (role: Employee['role']) => void;

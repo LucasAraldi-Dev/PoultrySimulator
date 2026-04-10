@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { Barn, BarnModel, BarnSize } from '../store/types';
-import { Home, Hammer, Tractor, Factory, Zap, CheckCircle2, Truck, Power, Lock, ArrowUpCircle } from 'lucide-react';
+import { Home, Hammer, Tractor, Factory, Zap, CheckCircle2, Truck, Power, Lock, ArrowUpCircle, TrendingUp } from 'lucide-react';
 import { EQUIPMENTS, FEEDS, MACHINERY_CATALOG, BARN_MODELS } from '../store/constants';
 import { PageTransition } from '../components/PageTransition';
 import { Tooltip } from '../components/Tooltip';
