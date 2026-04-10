@@ -214,7 +214,7 @@ export const useGameStore = create<GameState>((set) => ({
       barns: [initialBarn],
       inventory: [
         { itemId: 'feed_basic', quantity: 500 },
-        { itemId: 'wood_shavings', quantity: 10 },
+        { itemId: 'rice_straw', quantity: 10 },
         { itemId: 'gas', quantity: 15 },
         { itemId: 'parts', quantity: 5 }
       ],
@@ -357,18 +357,18 @@ export const useGameStore = create<GameState>((set) => ({
   }),
 
   buyChicks: (barnId, quantity, cost) => set((state) => {
-    // Verifica se tem maravalha suficiente (ex: 1 m3 para cada 1000 aves)
-    const shavingsNeeded = Math.max(1, Math.ceil(quantity / 1000));
-    const shavingsIdx = state.inventory.findIndex(i => i.itemId === 'wood_shavings');
+    // Verifica se tem palha de arroz suficiente (ex: 1 m3 para cada 1000 aves)
+    const strawNeeded = Math.max(1, Math.ceil(quantity / 1000));
+    const strawIdx = state.inventory.findIndex(i => i.itemId === 'rice_straw');
     
-    if (shavingsIdx < 0 || state.inventory[shavingsIdx].quantity < shavingsNeeded) {
-      alert(`Você precisa de ${shavingsNeeded} m³ de Maravalha (Cama) para alojar esse lote! Compre no mercado.`);
+    if (strawIdx < 0 || state.inventory[strawIdx].quantity < strawNeeded) {
+      alert(`Você precisa de ${strawNeeded} m³ de Palha de Arroz (Cama) para alojar esse lote! Compre no mercado.`);
       return state;
     }
 
     if (state.money >= cost) {
       const newInventory = [...state.inventory];
-      newInventory[shavingsIdx].quantity -= shavingsNeeded;
+      newInventory[strawIdx].quantity -= strawNeeded;
 
       return {
         money: state.money - cost,
@@ -1313,16 +1313,16 @@ export const useGameStore = create<GameState>((set) => ({
   }),
 
     cleanBarn: (barnId, cost) => set((state) => {
-    // Requer 1 m3 de maravalha para limpar o galpão e restaurar higiene
-    const shavingsIdx = state.inventory.findIndex(i => i.itemId === 'wood_shavings');
-    if (shavingsIdx < 0 || state.inventory[shavingsIdx].quantity < 1) {
-      alert(`Você precisa de 1 m³ de Maravalha (Cama) para limpar o galpão e renovar a cama! Compre no mercado.`);
+    // Requer 1 m3 de palha de arroz para limpar o galpão e restaurar higiene
+    const strawIdx = state.inventory.findIndex(i => i.itemId === 'rice_straw');
+    if (strawIdx < 0 || state.inventory[strawIdx].quantity < 1) {
+      alert(`Você precisa de 1 m³ de Palha de Arroz (Cama) para limpar o galpão e renovar a cama! Compre no mercado.`);
       return state;
     }
 
     if (state.money >= cost) {
       const newInventory = [...state.inventory];
-      newInventory[shavingsIdx].quantity -= 1;
+      newInventory[strawIdx].quantity -= 1;
 
       return {
         money: state.money - cost,

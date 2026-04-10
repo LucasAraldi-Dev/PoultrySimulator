@@ -74,7 +74,7 @@ export const RAW_MATERIALS: Record<string, RawMaterial> = {
   'corn': { id: 'corn', name: 'Milho em Grão', costPerUnit: 1.0, unit: 'kg', description: 'Base energética da ração' },
   'soy': { id: 'soy', name: 'Farelo de Soja', costPerUnit: 2.5, unit: 'kg', description: 'Base proteica da ração' },
   'premix': { id: 'premix', name: 'Núcleo/Premix', costPerUnit: 15.0, unit: 'kg', description: 'Vitaminas e minerais essenciais' },
-  'wood_shavings': { id: 'wood_shavings', name: 'Maravalha (Cama)', costPerUnit: 50.0, unit: 'm3', description: 'Forragem essencial para iniciar lotes e manter higiene' },
+  'rice_straw': { id: 'rice_straw', name: 'Palha de Arroz (Cama)', costPerUnit: 50.0, unit: 'm3', description: 'Forragem essencial para iniciar lotes e manter higiene' },
   'diesel': { id: 'diesel', name: 'Óleo Diesel', costPerUnit: 6.0, unit: 'L', description: 'Combustível para geradores e caminhões' },
   'medication': { id: 'medication', name: 'Medicamentos Vet.', costPerUnit: 100.0, unit: 'un', description: 'Usado para tratar doenças rapidamente' },
   'parts': { id: 'parts', name: 'Peças de Reposição', costPerUnit: 250.0, unit: 'un', description: 'Usado na manutenção preventiva e corretiva de equipamentos' },
