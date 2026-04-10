@@ -15,9 +15,26 @@ export default function FinancePage() {
   const resetGame = useGameStore(state => state.resetGame);
   const history = useGameStore(state => state.history);
   const company = useGameStore(state => state.company);
+  const bankLoan = useGameStore(state => state.bankLoan);
+  const takeLoan = useGameStore(state => state.takeLoan);
+  const payLoan = useGameStore(state => state.payLoan);
 
   const balance = totalProfit - totalExpenses;
   const isProfitable = balance >= 0;
+
+  const handleTakeLoan = () => {
+    const amount = Number(prompt('Valor do empréstimo (R$):', '5000'));
+    if (!isNaN(amount) && amount > 0) {
+      takeLoan(amount);
+    }
+  };
+
+  const handlePayLoan = () => {
+    const amount = Number(prompt(`Valor para amortizar (Saldo: R$ ${money.toFixed(2)}, Dívida: R$ ${bankLoan.toFixed(2)}):`, bankLoan.toFixed(2)));
+    if (!isNaN(amount) && amount > 0) {
+      payLoan(amount);
+    }
+  };
 
   const handleReset = () => {
     if (confirm('Tem certeza que deseja recomeçar? Todo o seu progresso será perdido.')) {
@@ -42,7 +59,7 @@ export default function FinancePage() {
           Resumo Financeiro
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp size={20} className="text-emerald-500" />
@@ -67,6 +84,19 @@ export default function FinancePage() {
             <p className={`text-3xl font-bold ${isProfitable ? 'text-emerald-600' : 'text-red-600'}`}>
               R$ {balance.toFixed(2)}
             </p>
+          </div>
+
+          <div className="bg-zinc-900 p-6 rounded-xl shadow-lg border border-zinc-800 text-white relative overflow-hidden">
+            <div className="flex items-center gap-3 mb-2 relative z-10">
+              <DollarSign size={20} className="text-amber-400" />
+              <h3 className="text-lg font-medium text-zinc-300">Banco / Dívida</h3>
+            </div>
+            <p className="text-3xl font-bold text-amber-400 relative z-10">R$ {bankLoan.toFixed(2)}</p>
+            <div className="mt-4 flex gap-2 relative z-10">
+              <button onClick={handleTakeLoan} className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-bold py-2 rounded transition-colors border border-amber-500/30">Pegar</button>
+              <button onClick={handlePayLoan} disabled={bankLoan <= 0} className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-sm font-bold py-2 rounded transition-colors border border-emerald-500/30 disabled:opacity-50">Pagar</button>
+            </div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
           </div>
         </div>
       </section>

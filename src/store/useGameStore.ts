@@ -24,7 +24,10 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
         totalFeedConsumed: 0,
         mortalityCount: 0,
         activeDisease: null,
+        vaccineProtectionDays: 0,
+        hygieneLevel: 100,
       },
+      selectedFeedId: 'feed_layers_start',
     };
   }
   return {
@@ -39,14 +42,17 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     isRented: false,
     sanitaryVoidDays: 0,
     batch: {
-      id: 'batch_1',
-      animalCount: 1000,
-      ageDays: 1,
-      currentWeight: 0.05,
-      totalFeedConsumed: 0,
-      mortalityCount: 0,
-      activeDisease: null,
-    },
+        id: 'batch_1',
+        animalCount: 1000,
+        ageDays: 1,
+        currentWeight: 0.05,
+        totalFeedConsumed: 0,
+        mortalityCount: 0,
+        activeDisease: null,
+        vaccineProtectionDays: 0,
+        hygieneLevel: 100,
+      },
+      selectedFeedId: 'feed_broiler_pre',
   };
 };
 
@@ -57,12 +63,15 @@ export const useGameStore = create<GameState>((set) => ({
   currentDay: 0, // starts at 0 to prevent running before init
   level: 1,
   xp: 0,
+  bankLoan: 0,
+  tasksCompleted: false,
   marketPrices: {
     egg: EGG_PRICE,
     meat: MEAT_PRICE_PER_KG,
     processedMeat: MEAT_PROCESSED_PRICE_PER_KG,
     feedModifier: 1.0,
   },
+  feedPriceHistory: [],
   barns: [],
   inventory: [],
   ownedMachinery: [],
@@ -110,12 +119,15 @@ export const useGameStore = create<GameState>((set) => ({
       currentDay: 1,
       level: 1,
       xp: 0,
+      bankLoan: 0,
+      tasksCompleted: false,
       marketPrices: {
         egg: EGG_PRICE * region.productSaleModifier,
         meat: MEAT_PRICE_PER_KG * region.productSaleModifier,
         processedMeat: MEAT_PROCESSED_PRICE_PER_KG * region.productSaleModifier,
         feedModifier: region.feedCostModifier,
       },
+      feedPriceHistory: [{ day: 1, priceModifier: region.feedCostModifier }],
       barns: [createInitialBarn(initialChoice, regionId)],
       inventory: [
         { itemId: 'feed_basic', quantity: 500 }
@@ -414,6 +426,14 @@ export const useGameStore = create<GameState>((set) => ({
       currentDay += 1;
       let dailyExpenses = 0;
 
+      // Juros do empréstimo (0.5% ao dia)
+      if (currentLoan > 0) {
+        const interest = currentLoan * 0.005;
+        currentLoan += interest;
+        // Opcional: cobrar automaticamente ou apenas deixar acumular
+        // money -= interest;
+      }
+
       // Dá XP a cada dia passado
       state.addXp(10);
       
@@ -482,6 +502,9 @@ export const useGameStore = create<GameState>((set) => ({
       }
       currentMarketPrices.feedModifier = feedBaseMod;
 
+      currentFeedPriceHistory.push({ day: currentDay, priceModifier: feedBaseMod });
+      if (currentFeedPriceHistory.length > 30) currentFeedPriceHistory.shift();
+
       newBarns = newBarns.map(barn => {
         // Custo diário agora inclui depreciação de equipamentos e mão de obra
         let barnDailyCost = barn.dailyCost; // Custos básicos (água, infraestrutura)
@@ -523,21 +546,35 @@ export const useGameStore = create<GameState>((set) => ({
         // Média de 100g a 120g por ave adulta, e menos quando jovem
         const dailyFeedNeeded = newBatch.animalCount * (barn.type === 'POSTURA' ? 0.11 : Math.min(0.15, 0.02 + (newBatch.ageDays * 0.003)));
         
-        // Procura ração no inventário
+        // Procura ração no inventário (prioridade para a selecionada, mas usa outras se faltar)
         let feedFed = 0;
-        let usedFeedId = 'feed_basic';
+        let usedFeedId = barn.selectedFeedId || 'feed_basic';
         
-        for (let i = 0; i < currentInventory.length; i++) {
-          if (currentInventory[i].quantity > 0) {
-            usedFeedId = currentInventory[i].itemId;
-            if (currentInventory[i].quantity >= dailyFeedNeeded) {
-              currentInventory[i].quantity -= dailyFeedNeeded;
-              feedFed = dailyFeedNeeded;
-              break;
-            } else {
-              feedFed += currentInventory[i].quantity;
-              currentInventory[i].quantity = 0;
-              // Continua procurando mais ração
+        // Tenta achar a selecionada primeiro
+        const selectedFeedIdx = currentInventory.findIndex(i => i.itemId === usedFeedId);
+        if (selectedFeedIdx >= 0 && currentInventory[selectedFeedIdx].quantity > 0) {
+          if (currentInventory[selectedFeedIdx].quantity >= dailyFeedNeeded) {
+            currentInventory[selectedFeedIdx].quantity -= dailyFeedNeeded;
+            feedFed = dailyFeedNeeded;
+          } else {
+            feedFed += currentInventory[selectedFeedIdx].quantity;
+            currentInventory[selectedFeedIdx].quantity = 0;
+          }
+        }
+
+        // Se ainda faltar, pega a próxima disponível
+        if (feedFed < dailyFeedNeeded) {
+          for (let i = 0; i < currentInventory.length; i++) {
+            if (currentInventory[i].quantity > 0 && feedFed < dailyFeedNeeded) {
+              const needed = dailyFeedNeeded - feedFed;
+              usedFeedId = currentInventory[i].itemId; // Muda para a que está comendo
+              if (currentInventory[i].quantity >= needed) {
+                currentInventory[i].quantity -= needed;
+                feedFed += needed;
+              } else {
+                feedFed += currentInventory[i].quantity;
+                currentInventory[i].quantity = 0;
+              }
             }
           }
         }
@@ -569,9 +606,18 @@ export const useGameStore = create<GameState>((set) => ({
 
         // Doenças Aleatórias
         if (!newBatch.activeDisease) {
-          // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada
-          const chance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
-          if (Math.random() < chance) {
+          // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
+          let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
+          
+          if (newBatch.vaccineProtectionDays > 0) {
+            diseaseChance *= 0.1; // 90% menos chance com vacina
+            newBatch.vaccineProtectionDays -= 1;
+          }
+          if (newBatch.hygieneLevel < 50) {
+            diseaseChance *= 2.0; // Dobro de chance se sujo
+          }
+
+          if (Math.random() < diseaseChance) {
             const diseaseKeys = Object.keys(DISEASES);
             const randomDisease = DISEASES[diseaseKeys[Math.floor(Math.random() * diseaseKeys.length)]];
             newBatch.activeDisease = { ...randomDisease, daysActive: 0 };
@@ -582,6 +628,9 @@ export const useGameStore = create<GameState>((set) => ({
             newBatch.activeDisease = null; // Curado
           }
         }
+
+        // Suja o galpão todo dia
+        newBatch.hygieneLevel = Math.max(0, newBatch.hygieneLevel - 2);
 
         let eventMortal = 1;
         if (currentEvent?.effectType === 'MORTALITY_SPIKE') {
@@ -645,11 +694,14 @@ export const useGameStore = create<GameState>((set) => ({
     return {
       currentDay,
       money,
+      bankLoan: currentLoan,
       totalExpenses,
       detailedExpenses,
       marketPrices: currentMarketPrices,
+      feedPriceHistory: currentFeedPriceHistory,
       activeEvent: currentEvent,
       activeMissions: newMissions,
+      tasksCompleted: false, // Reseta tarefas diárias
       products: {
         ...state.products,
         eggs: newEggs
@@ -691,4 +743,62 @@ export const useGameStore = create<GameState>((set) => ({
       activeMissions: state.activeMissions.map(m => m.id === missionId ? { ...m, completed: true } : m),
     };
   }),
+
+  takeLoan: (amount) => set((state) => ({
+    money: state.money + amount,
+    bankLoan: state.bankLoan + amount
+  })),
+
+  payLoan: (amount) => set((state) => {
+    const actualAmount = Math.min(amount, state.bankLoan, state.money);
+    if (actualAmount <= 0) return state;
+    return {
+      money: state.money - actualAmount,
+      bankLoan: state.bankLoan - actualAmount
+    };
+  }),
+
+  vaccinateBatch: (barnId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        barns: state.barns.map(barn => {
+          if (barn.id === barnId && barn.batch) {
+            return {
+              ...barn,
+              batch: { ...barn.batch, vaccineProtectionDays: 15 } // 15 dias de proteção
+            };
+          }
+          return barn;
+        })
+      };
+    }
+    return state;
+  }),
+
+  cleanBarn: (barnId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        barns: state.barns.map(barn => {
+          if (barn.id === barnId && barn.batch) {
+            return {
+              ...barn,
+              batch: { ...barn.batch, hygieneLevel: 100 }
+            };
+          }
+          return barn;
+        })
+      };
+    }
+    return state;
+  }),
+
+  selectFeed: (barnId, feedId) => set((state) => ({
+    barns: state.barns.map(barn => barn.id === barnId ? { ...barn, selectedFeedId: feedId } : barn)
+  })),
+
+  completeDailyTasks: () => set({ tasksCompleted: true }),
 }));
