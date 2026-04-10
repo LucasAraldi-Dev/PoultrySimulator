@@ -56,6 +56,7 @@ export interface Mission {
 export interface Batch {
   id: string;
   animalCount: number;
+  densityPercent?: number;
   ageDays: number; // Idade do lote em dias
   currentWeight: number; // Peso médio em kg (para corte)
   totalFeedConsumed: number;
@@ -88,6 +89,7 @@ export interface Barn {
   isRented: boolean; // Indica se é alugado
   sanitaryVoidDays: number; // Dias restantes de vazio sanitário (0 = liberado)
   selectedFeedId: string; // Ração selecionada para o galpão
+  siloFeedId?: string | null; // Ração atualmente dentro do silo (1 fase por silo)
   siloBalance: number; // kg de ração no silo do galpão
   siloCapacity: number; // kg máximos que o silo aguenta
 }
@@ -223,10 +225,10 @@ export interface GameState {
   unlockResearch: (researchId: string) => void;
   
   // Async Economy Actions
-  buyItemApi: (itemId: string, quantity: number, totalCost: number) => Promise<void>;
+  buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
   sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;
   buyBarnApi: (name: string, type: 'POSTURA' | 'CORTE', capacity: number, cost: number) => Promise<void>;
-  buyBatchApi: (barnId: string, animalCount: number, cost: number) => Promise<void>;
+  buyBatchApi: (barnId: string, animalCount: number, cost: number, densityPercent?: number) => Promise<void>;
   
   // Bank Loan
   bankLoan: number;

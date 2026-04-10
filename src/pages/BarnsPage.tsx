@@ -1,10 +1,25 @@
 import { useGameStore } from '../store/useGameStore';
-import { MAX_LAYER_AGE_DAYS, DISCARD_BIRD_PRICE, FEEDS } from '../store/constants';
+import { getCobb500Data, MAX_LAYER_AGE_DAYS, DISCARD_BIRD_PRICE, FEEDS } from '../store/constants';
 import { Bird, Egg, Package, DollarSign, AlertCircle, Info, Activity, Trash2, Syringe, Sparkles, Droplet } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Modal } from '../components/Modal';
+
+const getBroilerFeedPhase = (ageDays: number) => {
+  if (ageDays <= 21) return { feedId: 'feed_broiler_pre', label: 'Pré/Inicial (até 21d)', nextChangeDay: 22 };
+  if (ageDays <= 32) return { feedId: 'feed_basic', label: 'Crescimento (22–32d)', nextChangeDay: 33 };
+  if (ageDays <= 41) return { feedId: 'feed_terminacao', label: 'Engorda/Final (33–41d)', nextChangeDay: 42 };
+  return { feedId: 'feed_terminacao', label: 'Final (42d+ / Abate)', nextChangeDay: 42 };
+};
+
+const estimateBroilerFeedKg = (fromDay: number, toDayInclusive: number, animalCount: number) => {
+  let totalG = 0;
+  for (let d = Math.max(1, fromDay); d <= toDayInclusive; d += 1) {
+    totalG += getCobb500Data(d).dailyFeedG;
+  }
+  return (totalG * animalCount) / 1000;
+};
 
 export default function BarnsPage() {
   const barns = useGameStore(state => state.barns);
@@ -44,6 +59,10 @@ export default function BarnsPage() {
           <p className="text-sm mt-1">
             As aves se alimentam do <strong>Silo do Galpão</strong>. Se o silo esvaziar, as aves começam a morrer de fome! 
             Lembre-se de transferir a ração correta do Estoque Geral para o Silo de cada galpão.
+          </p>
+          <p className="text-sm mt-2 font-bold text-amber-900/80">
+            Corte (referência simplificada): até 21d Pré/Inicial → 22–32d Crescimento → 33–41d Engorda → 42d Abate.
+            Densidade acima do normal aumenta risco após 32 dias.
           </p>
         </div>
       </div>
@@ -156,37 +175,70 @@ export default function BarnsPage() {
                   {/* Controles de Lote */}
                   <div className="col-span-2 lg:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-between">
-                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Ração no Silo ({barn.siloBalance.toFixed(0)} kg / {barn.siloCapacity} kg)</label>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <select 
-                          value={barn.selectedFeedId || 'feed_basic'}
-                          onChange={(e) => selectFeed(barn.id, e.target.value)}
-                          className="flex-1 p-2 rounded border border-zinc-300 text-sm focus:ring-2 focus:ring-indigo-500"
-                        >
-                          {Object.values(FEEDS).map(feed => (
-                            <option key={feed.id} value={feed.id}>{feed.name}</option>
-                          ))}
-                        </select>
-                        <button 
-                          onClick={() => {
-                            if (barn.isRented) {
-                              // Integração pega ração de graça (já descontado no lucro final)
-                              const amount = Number(prompt(`Integração: Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} solicitar da integradora? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
-                              if (!isNaN(amount) && amount > 0) {
-                                useGameStore.getState().fillSilo(barn.id, amount);
-                              }
-                            } else {
-                              const amount = Number(prompt(`Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} transferir do estoque geral para o silo? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
-                              if (!isNaN(amount) && amount > 0) {
-                                useGameStore.getState().fillSilo(barn.id, amount);
-                              }
-                            }
-                          }}
-                          className={`w-full sm:w-auto px-3 py-2 rounded font-bold text-sm border ${barn.isRented ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'}`}
-                        >
-                          Abastecer
-                        </button>
-                      </div>
+                      {(() => {
+                        const siloFeedId = barn.siloFeedId || barn.selectedFeedId || 'feed_basic';
+                        const siloLabel = barn.siloBalance > 0 ? (FEEDS[siloFeedId]?.name || siloFeedId) : 'Silo vazio';
+                        const canSwitch = barn.siloBalance <= 0;
+                        const batch = barn.batch;
+                        let suggestion = '';
+                        if (batch?.animalCount && barn.type === 'CORTE') {
+                          const phase = getBroilerFeedPhase(batch.ageDays);
+                          const dailyKg = (batch.animalCount * getCobb500Data(batch.ageDays).dailyFeedG) / 1000;
+                          const kgToNext = estimateBroilerFeedKg(batch.ageDays, Math.max(batch.ageDays, phase.nextChangeDay - 1), batch.animalCount);
+                          suggestion = `Sugestão (Cobb 500 simpl.): hoje é ${batch.ageDays}d → ${FEEDS[phase.feedId]?.name || phase.feedId}. Consumo estimado hoje: ${dailyKg.toFixed(0)} kg. Até ${phase.nextChangeDay - 1}d: ~${kgToNext.toFixed(0)} kg.`;
+                        } else if (batch?.animalCount && barn.type === 'POSTURA') {
+                          const phaseFeedId = batch.ageDays >= 120 ? 'feed_layers' : 'feed_layers_start';
+                          const dailyKg = batch.ageDays <= 42 ? batch.animalCount * 0.06 : batch.ageDays <= 120 ? batch.animalCount * 0.09 : batch.animalCount * 0.115;
+                          suggestion = `Sugestão: hoje é ${batch.ageDays}d → ${FEEDS[phaseFeedId]?.name || phaseFeedId}. Consumo estimado hoje: ${dailyKg.toFixed(0)} kg.`;
+                        }
+
+                        return (
+                          <>
+                            <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">
+                              Ração no Silo ({barn.siloBalance.toFixed(0)} kg / {barn.siloCapacity} kg) • {siloLabel}
+                            </label>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <select 
+                                value={barn.selectedFeedId || 'feed_basic'}
+                                onChange={(e) => selectFeed(barn.id, e.target.value)}
+                                disabled={!canSwitch}
+                                className="flex-1 p-2 rounded border border-zinc-300 text-sm focus:ring-2 focus:ring-indigo-500 disabled:bg-zinc-100 disabled:text-zinc-500"
+                              >
+                                {Object.values(FEEDS).map(feed => (
+                                  <option key={feed.id} value={feed.id}>{feed.name}</option>
+                                ))}
+                              </select>
+                              <button 
+                                onClick={() => {
+                                  const feedId = barn.selectedFeedId || 'feed_basic';
+                                  const feedName = FEEDS[feedId]?.name || feedId;
+                                  const maxKg = barn.siloCapacity - barn.siloBalance;
+                                  const hint = suggestion ? `${suggestion}\n\n` : '';
+                                  if (barn.isRented) {
+                                    const amount = Number(prompt(`${hint}Integração: Quantos kg de ${feedName} solicitar da integradora? (Máx: ${maxKg.toFixed(0)} kg)`));
+                                    if (!isNaN(amount) && amount > 0) {
+                                      useGameStore.getState().fillSilo(barn.id, amount);
+                                    }
+                                  } else {
+                                    const amount = Number(prompt(`${hint}Quantos kg de ${feedName} transferir do estoque geral para o silo? (Máx: ${maxKg.toFixed(0)} kg)`));
+                                    if (!isNaN(amount) && amount > 0) {
+                                      useGameStore.getState().fillSilo(barn.id, amount);
+                                    }
+                                  }
+                                }}
+                                className={`w-full sm:w-auto px-3 py-2 rounded font-bold text-sm border ${barn.isRented ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'}`}
+                              >
+                                Abastecer
+                              </button>
+                            </div>
+                            {!canSwitch && (
+                              <p className="text-[11px] text-zinc-500 font-bold mt-2">
+                                Para trocar a fase da ração, espere o silo esvaziar (1 fase por silo).
+                              </p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     
                     <div className="flex flex-col justify-end">

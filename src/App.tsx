@@ -30,9 +30,12 @@ function AnimatedRoutes() {
           <Route path="painel" element={<Dashboard />} />
           <Route path="galpoes" element={<BarnsPage />} />
           <Route path="infra" element={<FacilitiesPage />} />
+          <Route path="fabricas" element={<FacilitiesPage />} />
+          <Route path="factory" element={<FacilitiesPage />} />
           <Route path="mercado" element={<MarketPage />} />
           <Route path="financas" element={<FinancePage />} />
           <Route path="pesquisa" element={<ResearchPage />} />
+          <Route path="research" element={<ResearchPage />} />
           <Route path="rh" element={<RHPage />} />
         </Route>
       </Routes>

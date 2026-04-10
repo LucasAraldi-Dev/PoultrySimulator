@@ -1,9 +1,10 @@
 import { useGameStore } from '../store/useGameStore';
 import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS } from '../store/constants';
-import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight, CheckSquare, Loader2 } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
 export default function Dashboard() {
   const money = useGameStore(state => state.money);
@@ -17,6 +18,14 @@ export default function Dashboard() {
   const sellEggs = useGameStore(state => state.sellEggs);
   const activeMissions = useGameStore(state => state.activeMissions);
   const deliverMission = useGameStore(state => state.deliverMission);
+  const dailyTasks = useGameStore(state => state.dailyTasks);
+  const startTask = useGameStore(state => state.startTask);
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const balance = totalProfit - totalExpenses;
   const isProfitable = balance >= 0;
@@ -297,6 +306,78 @@ export default function Dashboard() {
                 <p className="text-emerald-500 text-sm mt-1">Nenhum alerta crítico no momento.</p>
               </div>
             )}
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-zinc-800 flex items-center gap-2">
+                <CheckSquare size={20} className="text-indigo-600" />
+                Atividades do Dia
+              </h2>
+              <span className="text-xs font-bold text-zinc-500">{dailyTasks.filter(t => !t.completed).length} pendente(s)</span>
+            </div>
+            <div className="space-y-3">
+              {dailyTasks.slice(0, 8).map(task => {
+                const isStarted = task.startedAt !== null;
+                const severity = task.severity || 'MEDIA';
+                const severityLabel = severity === 'ALTA' ? 'Crítica' : severity === 'BAIXA' ? 'Básica' : 'Importante';
+                const severityClasses = severity === 'ALTA'
+                  ? 'bg-red-100 text-red-700'
+                  : severity === 'BAIXA'
+                    ? 'bg-zinc-100 text-zinc-600'
+                    : 'bg-amber-100 text-amber-700';
+
+                let progress = 0;
+                let timeLeftStr = '';
+                if (isStarted && !task.completed) {
+                  const elapsed = now - task.startedAt!;
+                  const required = task.durationMinutes * 60 * 1000;
+                  progress = Math.min(100, (elapsed / required) * 100);
+                  const leftMs = Math.max(0, required - elapsed);
+                  const m = Math.floor(leftMs / 60000);
+                  const s = Math.floor((leftMs % 60000) / 1000);
+                  timeLeftStr = `${m}:${s.toString().padStart(2, '0')}`;
+                }
+
+                return (
+                  <div key={task.id} className={`p-3 rounded-xl border ${task.completed ? 'bg-emerald-50 border-emerald-200' : isStarted ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-zinc-200'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className={`font-bold truncate ${task.completed ? 'text-emerald-800' : 'text-zinc-800'}`}>{task.name}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5 break-words">{task.description}</p>
+                      </div>
+                      {task.completed ? (
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[11px] font-bold">Feito ✓</span>
+                      ) : isStarted ? (
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-[11px] font-bold font-mono flex items-center gap-1">
+                          <Loader2 size={12} className="animate-spin" /> {timeLeftStr}
+                        </span>
+                      ) : (
+                        <span className={`${severityClasses} px-2 py-1 rounded text-[11px] font-bold`}>{severityLabel}</span>
+                      )}
+                    </div>
+
+                    {!task.completed && (
+                      <div className="mt-3">
+                        {isStarted ? (
+                          <div className="w-full bg-indigo-200 rounded-full h-2 overflow-hidden">
+                            <div className="bg-indigo-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => startTask(task.id)}
+                            className="w-full py-2 bg-zinc-900 hover:bg-black text-white text-sm font-bold rounded-lg transition-colors"
+                          >
+                            Iniciar ({task.durationMinutes} min)
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Missões / Contratos Ativos */}

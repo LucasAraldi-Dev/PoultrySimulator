@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+import { GameState, Barn, Batch, Disease, DailyTask, RandomEvent, WeatherType } from './types';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
   RESEARCHES,
   DISCARD_BIRD_PRICE
@@ -8,7 +8,7 @@ import { getGameMonth } from '../lib/utils';
 import { api } from '../lib/api';
 
 // Funções utilitárias mantidas para não quebrar a tipagem existente
-const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
+const generateDailyTasks = (barns: Barn[], weather?: WeatherType, activeEvent?: RandomEvent | null): DailyTask[] => {
   const tasks: Omit<DailyTask, 'startedAt' | 'completed'>[] = [
     {
       id: 'clean_drinkers',
@@ -72,6 +72,62 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
     });
   }
 
+  const hasYoungBroilers = barns.some(b => b.type === 'CORTE' && b.batch && b.batch.ageDays <= 14);
+  if (hasYoungBroilers) {
+    tasks.push({
+      id: 'check_brooding',
+      name: 'Checar Campânulas/Aquecimento',
+      description: 'Ajusta aquecimento e conforto dos pintinhos para evitar perda precoce.',
+      durationMinutes: 4,
+      effectType: 'MORTALITY',
+      severity: 'ALTA',
+    });
+  }
+
+  if (weather === 'COLD') {
+    tasks.push({
+      id: 'raise_curtains',
+      name: 'Ajustar Cortinas/Lona',
+      description: 'Feche frestas, reduza corrente de ar e proteja o lote do frio.',
+      durationMinutes: 3,
+      effectType: 'MORTALITY',
+      severity: 'ALTA',
+    });
+  }
+
+  if (weather === 'RAIN') {
+    tasks.push({
+      id: 'rain_biosecurity',
+      name: 'Reforçar Biosseguridade (Chuva)',
+      description: 'Chuva aumenta risco de patógenos. Reforce pedilúvio e circulação.',
+      durationMinutes: 4,
+      effectType: 'DISEASE',
+      severity: 'ALTA',
+    });
+  }
+
+  if (weather === 'HEATWAVE') {
+    tasks.push({
+      id: 'heat_ventilation',
+      name: 'Ajustar Ventilação (Calor)',
+      description: 'Abra cortinas, aumente ventilação e reduza estresse térmico.',
+      durationMinutes: 3,
+      effectType: 'MORTALITY',
+      severity: 'ALTA',
+    });
+  }
+
+  if (activeEvent?.effectType === 'DISEASE_SPIKE') {
+    tasks.push({
+      id: 'extra_disinfection',
+      name: 'Desinfecção Extra (Alerta Sanitário)',
+      description: 'Evento sanitário ativo. Faça rotina extra de higienização e controle de acesso.',
+      durationMinutes: 6,
+      effectType: 'DISEASE',
+      severity: 'ALTA',
+    });
+  }
+
   return tasks.map(t => ({ ...t, startedAt: null, completed: false }));
 };
 
@@ -89,11 +145,13 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       dailyCost: 10 * landMod,
       isRented: false,
       sanitaryVoidDays: 0,
+      siloFeedId: null,
       siloBalance: 0,
       siloCapacity: 5000,
       batch: {
         id: 'batch_1',
         animalCount: 500,
+        densityPercent: 100,
         ageDays: 120,
         currentWeight: 1.8,
         totalFeedConsumed: 0,
@@ -116,11 +174,13 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     dailyCost: 15 * landMod,
     isRented: false,
     sanitaryVoidDays: 0,
+    siloFeedId: null,
     siloBalance: 0,
     siloCapacity: 10000,
     batch: {
       id: 'batch_1',
       animalCount: 1000,
+      densityPercent: 100,
       ageDays: 1,
       currentWeight: 0.05,
       totalFeedConsumed: 0,
@@ -187,6 +247,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           batch: b.batch ? {
             id: b.batch.id.toString(),
             animalCount: b.batch.animal_count,
+            densityPercent: 100,
             ageDays: b.batch.age_days,
             currentWeight: b.batch.weight,
             mortalityCount: b.batch.mortality_count,
@@ -219,7 +280,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // Async Economy Actions (Para Nuvem - Híbrido)
-  buyItemApi: async (itemId, quantity, totalCost) => {
+  buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
     const isAuth = get().isAuthenticated;
     if (isAuth) {
       try {
@@ -230,16 +291,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         alert("Saldo insuficiente ou erro de comunicação com o servidor.");
       }
     } else {
-      // Offline fallback
-      const state = get();
-      if (state.money >= totalCost) {
-        const newInv = [...state.inventory];
-        const existing = newInv.findIndex(i => i.itemId === itemId);
-        if (existing >= 0) newInv[existing].quantity += quantity;
-        else newInv.push({ itemId, quantity });
-        
-        set({ money: state.money - totalCost, totalExpenses: state.totalExpenses + totalCost, inventory: newInv });
-      }
+      get().buyFeed(itemId, quantity, totalCost, scheduledInDays, useOwnTruck);
     }
   },
 
@@ -262,13 +314,25 @@ export const useGameStore = create<GameState>((set, get) => ({
           totalProfit: state.totalProfit + revenue,
           products: { ...state.products, eggs: state.products.eggs - quantity }
         });
-      } else if (productType === 'meat' && state.products.meat >= quantity) {
-        const revenue = quantity * pricePerUnit;
-        set({ 
-          money: state.money + revenue, 
-          totalProfit: state.totalProfit + revenue,
-          products: { ...state.products, meat: state.products.meat - quantity }
-        });
+      } else if (productType === 'meat') {
+        const processedIdx = state.inventory.findIndex(i => i.itemId === 'processed_meat');
+        if (processedIdx >= 0 && state.inventory[processedIdx].quantity >= quantity) {
+          const revenue = quantity * pricePerUnit;
+          const newInv = [...state.inventory];
+          newInv[processedIdx].quantity -= quantity;
+          set({
+            money: state.money + revenue,
+            totalProfit: state.totalProfit + revenue,
+            inventory: newInv,
+          });
+        } else if (state.products.meat >= quantity) {
+          const revenue = quantity * pricePerUnit;
+          set({ 
+            money: state.money + revenue, 
+            totalProfit: state.totalProfit + revenue,
+            products: { ...state.products, meat: state.products.meat - quantity }
+          });
+        }
       }
     }
   },
@@ -308,7 +372,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  buyBatchApi: async (barnId, animalCount, cost) => {
+  buyBatchApi: async (barnId, animalCount, cost, densityPercent = 100) => {
     const isAuth = get().isAuthenticated;
     if (isAuth) {
       try {
@@ -329,6 +393,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               batch: {
                 id: `batch_${Date.now()}`,
                 animalCount,
+                densityPercent,
                 ageDays: 1,
                 currentWeight: b.type === 'POSTURA' ? 0.05 : 0.05,
                 totalFeedConsumed: 0,
@@ -431,7 +496,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       loanInstallmentsRemaining: 0,
       nextLoanPaymentDay: 0,
       missedPayments: 0,
-      dailyTasks: generateDailyTasks([initialBarn]),
+      dailyTasks: generateDailyTasks([initialBarn], 'SUNNY', null),
       marketPrices: {
         egg: EGG_PRICE * region.productSaleModifier,
         meat: MEAT_PRICE_PER_KG * region.productSaleModifier,
@@ -1125,7 +1190,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         
         // Procura ração no SILO do galpão
         let feedFed = 0;
-        let usedFeedId = barn.selectedFeedId || 'feed_basic';
+        let usedFeedId = barn.siloFeedId || barn.selectedFeedId || 'feed_basic';
         
         if (barn.siloBalance > 0) {
           if (barn.siloBalance >= dailyFeedNeeded) {
@@ -1134,6 +1199,9 @@ export const useGameStore = create<GameState>((set, get) => ({
           } else {
             feedFed = barn.siloBalance;
             barn.siloBalance = 0;
+          }
+          if (barn.siloBalance <= 0) {
+            barn.siloFeedId = null;
           }
         }
 
@@ -1243,6 +1311,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         
         eventMortal *= weatherMortality;
 
+        const densityPercent = newBatch.densityPercent ?? 100;
+        if (barn.type === 'CORTE' && densityPercent > 100) {
+          if (newBatch.ageDays > 32) {
+            eventMortal *= 1 + (densityPercent - 100) / 50;
+          }
+        }
+
         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
         const diseaseEgg = newBatch.activeDisease ? newBatch.activeDisease.eggModifier : 1;
@@ -1278,7 +1353,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (!starved) {
             // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
             // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
-            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty; 
+            const densityGrowthPenalty = densityPercent > 100 ? Math.min(0.15, (densityPercent - 100) / 200) : 0;
+            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * (1 - densityGrowthPenalty) * feedTypePenalty * feedPhasePenalty; 
             // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
             // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
             const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
@@ -1322,7 +1398,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       activeEvent: currentEvent,
       activeMissions: newMissions,
       financialBuffDays: currentFinancialBuff,
-      dailyTasks: generateDailyTasks(newBarns),
+      dailyTasks: generateDailyTasks(newBarns, currentWeather, currentEvent),
       products: {
         ...state.products,
         eggs: newEggs
@@ -1585,6 +1661,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     const barn = state.barns.find(b => b.id === barnId);
     if (!barn) return state;
 
+    const storedFeedId = barn.siloFeedId || barn.selectedFeedId;
+    if (barn.siloBalance > 0 && storedFeedId !== barn.selectedFeedId) {
+      alert(`Seu silo ainda tem ${FEEDS[storedFeedId]?.name || storedFeedId}. Você só pode abastecer 1 fase por silo. Espere o silo esvaziar para trocar.`);
+      return state;
+    }
+
     const spaceLeft = barn.siloCapacity - barn.siloBalance;
     const actualAmount = Math.min(amountKg, spaceLeft);
     if (actualAmount <= 0) return state;
@@ -1592,7 +1674,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (barn.isRented) {
       // É integração, ração entra de graça direto no silo sem gastar inventário
       return {
-        barns: state.barns.map(b => b.id === barnId ? { ...b, siloBalance: b.siloBalance + actualAmount } : b)
+        barns: state.barns.map(b => b.id === barnId ? { ...b, siloBalance: b.siloBalance + actualAmount, siloFeedId: b.siloBalance > 0 ? (b.siloFeedId || b.selectedFeedId) : b.selectedFeedId } : b)
       };
     } else {
       const feedIdx = state.inventory.findIndex(i => i.itemId === barn.selectedFeedId);
@@ -1606,7 +1688,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       return {
         inventory: newInventory,
-        barns: state.barns.map(b => b.id === barnId ? { ...b, siloBalance: b.siloBalance + actualAmount } : b)
+        barns: state.barns.map(b => b.id === barnId ? { ...b, siloBalance: b.siloBalance + actualAmount, siloFeedId: b.siloBalance > 0 ? (b.siloFeedId || b.selectedFeedId) : b.selectedFeedId } : b)
       };
     }
   }),

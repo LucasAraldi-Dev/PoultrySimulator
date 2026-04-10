@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
-import { FEEDS, CHICK_COST, EGG_PRICE, LAYER_COST, RAW_MATERIALS } from '../store/constants';
+import { FEEDS, CHICK_COST, EGG_PRICE, getCobb500Data, LAYER_COST, RAW_MATERIALS } from '../store/constants';
 import { ShoppingCart, DollarSign, Package, Egg, Bird, Truck, Box } from 'lucide-react';
 import { BarnType } from '../store/types';
 import { PageTransition } from '../components/PageTransition';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export default function MarketPage() {
   const money = useGameStore(state => state.money);
   const sellProductsApi = useGameStore(state => state.sellProductsApi);
   const buyItemApi = useGameStore(state => state.buyItemApi);
   const buyBatchApi = useGameStore(state => state.buyBatchApi);
+  const inventory = useGameStore(state => state.inventory);
+  const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
   
   const barns = useGameStore(state => state.barns);
   const products = useGameStore(state => state.products);
@@ -22,11 +25,14 @@ export default function MarketPage() {
   const pendingDeliveries = useGameStore(state => state.pendingDeliveries);
   const currentDay = useGameStore(state => state.currentDay);
 
+  const navigate = useNavigate();
+
   const [feedAmounts, setFeedAmounts] = useState<Record<string, number>>({
     feed_broiler_pre: 100, feed_basic: 100, feed_terminacao: 100, feed_premium: 100,
     feed_layers_start: 100, feed_layers: 100, feed_layers_premium: 100, feed_medicada: 100
   });
   const [deliveryPrefs, setDeliveryPrefs] = useState<Record<string, { scheduledInDays: number; useOwnTruck: boolean }>>({});
+  const [stockingPcts, setStockingPcts] = useState<Record<string, number>>({});
 
   const emptyBarns = barns.filter(b => !b.batch);
 
@@ -56,11 +62,14 @@ export default function MarketPage() {
     setFeedAmounts({ ...feedAmounts, [matId]: 100 });
   };
 
-  const handleBuyFlock = (barnId: string, type: BarnType, capacity: number, isRented: boolean) => {
+  const handleBuyFlock = (barnId: string, type: BarnType, animalCount: number, isRented: boolean, densityPercent: number) => {
     // Se for integração (isRented = true), não tem custo de alojamento do pintinho (integradora fornece)
-    const cost = isRented ? 0 : (type === 'POSTURA' ? capacity * LAYER_COST : capacity * CHICK_COST);
-    buyBatchApi(barnId, capacity, cost);
+    const cost = isRented ? 0 : (type === 'POSTURA' ? animalCount * LAYER_COST : animalCount * CHICK_COST);
+    buyBatchApi(barnId, animalCount, cost, densityPercent);
   };
+
+  const processedMeatKg = inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
+  const getInTransit = (itemId: string) => pendingDeliveries.filter(d => d.itemId === itemId).reduce((acc, d) => acc + d.quantity, 0);
 
   return (
     <PageTransition className="space-y-8">
@@ -111,22 +120,35 @@ export default function MarketPage() {
             <div className="p-6 flex flex-col gap-4">
               <div>
                 <p className="text-zinc-600 font-medium">
-                  <strong className="text-zinc-800">{useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity.toFixed(1) || '0.0'} kg</strong> em estoque.
+                  <strong className="text-zinc-800">{processedMeatKg.toFixed(1)} kg</strong> em estoque.
                 </p>
                 <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.processedMeat.toFixed(2)} / kg</p>
+                {!hasSlaughterhouse && (
+                  <p className="text-xs text-red-600 font-bold mt-2">
+                    Bloqueado: compre um Abatedouro em Fábricas para liberar a carne processada.
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => {
-                  const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
-                  if (qty > 0) {
-                    sellProductsApi('meat', qty, marketPrices.processedMeat);
+                  if (hasSlaughterhouse && processedMeatKg > 0) {
+                    sellProductsApi('meat', processedMeatKg, marketPrices.processedMeat);
                   }
                 }}
-                disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}
+                disabled={!hasSlaughterhouse || processedMeatKg <= 0}
                 className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-red-700 hover:shadow-lg"
               >
                 Vender Estoque de Carne
               </button>
+              {!hasSlaughterhouse && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/fabricas')}
+                  className="w-full px-6 py-3 bg-zinc-900 text-white rounded-lg font-bold transition-all hover:bg-zinc-800"
+                >
+                  Ir para Fábricas
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -143,7 +165,9 @@ export default function MarketPage() {
             <div className="divide-y divide-zinc-200">
               <AnimatePresence>
                 {emptyBarns.map(barn => {
-                  const totalCost = barn.isRented ? 0 : (barn.type === 'POSTURA' ? barn.capacity * LAYER_COST : barn.capacity * CHICK_COST);
+                  const densityPercent = Math.max(70, Math.min(120, Math.round(stockingPcts[barn.id] ?? 100)));
+                  const animalCount = Math.max(1, Math.round(barn.capacity * (densityPercent / 100)));
+                  const totalCost = barn.isRented ? 0 : (barn.type === 'POSTURA' ? animalCount * LAYER_COST : animalCount * CHICK_COST);
                   const canAfford = money >= totalCost;
                   const isInSanitaryVoid = barn.sanitaryVoidDays > 0;
                   const isDisabled = !canAfford || isInSanitaryVoid;
@@ -169,6 +193,26 @@ export default function MarketPage() {
                         <p className="text-zinc-500 text-sm mt-1">
                           Capacidade: {barn.capacity} aves | Tipo: {barn.type}
                         </p>
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-xs font-bold text-zinc-600">
+                            <span>Densidade</span>
+                            <span>{densityPercent}% • {animalCount.toLocaleString()} aves</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={70}
+                            max={120}
+                            step={5}
+                            value={densityPercent}
+                            onChange={(e) => setStockingPcts({ ...stockingPcts, [barn.id]: Number(e.target.value) })}
+                            className="w-full mt-2 accent-indigo-600"
+                          />
+                          {barn.type === 'CORTE' && densityPercent > 100 && (
+                            <p className="text-[11px] text-amber-700 font-bold mt-1">
+                              Densidade alta: após 32 dias aumenta risco de problema de frango de corte.
+                            </p>
+                          )}
+                        </div>
                         <p className="text-sm text-zinc-600 mt-1 font-medium">
                           {barn.isRented 
                             ? 'A Integradora fornece os pintinhos e a ração de graça. Você entra com a estrutura, cama e manejo.' 
@@ -178,7 +222,7 @@ export default function MarketPage() {
                       <div className="p-6 flex items-center border-t md:border-t-0 md:border-l border-zinc-100 bg-zinc-50/50">
                         <motion.button
                           whileTap={!isDisabled ? { scale: 0.95 } : {}}
-                          onClick={() => handleBuyFlock(barn.id, barn.type, barn.capacity, barn.isRented)}
+                          onClick={() => handleBuyFlock(barn.id, barn.type, animalCount, barn.isRented, densityPercent)}
                           disabled={isDisabled}
                           className={`w-full md:w-auto px-6 py-3 rounded-lg font-bold transition-all whitespace-nowrap shadow-sm ${!isDisabled ? 'text-white hover:shadow-lg' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
                           style={!isDisabled ? { backgroundColor: barn.isRented ? '#3b82f6' : (company?.color || '#10b981') } : {}}
@@ -209,6 +253,33 @@ export default function MarketPage() {
           <Package size={24} className="text-amber-600" />
           Fornecedores de Ração
         </h2>
+
+        {barns.some(b => b.type === 'CORTE' && b.batch) && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
+            <p className="text-emerald-800 font-black mb-2">Recomendação de Fase (Cobb 500 simplificado)</p>
+            <div className="space-y-2">
+              {barns.filter(b => b.type === 'CORTE' && b.batch).map(b => {
+                const age = b.batch!.ageDays;
+                const feedId = age <= 21 ? 'feed_broiler_pre' : age <= 32 ? 'feed_basic' : 'feed_terminacao';
+                const next = age <= 21 ? 22 : age <= 32 ? 33 : 42;
+                const dailyKg = (b.batch!.animalCount * getCobb500Data(age).dailyFeedG) / 1000;
+                return (
+                  <div key={b.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <p className="text-sm font-bold text-zinc-800">
+                      {b.name}: {age}d → {FEEDS[feedId]?.name || feedId}
+                    </p>
+                    <p className="text-xs font-bold text-emerald-800">
+                      Consumo hoje: {dailyKg.toFixed(0)} kg • Próxima troca: {next}d
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-emerald-900/70 font-bold mt-3">
+              Dica: se você abastecer o silo com a fase errada, o lote vai consumir errado e perder desempenho.
+            </p>
+          </div>
+        )}
 
         {pendingDeliveries.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 mb-6">
@@ -255,6 +326,8 @@ export default function MarketPage() {
                 ownedMachinery={ownedMachinery}
                 deliveryPrefs={deliveryPrefs}
                 setDeliveryPrefs={setDeliveryPrefs}
+                inventoryKg={inventory.find(i => i.itemId === feed.id)?.quantity || 0}
+                inTransitKg={getInTransit(feed.id)}
               />
             ))}
           </div>
@@ -278,6 +351,8 @@ export default function MarketPage() {
                 ownedMachinery={ownedMachinery}
                 deliveryPrefs={deliveryPrefs}
                 setDeliveryPrefs={setDeliveryPrefs}
+                inventoryKg={inventory.find(i => i.itemId === feed.id)?.quantity || 0}
+                inTransitKg={getInTransit(feed.id)}
               />
             ))}
           </div>
@@ -301,6 +376,8 @@ export default function MarketPage() {
                 ownedMachinery={ownedMachinery}
                 deliveryPrefs={deliveryPrefs}
                 setDeliveryPrefs={setDeliveryPrefs}
+                inventoryKg={inventory.find(i => i.itemId === feed.id)?.quantity || 0}
+                inTransitKg={getInTransit(feed.id)}
               />
             ))}
           </div>
@@ -326,6 +403,8 @@ export default function MarketPage() {
                 ownedMachinery={ownedMachinery}
                 deliveryPrefs={deliveryPrefs}
                 setDeliveryPrefs={setDeliveryPrefs}
+                inventoryQty={inventory.find(i => i.itemId === mat.id)?.quantity || 0}
+                inTransitQty={getInTransit(mat.id)}
               />
             ))}
           </div>
@@ -337,8 +416,9 @@ export default function MarketPage() {
 }
 
 // Componente auxiliar para Insumos
-function RawMaterialCard({ mat, marketPrices, feedAmounts, setFeedAmounts, handleBuyRawMaterial, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs }: any) {
+function RawMaterialCard({ mat, marketPrices, feedAmounts, setFeedAmounts, handleBuyRawMaterial, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs, inventoryQty, inTransitQty }: any) {
   const currentCost = mat.costPerUnit * marketPrices.feedModifier;
+  const [open, setOpen] = useState(false);
   
   const hasFeedTruck = ownedMachinery?.includes('prem_truck_feed') || ownedMachinery?.includes('gen_truck_feed');
   const pref = deliveryPrefs[mat.id] || { scheduledInDays: 0, useOwnTruck: false };
@@ -349,43 +429,59 @@ function RawMaterialCard({ mat, marketPrices, feedAmounts, setFeedAmounts, handl
   const etaLabel = dispatchIn === 0 ? `${transitDays} dia(s)` : `${dispatchIn + transitDays} dia(s)`;
 
   return (
-    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
+    <div className={`relative bg-white p-4 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
       <div>
-        <h3 className="text-lg font-bold text-zinc-800 mb-1">{mat.name}</h3>
-        <p className="text-xs text-zinc-500 mb-3">{mat.description}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-zinc-800 mb-1 truncate">{mat.name}</h3>
+            <p className="text-xs text-zinc-500 mb-2">{mat.description}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(v => !v)}
+            className="shrink-0 px-2 py-1 rounded-md border border-zinc-200 bg-white text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
+          >
+            {open ? 'Fechar' : 'Detalhes'}
+          </button>
+        </div>
         <div className="flex items-center gap-2 mb-4">
           <p className="text-2xl font-bold text-amber-600">R$ {currentCost.toFixed(2)}<span className="text-sm text-zinc-500 font-normal">/{mat.unit}</span></p>
         </div>
+        <p className="text-[11px] text-zinc-600 font-bold">
+          Estoque: {(inventoryQty || 0).toFixed(0)} {mat.unit}{inTransitQty > 0 ? ` (+${inTransitQty.toFixed(0)} em trânsito)` : ''}
+        </p>
       </div>
 
       <div className="mt-auto">
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-            <p className="text-[11px] font-bold text-zinc-500">Envio</p>
-            <select
-              value={pref.scheduledInDays}
-              onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
-              className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
-            >
-              <option value={0}>Enviar hoje</option>
-              <option value={1}>Enviar em 1 dia</option>
-              <option value={2}>Enviar em 2 dias</option>
-              <option value={3}>Enviar em 3 dias</option>
-            </select>
+        {open && (
+          <div className="grid grid-cols-2 gap-2 mb-4 mt-4">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] font-bold text-zinc-500">Envio</p>
+              <select
+                value={pref.scheduledInDays}
+                onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
+                className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
+              >
+                <option value={0}>Enviar hoje</option>
+                <option value={1}>Enviar em 1 dia</option>
+                <option value={2}>Enviar em 2 dias</option>
+                <option value={3}>Enviar em 3 dias</option>
+              </select>
+            </div>
+            <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] font-bold text-zinc-500">Logística</p>
+              <button
+                type="button"
+                onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
+                className={`w-full mt-1 px-2 py-1 rounded-md text-[11px] font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
+                disabled={!hasFeedTruck}
+              >
+                {mode === 'CAMINHAO' ? 'Buscar' : 'Entrega'}
+              </button>
+              <p className="text-[10px] text-zinc-500 mt-1">Prev: {etaLabel}</p>
+            </div>
           </div>
-          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-            <p className="text-[11px] font-bold text-zinc-500">Logística</p>
-            <button
-              type="button"
-              onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
-              className={`w-full mt-1 px-2 py-1 rounded-md text-[11px] font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
-              disabled={!hasFeedTruck}
-            >
-              {mode === 'CAMINHAO' ? 'Buscar' : 'Entrega'}
-            </button>
-            <p className="text-[10px] text-zinc-500 mt-1">Prev: {etaLabel}</p>
-          </div>
-        </div>
+        )}
 
         <div className="flex gap-2">
           <input 
@@ -412,9 +508,10 @@ function RawMaterialCard({ mat, marketPrices, feedAmounts, setFeedAmounts, handl
 // Componente auxiliar para não repetir o código do card
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
-function FeedCard({ feed, marketPrices, feedAmounts, setFeedAmounts, handleBuyFeed, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs }: any) {
+function FeedCard({ feed, marketPrices, feedAmounts, setFeedAmounts, handleBuyFeed, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs, inventoryKg, inTransitKg }: any) {
   const currentCost = feed.costPerKg * marketPrices.feedModifier;
   const feedPriceHistory = useGameStore(state => state.feedPriceHistory);
+  const [open, setOpen] = useState(false);
   
   // Historico de preço local desse card
   const chartData = feedPriceHistory.map(h => ({
@@ -430,75 +527,97 @@ function FeedCard({ feed, marketPrices, feedAmounts, setFeedAmounts, handleBuyFe
   const etaLabel = dispatchIn === 0 ? `${transitDays} dia(s)` : `${dispatchIn + transitDays} dia(s)`;
 
   return (
-    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
+    <div className={`relative bg-white p-4 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
       <div>
-        <h3 className="text-lg font-bold text-zinc-800 mb-2">{feed.name}</h3>
-        <div className="flex items-center gap-2 mb-2">
-          <p className="text-2xl font-bold text-emerald-600">R$ {currentCost.toFixed(2)}<span className="text-sm text-zinc-500 font-normal">/kg</span></p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-base font-bold text-zinc-800 mb-1 truncate">{feed.name}</h3>
+            <div className="flex items-center gap-2">
+              <p className="text-xl font-black text-emerald-600">R$ {currentCost.toFixed(2)}<span className="text-xs text-zinc-500 font-normal">/kg</span></p>
+              <p className="text-[11px] text-zinc-600 font-bold">
+                Estoque: {(inventoryKg || 0).toFixed(0)} kg{inTransitKg > 0 ? ` (+${inTransitKg.toFixed(0)} em trânsito)` : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOpen(v => !v)}
+            className="shrink-0 px-2 py-1 rounded-md border border-zinc-200 bg-white text-[11px] font-bold text-zinc-700 hover:bg-zinc-50"
+          >
+            {open ? 'Fechar' : 'Detalhes'}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 mt-2">
           {marketPrices.feedModifier > 1.1 && <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">ALTA</span>}
           {marketPrices.feedModifier < 0.9 && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">BAIXA</span>}
         </div>
         
-        {/* Mini Gráfico */}
-        <div className="h-12 w-full mb-4 opacity-50">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <YAxis domain={['dataMin', 'dataMax']} hide />
-              <Line type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        
-        <ul className="space-y-2 mb-6 text-sm text-zinc-600">
-          <li className="flex justify-between">
-            <span>Mortalidade:</span> 
-            <span className={feed.bonus.mortalityModifier < 1 ? 'text-emerald-600 font-medium' : ''}>
-              {((1 - feed.bonus.mortalityModifier) * 100).toFixed(0)}%
-            </span>
-          </li>
-          <li className="flex justify-between">
-            <span>Crescimento:</span> 
-            <span className={feed.bonus.growthModifier > 1 ? 'text-emerald-600 font-medium' : ''}>
-              +{((feed.bonus.growthModifier - 1) * 100).toFixed(0)}%
-            </span>
-          </li>
-          <li className="flex justify-between">
-            <span>Postura:</span> 
-            <span className={feed.bonus.eggModifier > 1 ? 'text-emerald-600 font-medium' : ''}>
-              +{((feed.bonus.eggModifier - 1) * 100).toFixed(0)}%
-            </span>
-          </li>
-        </ul>
+        {open && (
+          <>
+            <div className="h-12 w-full mt-3 opacity-50">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <YAxis domain={['dataMin', 'dataMax']} hide />
+                  <Line type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <ul className="space-y-1 mt-3 text-xs text-zinc-600">
+              <li className="flex justify-between">
+                <span>Mortalidade</span> 
+                <span className={feed.bonus.mortalityModifier < 1 ? 'text-emerald-600 font-bold' : 'font-bold'}>
+                  {((1 - feed.bonus.mortalityModifier) * 100).toFixed(0)}%
+                </span>
+              </li>
+              <li className="flex justify-between">
+                <span>Crescimento</span> 
+                <span className={feed.bonus.growthModifier > 1 ? 'text-emerald-600 font-bold' : 'font-bold'}>
+                  +{((feed.bonus.growthModifier - 1) * 100).toFixed(0)}%
+                </span>
+              </li>
+              <li className="flex justify-between">
+                <span>Postura</span> 
+                <span className={feed.bonus.eggModifier > 1 ? 'text-emerald-600 font-bold' : 'font-bold'}>
+                  +{((feed.bonus.eggModifier - 1) * 100).toFixed(0)}%
+                </span>
+              </li>
+            </ul>
+          </>
+        )}
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-          <p className="text-[11px] font-bold text-zinc-500">Envio</p>
-          <select
-            value={pref.scheduledInDays}
-            onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
-            className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
-          >
-            <option value={0}>Enviar hoje</option>
-            <option value={1}>Enviar em 1 dia</option>
-            <option value={2}>Enviar em 2 dias</option>
-            <option value={3}>Enviar em 3 dias</option>
-          </select>
+      {open && (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <p className="text-[11px] font-bold text-zinc-500">Envio</p>
+            <select
+              value={pref.scheduledInDays}
+              onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
+              className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
+            >
+              <option value={0}>Enviar hoje</option>
+              <option value={1}>Enviar em 1 dia</option>
+              <option value={2}>Enviar em 2 dias</option>
+              <option value={3}>Enviar em 3 dias</option>
+            </select>
+          </div>
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <p className="text-[11px] font-bold text-zinc-500">Logística</p>
+            <button
+              type="button"
+              onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
+              className={`w-full mt-1 px-2 py-1 rounded-md text-sm font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
+              disabled={!hasFeedTruck}
+              title={!hasFeedTruck ? 'Compre um Caminhão de Ração em Fábricas para habilitar retirada' : ''}
+            >
+              {mode === 'CAMINHAO' ? 'Buscar com caminhão' : 'Entrega do fornecedor'}
+            </button>
+            <p className="text-[11px] text-zinc-500 mt-1">Previsão: {etaLabel}</p>
+          </div>
         </div>
-        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-          <p className="text-[11px] font-bold text-zinc-500">Logística</p>
-          <button
-            type="button"
-            onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
-            className={`w-full mt-1 px-2 py-1 rounded-md text-sm font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
-            disabled={!hasFeedTruck}
-            title={!hasFeedTruck ? 'Compre um Caminhão de Ração em Fábricas para habilitar retirada' : ''}
-          >
-            {mode === 'CAMINHAO' ? 'Buscar com caminhão' : 'Entrega do fornecedor'}
-          </button>
-          <p className="text-[11px] text-zinc-500 mt-1">Previsão: {etaLabel}</p>
-        </div>
-      </div>
+      )}
 
       <div className="flex gap-2 mt-4">
         <input 
