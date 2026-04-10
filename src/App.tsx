@@ -13,6 +13,7 @@ import RHPage from './pages/RHPage';
 import { ResearchPage } from './pages/ResearchPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import Home from './pages/Home';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -26,7 +27,7 @@ function AnimatedRoutes() {
 
         {/* Jogo liberado offline, salva localmente */}
         <Route path="/" element={<GameLayout />}>
-          <Route index element={<Navigate to="/painel" />} />
+          <Route index element={<Home />} />
           <Route path="painel" element={<Dashboard />} />
           <Route path="galpoes" element={<BarnsPage />} />
           <Route path="infra" element={<FacilitiesPage />} />

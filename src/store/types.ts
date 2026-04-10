@@ -193,6 +193,9 @@ export interface Employee {
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
 
 export interface GameState {
+  hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
+
   // Auth state
   isAuthenticated: boolean;
   setAuth: (access: string, refresh: string) => void;

@@ -137,6 +137,8 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
+      hasHydrated: false,
+      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
       isAuthenticated: !!localStorage.getItem('access_token'),
   setAuth: (access: string, refresh: string) => {
     localStorage.setItem('access_token', access);
@@ -1670,6 +1672,9 @@ export const useGameStore = create<GameState>()(
     {
       name: 'game-storage', // name of item in the storage (must be unique)
       partialize: (state) => ({ ...state }), // You can filter what to save here
+      onRehydrateStorage: () => (state, error) => {
+        if (!error) state?.setHasHydrated(true);
+      },
     }
   )
 );
