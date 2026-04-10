@@ -88,11 +88,24 @@ export interface Barn {
   isRented: boolean; // Indica se é alugado
   sanitaryVoidDays: number; // Dias restantes de vazio sanitário (0 = liberado)
   selectedFeedId: string; // Ração selecionada para o galpão
+  siloBalance: number; // kg de ração no silo do galpão
+  siloCapacity: number; // kg máximos que o silo aguenta
 }
 
 export interface InventoryItem {
-  itemId: string; // ID da Ração ou outro insumo
-  quantity: number; // Quantidade em kg
+  itemId: string; // ID da Ração, Milho, Soja, Diesel, etc.
+  quantity: number; // Quantidade (kg, m3, L, etc.)
+}
+
+export interface FeedDelivery {
+  id: string;
+  itemId: string;
+  quantity: number;
+  orderedAtDay: number;
+  dispatchAtDay: number;
+  arrivesAtDay: number;
+  freightCost: number;
+  mode: 'ENTREGA' | 'CAMINHAO';
 }
 
 export interface BatchHistory {
@@ -165,6 +178,7 @@ export interface DailyTask {
   startedAt: number | null; // timestamp in ms
   completed: boolean;
   effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
+  severity: 'BAIXA' | 'MEDIA' | 'ALTA';
   description: string;
 }
 
@@ -176,6 +190,8 @@ export interface Employee {
   dailySalary: number; // Salário diário
 }
 
+export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
+
 export interface GameState {
   // Player Data
   company: Company | null;
@@ -184,6 +200,20 @@ export interface GameState {
   currentDay: number;
   level: number;
   xp: number;
+
+  // Environment
+  currentWeather: WeatherType;
+  weatherDaysLeft: number;
+
+  // Emergency Loan
+  emergencyLoanAvailable: boolean;
+  emergencyLoanActive: boolean;
+  takeEmergencyLoan: (amount: number) => void;
+  payEmergencyLoan: () => void;
+
+  // Research
+  unlockedResearches: string[];
+  unlockResearch: (researchId: string) => void;
   
   // Bank Loan
   bankLoan: number;
@@ -200,6 +230,7 @@ export interface GameState {
   // Assets
   barns: Barn[];
   inventory: InventoryItem[]; // Estoque de insumos (rações e ingredientes)
+  pendingDeliveries: FeedDelivery[]; // Pedidos em transporte
   ownedMachinery: string[]; // IDs of purchased machinery
   employees: Employee[]; // Funcionários contratados
   products: {
@@ -231,11 +262,10 @@ export interface GameState {
   upgradeBarn: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
-  buyFeed: (feedId: string, kg: number, totalCost: number) => void;
+  buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;
   buyChicks: (barnId: string, quantity: number, cost: number) => void;
   sellEggs: (quantity: number, pricePerEgg: number) => void;
-  sellBatch: (barnId: string, pricePerKg: number, isProcessed?: boolean) => void;
-  discardBatch: (barnId: string, pricePerBird: number) => void; // Para descarte de Postura
+  sellBatch: (barnId: string) => void; // Para descarte de Postura
   feedFlock: (barnId: string, feedId: string, amountKg: number) => void;
   advanceDay: (days?: number) => void; // Parâmetro days opcional para avançar vários dias
   resetGame: (initialChoice: 'POSTURA' | 'CORTE', companyName: string, companyColor: string, regionId: string) => void;
@@ -265,9 +295,11 @@ export interface GameState {
   // Batch Management
   vaccinateBatch: (barnId: string, cost: number) => void;
   cleanBarn: (barnId: string, cost: number) => void;
+  medicateBatch: (barnId: string) => void;
   
   // Feed Management
   selectFeed: (barnId: string, feedId: string) => void;
+  fillSilo: (barnId: string, amountKg: number) => void;
   
   // Novas Ações - Fábrica
   buildFeedMill: (cost: number) => void;

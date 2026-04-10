@@ -127,24 +127,33 @@ export default function StartPage() {
                 <p className="text-zinc-500 text-sm mt-2">A região afeta diretamente o custo da terra, o valor da ração e do frete.</p>
               </div>
               
-              <div className="grid md:grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                 {Object.values(REGIONS).map(region => (
                   <div 
                     key={region.id}
                     onClick={() => setSelectedRegion(region.id)}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+                    className={`p-4 sm:p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                       selectedRegion === region.id 
                         ? 'bg-zinc-50 shadow-md' 
                         : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
                     }`}
                     style={{ borderColor: selectedRegion === region.id ? currentColorObj.value : '' }}
                   >
-                    <h3 className="text-lg font-bold text-zinc-800 flex justify-between">
-                      {region.name} <span className="text-zinc-400">{region.state}</span>
-                    </h3>
-                    <p className="text-sm text-zinc-500 mt-2 mb-3 h-10">{region.description}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-base sm:text-lg font-bold text-zinc-800 leading-tight truncate">
+                          {region.name}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-zinc-500 mt-1 leading-snug">
+                          {region.description}
+                        </p>
+                      </div>
+                      <span className="shrink-0 px-2 py-1 rounded-lg bg-zinc-100 text-zinc-600 text-xs font-bold">
+                        {region.state}
+                      </span>
+                    </div>
                     
-                    <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold mt-4">
                       <div className={`p-2 rounded ${region.feedCostModifier < 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         Ração: {region.feedCostModifier < 1 ? '-' : '+'}{Math.abs((1 - region.feedCostModifier) * 100).toFixed(0)}%
                       </div>
@@ -156,17 +165,17 @@ export default function StartPage() {
                 ))}
               </div>
 
-              <div className="flex justify-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-6 py-4 rounded-xl text-lg font-bold text-zinc-500 hover:bg-zinc-100 transition-colors"
+                  className="px-6 py-4 rounded-xl text-lg font-bold text-zinc-500 hover:bg-zinc-100 transition-colors w-full sm:w-auto"
                 >
                   Voltar
                 </button>
                 <button
                   onClick={() => setStep(3)}
                   disabled={!selectedRegion}
-                  className="px-8 py-4 rounded-xl text-lg font-bold shadow-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-4 rounded-xl text-lg font-bold shadow-lg transition-all text-white disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                   style={{ backgroundColor: currentColorObj.value }}
                 >
                   Continuar

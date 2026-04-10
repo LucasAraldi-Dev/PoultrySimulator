@@ -62,6 +62,25 @@ export const FEEDS: Record<string, FeedItem> = {
   },
 };
 
+export interface RawMaterial {
+  id: string;
+  name: string;
+  costPerUnit: number;
+  unit: 'kg' | 'm3' | 'L' | 'un';
+  description: string;
+}
+
+export const RAW_MATERIALS: Record<string, RawMaterial> = {
+  'corn': { id: 'corn', name: 'Milho em Grão', costPerUnit: 1.0, unit: 'kg', description: 'Base energética da ração' },
+  'soy': { id: 'soy', name: 'Farelo de Soja', costPerUnit: 2.5, unit: 'kg', description: 'Base proteica da ração' },
+  'premix': { id: 'premix', name: 'Núcleo/Premix', costPerUnit: 15.0, unit: 'kg', description: 'Vitaminas e minerais essenciais' },
+  'rice_straw': { id: 'rice_straw', name: 'Palha de Arroz (Cama)', costPerUnit: 50.0, unit: 'm3', description: 'Forragem essencial para iniciar lotes e manter higiene' },
+  'diesel': { id: 'diesel', name: 'Óleo Diesel', costPerUnit: 6.0, unit: 'L', description: 'Combustível para geradores e caminhões' },
+  'medication': { id: 'medication', name: 'Medicamentos Vet.', costPerUnit: 100.0, unit: 'un', description: 'Usado para tratar doenças rapidamente' },
+  'parts': { id: 'parts', name: 'Peças de Reposição', costPerUnit: 250.0, unit: 'un', description: 'Usado na manutenção preventiva e corretiva de equipamentos' },
+  'gas': { id: 'gas', name: 'Gás de Aquecimento (GLP)', costPerUnit: 120.0, unit: 'un', description: 'Necessário para aquecer pintinhos nos primeiros dias' },
+};
+
 export const REGIONS: Record<string, import('./types').Region> = {
   'pe_sao_bento': {
     id: 'pe_sao_bento',
@@ -112,6 +131,66 @@ export const REGIONS: Record<string, import('./types').Region> = {
     productSaleModifier: 1.0, 
     landCostModifier: 1.1, 
     freightCostPerKg: 0.08,
+  },
+  'pr_cascavel': {
+    id: 'pr_cascavel',
+    name: 'Cascavel',
+    state: 'PR',
+    description: 'Oeste do Paraná, forte em grãos e integração. Ótima base para expandir com logística equilibrada.',
+    feedCostModifier: 0.92,
+    productSaleModifier: 1.02,
+    landCostModifier: 1.05,
+    freightCostPerKg: 0.06,
+  },
+  'rs_lajeado': {
+    id: 'rs_lajeado',
+    name: 'Lajeado',
+    state: 'RS',
+    description: 'Vale do Taquari, região de proteína e cooperativas. Mercado exigente, mas paga melhor qualidade.',
+    feedCostModifier: 0.98,
+    productSaleModifier: 1.08,
+    landCostModifier: 1.08,
+    freightCostPerKg: 0.07,
+  },
+  'go_rio_verde': {
+    id: 'go_rio_verde',
+    name: 'Rio Verde',
+    state: 'GO',
+    description: 'Polo do agro em Goiás. Boa oferta de milho/soja e fácil escoamento para o Sudeste.',
+    feedCostModifier: 0.78,
+    productSaleModifier: 0.95,
+    landCostModifier: 0.95,
+    freightCostPerKg: 0.03,
+  },
+  'mg_uberlandia': {
+    id: 'mg_uberlandia',
+    name: 'Uberlândia',
+    state: 'MG',
+    description: 'Hub logístico entre Centro-Oeste e Sudeste. Frete eficiente, terra intermediária, bom preço de venda.',
+    feedCostModifier: 0.95,
+    productSaleModifier: 1.08,
+    landCostModifier: 1.12,
+    freightCostPerKg: 0.05,
+  },
+  'ba_barreiras': {
+    id: 'ba_barreiras',
+    name: 'Barreiras',
+    state: 'BA',
+    description: 'MATOPIBA em expansão. Grãos crescentes, mas riscos climáticos e logística mais longa.',
+    feedCostModifier: 0.9,
+    productSaleModifier: 0.92,
+    landCostModifier: 0.85,
+    freightCostPerKg: 0.12,
+  },
+  'pa_paragominas': {
+    id: 'pa_paragominas',
+    name: 'Paragominas',
+    state: 'PA',
+    description: 'Fronteira agrícola distante. Terra barata, mas frete caro e instabilidade de abastecimento.',
+    feedCostModifier: 1.22,
+    productSaleModifier: 1.05,
+    landCostModifier: 0.75,
+    freightCostPerKg: 0.18,
   }
 };
 
@@ -445,6 +524,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     startedAt: null,
     completed: false,
     effectType: 'DISEASE',
+    severity: 'MEDIA',
   },
   {
     id: 'check_temperature',
@@ -454,6 +534,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     startedAt: null,
     completed: false,
     effectType: 'GROWTH',
+    severity: 'MEDIA',
   },
   {
     id: 'remove_dead',
@@ -463,15 +544,34 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     startedAt: null,
     completed: false,
     effectType: 'MORTALITY',
+    severity: 'ALTA',
   }
 ];
 
 export const INITIAL_MONEY = 15000; // Rebalanceado: De 5000 para 15000 para conseguir concluir 1º lote com folga
-export const CHICK_COST = 1.2; // Pintinho 1 dia
+export const CHICK_COST = 2.0; // Price per chick
 export const EGG_PRICE = 0.5; // Venda de ovo unitário
 export const MEAT_PRICE_PER_KG = 6.0; // Venda de frango vivo por KG
 export const MEAT_PROCESSED_PRICE_PER_KG = 10.0; // Venda frango abatido
-export const LAYER_COST = 15.0; // Galinha de postura pronta
+export const LAYER_COST = 18.0; // Price per young layer (franga)
+
+export interface Research {
+  id: string;
+  name: string;
+  description: string;
+  costMoney: number;
+  costXP: number;
+  category: 'GENETICS' | 'NUTRITION' | 'INFRASTRUCTURE' | 'HEALTH';
+}
+
+export const RESEARCHES: Record<string, Research> = {
+  'gen_1': { id: 'gen_1', name: 'Genética Avançada I', description: 'Aves de corte crescem 5% mais rápido.', costMoney: 5000, costXP: 1000, category: 'GENETICS' },
+  'gen_2': { id: 'gen_2', name: 'Seleção Postura I', description: 'Galinhas botam 5% mais ovos.', costMoney: 8000, costXP: 1500, category: 'GENETICS' },
+  'nut_1': { id: 'nut_1', name: 'Nutrição de Precisão', description: 'Reduz o consumo de ração das aves em 5%.', costMoney: 10000, costXP: 2000, category: 'NUTRITION' },
+  'inf_1': { id: 'inf_1', name: 'Isolamento Térmico', description: 'Reduz o consumo de Gás e Energia em 15%.', costMoney: 15000, costXP: 2500, category: 'INFRASTRUCTURE' },
+  'hea_1': { id: 'hea_1', name: 'Imunologia Base', description: 'Reduz a chance base de doenças em 20%.', costMoney: 12000, costXP: 2200, category: 'HEALTH' },
+  'hea_2': { id: 'hea_2', name: 'Super Vacinas', description: 'A vacina manual dura 25 dias em vez de 15.', costMoney: 20000, costXP: 3500, category: 'HEALTH' },
+};
 export const MAX_LAYER_AGE_DAYS = 600; // Idade em que as galinhas de postura param de botar bem
 export const DISCARD_BIRD_PRICE = 3.5; // Valor de venda da galinha de descarte
 export const SANITARY_VOID_DAYS = 15; // Dias que o galpão deve ficar vazio para desinfecção após a saída de um lote

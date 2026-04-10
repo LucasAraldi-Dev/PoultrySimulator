@@ -1,5 +1,5 @@
 import { useGameStore } from '../store/useGameStore';
-import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG } from '../store/constants';
+import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS } from '../store/constants';
 import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ShoppingCart, ArrowRight } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { Link } from 'react-router-dom';
@@ -47,7 +47,7 @@ export default function Dashboard() {
   });
 
   // Alerta de estoque de ração baixo
-  const totalFeed = inventory.reduce((acc, item) => acc + item.quantity, 0);
+  const totalFeed = inventory.filter(i => i.itemId.startsWith('feed_')).reduce((acc, item) => acc + item.quantity, 0);
   if (totalFeed < 200) {
     alerts.push('Estoque de ração crítico. Vá ao Mercado!');
   }
@@ -241,12 +241,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Estoque de Ração */}
+          {/* Estoque Geral */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold text-zinc-800 flex items-center gap-2">
                 <Package size={20} className="text-zinc-500" />
-                Estoque de Ração
+                Estoque Geral
               </h2>
               <button 
                 onClick={handleQuickBuyFeed}
@@ -261,15 +261,18 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {inventory.map(item => {
                   const feedData = FEEDS[item.itemId];
+                  const rawData = RAW_MATERIALS[item.itemId];
+                  const name = feedData?.name || rawData?.name || item.itemId;
+                  const unit = rawData?.unit || 'kg';
                   return (
                     <div key={item.itemId} className="flex justify-between items-center p-3 bg-zinc-50 rounded-lg border border-zinc-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                        <h4 className="font-semibold text-zinc-800 text-sm">{feedData?.name || item.itemId}</h4>
+                        <div className={`w-2 h-2 rounded-full ${feedData ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                        <h4 className="font-semibold text-zinc-800 text-sm">{name}</h4>
                       </div>
                       <div className="text-right">
                         <span className="font-bold text-zinc-800">{item.quantity.toFixed(1)}</span>
-                        <span className="text-zinc-500 text-sm ml-1">kg</span>
+                        <span className="text-zinc-500 text-sm ml-1">{unit}</span>
                       </div>
                     </div>
                   );

@@ -1,7 +1,25 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
-import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle, Calendar, Users } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { 
+  LayoutDashboard, 
+  Home, 
+  ShoppingCart, 
+  Settings, 
+  DollarSign, 
+  Clock, 
+  Wallet, 
+  Play, 
+  CheckSquare, 
+  Loader2, 
+  AlertCircle, 
+  AlertTriangle,
+  Calendar, 
+  Users, 
+  Microscope,
+  Sun,
+  Moon
+} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatGameDate } from '../lib/utils';
 
@@ -18,9 +36,55 @@ export default function GameLayout() {
   const startTask = useGameStore(state => state.startTask);
   const completeTask = useGameStore(state => state.completeTask);
 
+  const weather = useGameStore(state => state.currentWeather);
+  const weatherDaysLeft = useGameStore(state => state.weatherDaysLeft);
+  const emergencyLoanAvailable = useGameStore(state => state.emergencyLoanAvailable);
+  const takeEmergencyLoan = useGameStore(state => state.takeEmergencyLoan);
+
+  const getWeatherIcon = () => {
+    switch (weather) {
+      case 'SUNNY': return <Sun className="text-amber-500" size={24} />;
+      case 'RAIN': return <AlertCircle className="text-blue-500" size={24} />; // Using alert temporarily for rain
+      case 'HEATWAVE': return <Sun className="text-red-500" size={24} />;
+      case 'COLD': return <AlertCircle className="text-cyan-500" size={24} />;
+      default: return <Sun className="text-amber-500" size={24} />;
+    }
+  };
+
+  const getWeatherLabel = () => {
+    switch (weather) {
+      case 'SUNNY': return 'Ensolarado';
+      case 'RAIN': return 'Chuva Forte';
+      case 'HEATWAVE': return 'Onda de Calor';
+      case 'COLD': return 'Frente Fria';
+      default: return 'Ensolarado';
+    }
+  };
+
   const [isAnimatingDay, setIsAnimatingDay] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [moneyChanges, setMoneyChanges] = useState<{id: number, val: number, x: number, y: number}[]>([]);
+  const prevMoney = useRef(money);
+
+  useEffect(() => {
+    if (prevMoney.current !== money) {
+      const diff = money - prevMoney.current;
+      if (Math.abs(diff) > 1) { // Ignore tiny changes
+        const newChange = {
+          id: Date.now() + Math.random(),
+          val: diff,
+          x: Math.random() * 60 - 30, // Random X offset
+          y: Math.random() * 20 - 10,
+        };
+        setMoneyChanges(prev => [...prev, newChange]);
+        setTimeout(() => {
+          setMoneyChanges(prev => prev.filter(c => c.id !== newChange.id));
+        }, 2000);
+      }
+      prevMoney.current = money;
+    }
+  }, [money]);
 
   // Force re-render for active timers
   useEffect(() => {
@@ -75,6 +139,7 @@ export default function GameLayout() {
     { to: '/fabricas', icon: Settings, label: 'Fábricas' },
     { to: '/rh', icon: Users, label: 'RH/Consultoria' },
     { to: '/financas', icon: DollarSign, label: 'Finanças' },
+    { to: '/research', icon: Microscope, label: 'Pesquisas' },
   ];
 
   return (
@@ -86,24 +151,104 @@ export default function GameLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900 text-white"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-zinc-950"
           >
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.2, opacity: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-center flex flex-col items-center"
+            {/* Stars background */}
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
+            
+            <motion.div
+              initial={{ y: 200, opacity: 0, rotate: -45 }}
+              animate={{ y: 0, opacity: 1, rotate: 0 }}
+              exit={{ y: -200, opacity: 0, rotate: 45 }}
+              transition={{ duration: 0.8, ease: "backInOut" }}
+              className="absolute"
             >
-              <Clock size={64} className="mb-4 animate-spin-slow text-indigo-400" style={{ animationDuration: '3s' }} />
-              <h2 className="text-4xl font-bold mb-2">Fim do Dia {currentDay}</h2>
-              <p className="text-xl text-zinc-400">Processando vendas, consumo de ração e crescimento...</p>
+              <Moon size={120} className="text-indigo-300 drop-shadow-[0_0_15px_rgba(165,180,252,0.6)]" />
+            </motion.div>
+
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 1.1, opacity: 0, y: -50 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="text-center flex flex-col items-center relative z-10"
+            >
+              <h2 className="text-5xl font-black mb-3 text-white tracking-tight drop-shadow-md">
+                Dia {currentDay}
+              </h2>
+              <div className="h-1 w-24 bg-indigo-500 rounded-full mb-4"></div>
+              <p className="text-lg text-indigo-200 font-medium tracking-wide">
+                A noite cai na granja...
+              </p>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Sidebar de Navegação (Bottom bar no mobile) */}
+      {/* Emergency Loan Modal */}
+      <AnimatePresence>
+        {emergencyLoanAvailable && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl"
+            >
+              <div className="bg-red-600 p-6 text-center text-white relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                <AlertTriangle size={48} className="mx-auto mb-3 animate-pulse text-red-200" />
+                <h2 className="text-2xl font-black uppercase tracking-wider">Atenção: Saldo Negativo</h2>
+                <p className="text-red-100 mt-2 font-medium">Sua granja está operando no vermelho e correndo risco de falência.</p>
+              </div>
+              
+              <div className="p-6">
+                <p className="text-zinc-600 mb-4">
+                  O Banco do Brasil detectou o risco em suas finanças e preparou um <strong className="text-red-600">Empréstimo de Recuperação Emergencial</strong>. 
+                </p>
+                
+                <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 mb-6 space-y-3">
+                  <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
+                    <span className="text-sm font-bold text-zinc-500">Valor do Crédito</span>
+                    <span className="text-lg font-black text-emerald-600">R$ 50.000,00</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
+                    <span className="text-sm font-bold text-zinc-500">Juros Aplicados</span>
+                    <span className="text-sm font-black text-red-500">20% Fixo</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
+                    <span className="text-sm font-bold text-zinc-500">Total a Pagar</span>
+                    <span className="text-sm font-black text-red-600">R$ 60.000,00</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-zinc-500">Carência (Prazo)</span>
+                    <span className="text-sm font-black text-blue-600">60 Dias</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={() => takeEmergencyLoan(50000)}
+                    className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-lg shadow-lg transition-transform hover:scale-[1.02] flex justify-center items-center gap-2"
+                  >
+                    <DollarSign size={20} />
+                    Aceitar Empréstimo
+                  </button>
+                  <p className="text-xs text-center text-zinc-400">
+                    Ao aceitar, você concorda com as taxas abusivas para se salvar da falência. O valor integral será cobrado no dia {currentDay + 60}.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <aside className="w-full md:w-64 bg-zinc-900 text-white flex flex-col shrink-0 order-last md:order-first z-40 pb-safe md:pb-0 sticky bottom-0 md:relative">
         <div className="hidden md:block p-6 text-center border-b border-zinc-800" style={{ borderBottomColor: `${company.color}40` }}>
           <h2 className="text-xl font-bold truncate px-2" style={{ color: company.color }}>{company.name}</h2>
@@ -135,11 +280,7 @@ export default function GameLayout() {
           <div className="flex justify-between items-center w-full">
             <div className="flex flex-col gap-1 w-1/2">
               <h1 className="text-xl md:text-2xl font-bold text-zinc-800 capitalize truncate">
-                {pathname === '/painel' ? 'Painel' : 
-                 pathname === '/galpoes' ? 'Meus Galpões' : 
-                 pathname === '/mercado' ? 'Mercado' : 
-                 pathname === '/fabricas' ? 'Fábricas' : 
-                 pathname === '/financas' ? 'Finanças' : 'Jogo'}
+                {navItems.find(i => i.to === pathname)?.label || 'Jogo'}
               </h1>
               <div className="flex items-center gap-2 w-full max-w-[200px]">
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: company.color }}>
@@ -158,8 +299,38 @@ export default function GameLayout() {
             </div>
 
             <div className="flex gap-2 items-center justify-end w-1/2">
+              {/* Weather Indicator */}
+              <div className="hidden md:flex items-center gap-3 bg-zinc-100 px-4 py-2 rounded-xl shadow-inner relative group cursor-help">
+                {getWeatherIcon()}
+                <div>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Clima</p>
+                  <p className="font-bold text-zinc-800 text-sm">{getWeatherLabel()}</p>
+                </div>
+                
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-zinc-800 text-white text-xs rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center">
+                  Previsão de durar mais {weatherDaysLeft} dia(s).
+                  {weather === 'HEATWAVE' && ' Mortalidade aumenta sem ventilador!'}
+                  {weather === 'COLD' && ' Pintinhos precisam do dobro de gás!'}
+                  {weather === 'RAIN' && ' Maior chance de surtos de doenças!'}
+                </div>
+              </div>
+
               <div className="flex flex-col items-end">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base relative">
+                  <AnimatePresence>
+                    {moneyChanges.map((change) => (
+                      <motion.div
+                        key={change.id}
+                        initial={{ opacity: 1, y: 0, x: change.x, scale: 0.5 }}
+                        animate={{ opacity: 0, y: -50, scale: 1.2 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className={`absolute left-0 right-0 text-center pointer-events-none font-black text-lg drop-shadow-md z-50 ${change.val > 0 ? 'text-emerald-600' : 'text-red-600'}`}
+                      >
+                        {change.val > 0 ? '+' : '-'} R$ {Math.abs(change.val).toFixed(2)}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                   <Wallet size={18} />
                   R$ {money.toFixed(2)}
                 </div>
@@ -234,6 +405,13 @@ export default function GameLayout() {
                 
                 {dailyTasks.map(task => {
                   const isStarted = task.startedAt !== null;
+                  const severity = task.severity || 'MEDIA';
+                  const severityLabel = severity === 'ALTA' ? 'Crítica' : severity === 'BAIXA' ? 'Básica' : 'Importante';
+                  const severityClasses = severity === 'ALTA'
+                    ? 'bg-red-100 text-red-700'
+                    : severity === 'BAIXA'
+                      ? 'bg-zinc-100 text-zinc-600'
+                      : 'bg-amber-100 text-amber-700';
                   let progress = 0;
                   let timeLeftStr = "";
                   
@@ -262,7 +440,10 @@ export default function GameLayout() {
                             <Loader2 size={12} className="animate-spin" /> {timeLeftStr}
                           </span>
                         ) : (
-                          <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded text-xs font-bold">{task.durationMinutes} min</span>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`${severityClasses} px-2 py-1 rounded text-xs font-bold`}>{severityLabel}</span>
+                            <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded text-xs font-bold">{task.durationMinutes} min</span>
+                          </div>
                         )}
                       </div>
                       

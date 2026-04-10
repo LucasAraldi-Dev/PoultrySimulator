@@ -96,6 +96,8 @@ export default function FacilitiesPage() {
         sanitaryVoidDays: 0,
         batch: null,
         selectedFeedId: 'feed_basic',
+        siloBalance: 0,
+        siloCapacity: model.size === 'PEQUENO' ? 5000 : model.size === 'MEDIO' ? 10000 : 20000,
       };
       buyBarn(newBarn, cost);
     }
@@ -118,6 +120,8 @@ export default function FacilitiesPage() {
         sanitaryVoidDays: 0,
         batch: null,
         selectedFeedId: 'feed_basic',
+        siloBalance: 0,
+        siloCapacity: 10000,
       };
       buyBarn(newBarn, initialDeposit);
     }
@@ -502,13 +506,30 @@ export default function FacilitiesPage() {
                       const kgAmount = produceAmounts[feed.id] || 1000;
                     const totalCost = kgAmount * costToProduce;
                     const canAfford = money >= totalCost;
+                    
+                    const factor = kgAmount / 1000;
+                    const cornNeeded = 600 * factor;
+                    const soyNeeded = 350 * factor;
+                    const premixNeeded = 50 * factor;
+                    
+                    const cornIdx = useGameStore.getState().inventory.findIndex(i => i.itemId === 'corn');
+                    const soyIdx = useGameStore.getState().inventory.findIndex(i => i.itemId === 'soy');
+                    const premixIdx = useGameStore.getState().inventory.findIndex(i => i.itemId === 'premix');
+                    
+                    const hasRawMaterials = 
+                      cornIdx >= 0 && useGameStore.getState().inventory[cornIdx].quantity >= cornNeeded &&
+                      soyIdx >= 0 && useGameStore.getState().inventory[soyIdx].quantity >= soyNeeded &&
+                      premixIdx >= 0 && useGameStore.getState().inventory[premixIdx].quantity >= premixNeeded;
 
                     return (
                       <div key={feed.id} className="flex flex-col gap-2 p-3 bg-zinc-50 rounded-lg border border-zinc-100">
                         <div className="flex justify-between items-center">
                           <span className="font-bold text-sm text-zinc-700">{feed.name}</span>
-                          <span className="text-xs font-medium text-emerald-600">Custo: R$ {costToProduce.toFixed(2)}/kg</span>
+                          <span className="text-xs font-medium text-emerald-600">Custo Fixo: R$ {costToProduce.toFixed(2)}/kg</span>
                         </div>
+                        <p className={`text-xs font-bold mb-1 ${hasRawMaterials ? 'text-blue-600' : 'text-red-500'}`}>
+                          Requer: {cornNeeded.toFixed(0)}kg Milho, {soyNeeded.toFixed(0)}kg Soja, {premixNeeded.toFixed(0)}kg Premix
+                        </p>
                         <div className="flex gap-2">
                           <input 
                             type="number"
@@ -520,8 +541,9 @@ export default function FacilitiesPage() {
                           />
                           <button
                             onClick={() => produceFeed(feed.id, kgAmount, totalCost)}
-                            disabled={!canAfford}
-                            className={`flex-1 py-1 px-2 rounded-md text-sm font-bold ${canAfford ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                            disabled={!canAfford || !hasRawMaterials}
+                            className={`flex-1 py-1 px-2 rounded-md text-sm font-bold ${(canAfford && hasRawMaterials) ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                            title={!hasRawMaterials ? 'Matéria-prima insuficiente no estoque' : ''}
                           >
                             Produzir (R$ {totalCost.toFixed(2)})
                           </button>

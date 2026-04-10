@@ -10,51 +10,43 @@ export default function BarnsPage() {
   const barns = useGameStore(state => state.barns);
   const inventory = useGameStore(state => state.inventory);
   const sellBatch = useGameStore(state => state.sellBatch);
-  const discardBatch = useGameStore(state => state.discardBatch);
   const marketPrices = useGameStore(state => state.marketPrices);
   const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
   const cleanBarn = useGameStore(state => state.cleanBarn);
   const vaccinateBatch = useGameStore(state => state.vaccinateBatch);
+  const medicateBatch = useGameStore(state => state.medicateBatch);
   const selectFeed = useGameStore(state => state.selectFeed);
   const money = useGameStore(state => state.money);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedBarnId, setSelectedBarnId] = useState<string | null>(null);
-  const [modalType, setModalType] = useState<'SELL' | 'DISCARD' | null>(null);
-  const [expectedRevenue, setExpectedRevenue] = useState(0);
+  const [modalType, setModalType] = useState<'SELL' | 'DISCARD'>('SELL');
 
   const totalFeed = inventory.reduce((acc, item) => acc + item.quantity, 0);
 
-  const handleOpenModal = (barnId: string, type: 'SELL' | 'DISCARD', revenue: number) => {
+  const handleOpenModal = (barnId: string, type: 'SELL' | 'DISCARD') => {
     setSelectedBarnId(barnId);
     setModalType(type);
-    setExpectedRevenue(revenue);
     setModalOpen(true);
   };
 
   const handleConfirmAction = () => {
-    if (!selectedBarnId) return;
-    
-    if (modalType === 'SELL') {
-      sellBatch(selectedBarnId, hasSlaughterhouse ? marketPrices.processedMeat : marketPrices.meat, hasSlaughterhouse);
-    } else if (modalType === 'DISCARD') {
-      discardBatch(selectedBarnId, DISCARD_BIRD_PRICE);
+    if (selectedBarnId) {
+      sellBatch(selectedBarnId);
     }
-    
     setModalOpen(false);
   };
 
   return (
     <PageTransition className="space-y-6">
-      {/* Alerta de Alimentação Automática */}
-      <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex gap-3 text-blue-800">
+      {/* Alerta de Alimentação Manual no Silo */}
+      <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3 text-amber-800">
         <Info className="shrink-0" />
         <div>
-          <p className="font-bold">Alimentação Automática</p>
+          <p className="font-bold">Manejo de Ração (Silo)</p>
           <p className="text-sm mt-1">
-            Suas aves consomem a ração do estoque central automaticamente cada vez que você clica em <strong>Passar Dia</strong>. 
-            Você possui <strong>{totalFeed.toFixed(1)} kg</strong> de ração no momento. 
-            Mantenha o estoque cheio para evitar mortalidade!
+            As aves se alimentam do <strong>Silo do Galpão</strong>. Se o silo esvaziar, as aves começam a morrer de fome! 
+            Lembre-se de transferir a ração correta do Estoque Geral para o Silo de cada galpão.
           </p>
         </div>
       </div>
@@ -165,18 +157,39 @@ export default function BarnsPage() {
                   </div>
                   
                   {/* Controles de Lote */}
-                  <div className="col-span-2 md:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Ração do Galpão</label>
-                      <select 
-                        value={barn.selectedFeedId || 'feed_basic'}
-                        onChange={(e) => selectFeed(barn.id, e.target.value)}
-                        className="w-full p-2 rounded border border-zinc-300 text-sm focus:ring-2 focus:ring-indigo-500"
-                      >
-                        {Object.values(FEEDS).map(feed => (
-                          <option key={feed.id} value={feed.id}>{feed.name}</option>
-                        ))}
-                      </select>
+                  <div className="col-span-2 md:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-2 flex flex-col justify-between">
+                      <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Ração no Silo ({barn.siloBalance.toFixed(0)} kg / {barn.siloCapacity} kg)</label>
+                      <div className="flex gap-2">
+                        <select 
+                          value={barn.selectedFeedId || 'feed_basic'}
+                          onChange={(e) => selectFeed(barn.id, e.target.value)}
+                          className="flex-1 p-2 rounded border border-zinc-300 text-sm focus:ring-2 focus:ring-indigo-500"
+                        >
+                          {Object.values(FEEDS).map(feed => (
+                            <option key={feed.id} value={feed.id}>{feed.name}</option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={() => {
+                            if (barn.isRented) {
+                              // Integração pega ração de graça (já descontado no lucro final)
+                              const amount = Number(prompt(`Integração: Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} solicitar da integradora? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
+                              if (!isNaN(amount) && amount > 0) {
+                                useGameStore.getState().fillSilo(barn.id, amount);
+                              }
+                            } else {
+                              const amount = Number(prompt(`Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} transferir do estoque geral para o silo? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
+                              if (!isNaN(amount) && amount > 0) {
+                                useGameStore.getState().fillSilo(barn.id, amount);
+                              }
+                            }
+                          }}
+                          className={`px-3 py-2 rounded font-bold text-sm border ${barn.isRented ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'}`}
+                        >
+                          Abastecer
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex flex-col justify-end">
@@ -204,13 +217,21 @@ export default function BarnsPage() {
                   {/* Status de Doença */}
                   {barn.batch.activeDisease && (
                     <div className="col-span-2 md:col-span-4 bg-red-100 border border-red-200 p-3 rounded-lg text-sm text-red-800">
-                      <p className="font-bold flex items-center gap-2">
-                        <AlertCircle size={16} /> 
-                        Surto de {barn.batch.activeDisease.name}!
-                      </p>
-                      <p className="mt-1">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-bold flex items-center gap-2">
+                          <AlertCircle size={16} /> 
+                          Surto de {barn.batch.activeDisease.name}!
+                        </p>
+                        <button 
+                          onClick={() => medicateBatch(barn.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700 flex items-center gap-1"
+                        >
+                          <Syringe size={14} /> Usar Medicamento
+                        </button>
+                      </div>
+                      <p>
                         O lote está doente. {barn.batch.activeDisease.mortalityModifier > 1 ? 'Mortalidade alta! ' : ''} 
-                        Use Ração Medicada para mitigar os danos ou espere a cura natural em {barn.batch.activeDisease.durationDays - barn.batch.activeDisease.daysActive} dias.
+                        Trate imediatamente ou use Ração Medicada para mitigar os danos até a cura natural em {barn.batch.activeDisease.durationDays - barn.batch.activeDisease.daysActive} dias.
                       </p>
                     </div>
                   )}
@@ -226,7 +247,12 @@ export default function BarnsPage() {
                       {barn.type === 'CORTE' ? (
                         <p className="text-sm text-emerald-700 mb-4">
                           O lote atual pesa no total <strong>{((barn.batch.animalCount * barn.batch.currentWeight) / 1000).toFixed(2)} toneladas</strong>.
-                          {hasSlaughterhouse ? (
+                          {barn.isRented ? (
+                            <>
+                              <br/><br/>
+                              Este lote pertence à <strong>Integradora</strong>. Ao finalizar, você receberá por cabeça de acordo com a sua performance (Mortalidade e Conversão Alimentar).
+                            </>
+                          ) : hasSlaughterhouse ? (
                             <>Venda processada (Abatedouro Próprio) por <strong>R$ {marketPrices.processedMeat.toFixed(2)}/kg</strong>.</>
                           ) : (
                             <>Venda vivo para intermediários por <strong>R$ {marketPrices.meat.toFixed(2)}/kg</strong>.</>
@@ -263,15 +289,15 @@ export default function BarnsPage() {
                     
                     {barn.type === 'CORTE' && (
                       <button 
-                        onClick={() => handleOpenModal(barn.id, 'SELL', ((barn.batch!.animalCount * barn.batch!.currentWeight) * (hasSlaughterhouse ? marketPrices.processedMeat : marketPrices.meat)))}
-                        className={`w-full py-3 text-white rounded-md font-bold transition-all shadow-sm ${hasSlaughterhouse ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                        onClick={() => handleOpenModal(barn.id, 'SELL')}
+                        className={`w-full py-3 text-white rounded-md font-bold transition-all shadow-sm ${barn.isRented ? 'bg-blue-600 hover:bg-blue-700' : hasSlaughterhouse ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                       >
-                        {hasSlaughterhouse ? 'Abater e Vender (Premium)' : 'Vender Lote para Abate'}
+                        {barn.isRented ? 'Entregar Lote (Fim do Contrato)' : hasSlaughterhouse ? 'Abater Lote (Enviar Abatedouro)' : 'Vender Lote para Abate'}
                       </button>
                     )}
                     {barn.type === 'POSTURA' && barn.batch.ageDays > MAX_LAYER_AGE_DAYS && (
                       <button 
-                        onClick={() => handleOpenModal(barn.id, 'DISCARD', barn.batch!.animalCount * DISCARD_BIRD_PRICE)}
+                        onClick={() => handleOpenModal(barn.id, 'DISCARD')}
                         className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-md font-bold transition-all shadow-sm flex items-center justify-center gap-2"
                       >
                         <Trash2 size={18} /> Descartar Lote Velho (R$ {DISCARD_BIRD_PRICE.toFixed(2)}/ave)
@@ -315,13 +341,9 @@ export default function BarnsPage() {
         <div className="space-y-4">
           <p className="text-zinc-600">
             {modalType === 'SELL' 
-              ? 'Tem certeza que deseja finalizar e vender todo o lote atual deste galpão?' 
+              ? 'Tem certeza que deseja finalizar este lote e enviá-mo para venda ou processamento?' 
               : 'Este lote já atingiu a idade máxima produtiva. Deseja vender as aves para o mercado de descarte?'}
           </p>
-          <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
-            <p className="text-emerald-700 text-sm font-medium mb-1">Receita Estimada</p>
-            <p className="text-3xl font-bold text-emerald-600">R$ {expectedRevenue.toFixed(2)}</p>
-          </div>
           <div className="flex justify-end gap-3 mt-6">
             <button 
               onClick={() => setModalOpen(false)}
@@ -333,7 +355,7 @@ export default function BarnsPage() {
               onClick={handleConfirmAction}
               className={`px-4 py-2 font-bold text-white rounded-lg shadow-md ${modalType === 'SELL' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
-              {modalType === 'SELL' ? 'Confirmar Venda' : 'Confirmar Descarte'}
+              {modalType === 'SELL' ? 'Confirmar' : 'Confirmar Descarte'}
             </button>
           </div>
         </div>
