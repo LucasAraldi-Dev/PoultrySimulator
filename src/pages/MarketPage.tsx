@@ -56,9 +56,9 @@ export default function MarketPage() {
     setFeedAmounts({ ...feedAmounts, [matId]: 100 });
   };
 
-  const handleBuyFlock = (barnId: string, type: BarnType, capacity: number) => {
-    // Para simplificar, compra lotando a capacidade
-    const cost = type === 'POSTURA' ? capacity * LAYER_COST : capacity * CHICK_COST;
+  const handleBuyFlock = (barnId: string, type: BarnType, capacity: number, isRented: boolean) => {
+    // Se for integração (isRented = true), não tem custo de alojamento do pintinho (integradora fornece)
+    const cost = isRented ? 0 : (type === 'POSTURA' ? capacity * LAYER_COST : capacity * CHICK_COST);
     buyChicks(barnId, capacity, cost);
   };
 
@@ -70,25 +70,64 @@ export default function MarketPage() {
           <DollarSign size={24} className="text-emerald-600" />
           Vendas
         </h2>
-        <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-orange-100 text-orange-600 rounded-xl">
-              <Egg size={32} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex flex-col justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-orange-100 text-orange-600 rounded-xl">
+                <Egg size={32} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-zinc-800">Ovos em Estoque</h3>
+                <p className="text-zinc-500">Você possui {products.eggs.toLocaleString()} ovos.</p>
+                <p className="text-sm text-emerald-600 font-medium">Preço de mercado: R$ {marketPrices.egg.toFixed(2)} / un</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-zinc-800">Ovos em Estoque</h3>
-              <p className="text-zinc-500">Você possui {products.eggs.toLocaleString()} ovos.</p>
-              <p className="text-sm text-emerald-600 font-medium">Preço de mercado: R$ {marketPrices.egg.toFixed(2)} / un</p>
-            </div>
+            <button 
+              onClick={() => sellEggs(products.eggs, marketPrices.egg)}
+              disabled={products.eggs === 0}
+              className="w-full px-6 py-3 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
+              style={{ backgroundColor: company?.color || '#10b981' }}
+            >
+              Vender Tudo (R$ {(products.eggs * marketPrices.egg).toFixed(2)})
+            </button>
           </div>
-          <button 
-            onClick={() => sellEggs(products.eggs, marketPrices.egg)}
-            disabled={products.eggs === 0}
-            className="px-6 py-3 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
-            style={{ backgroundColor: company?.color || '#10b981' }}
-          >
-            Vender Tudo (R$ {(products.eggs * marketPrices.egg).toFixed(2)})
-          </button>
+
+          {/* Venda de Carne Processada */}
+          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex flex-col justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-red-100 text-red-600 rounded-xl">
+                <Package size={32} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-zinc-800">Carne Processada (Abatedouro)</h3>
+                <p className="text-zinc-500">
+                  {useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity.toFixed(1) || '0.0'} kg em estoque.
+                </p>
+                <p className="text-sm text-emerald-600 font-medium">Preço de mercado: R$ {marketPrices.processedMeat.toFixed(2)} / kg</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => {
+                const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
+                if (qty > 0) {
+                  useGameStore.setState(state => {
+                    const newInv = state.inventory.filter(i => i.itemId !== 'processed_meat');
+                    const revenue = qty * state.marketPrices.processedMeat;
+                    return {
+                      inventory: newInv,
+                      money: state.money + revenue,
+                      totalProfit: state.totalProfit + revenue,
+                      currentMonthRevenue: state.currentMonthRevenue + revenue
+                    };
+                  });
+                }
+              }}
+              disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}
+              className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:bg-red-700"
+            >
+              Vender Estoque de Carne
+            </button>
+          </div>
         </div>
       </section>
 
@@ -103,7 +142,7 @@ export default function MarketPage() {
             <div className="divide-y divide-zinc-200">
               <AnimatePresence>
                 {emptyBarns.map(barn => {
-                  const totalCost = barn.type === 'POSTURA' ? barn.capacity * LAYER_COST : barn.capacity * CHICK_COST;
+                  const totalCost = barn.isRented ? 0 : (barn.type === 'POSTURA' ? barn.capacity * LAYER_COST : barn.capacity * CHICK_COST);
                   const canAfford = money >= totalCost;
                   const isInSanitaryVoid = barn.sanitaryVoidDays > 0;
                   const isDisabled = !canAfford || isInSanitaryVoid;
@@ -114,27 +153,32 @@ export default function MarketPage() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="p-6 flex items-center justify-between"
+                      className="p-6 flex flex-col md:flex-row items-center justify-between gap-4"
                     >
-                      <div>
-                        <h3 className="text-lg font-bold text-zinc-800">{barn.name} {isInSanitaryVoid ? '(Em Vazio Sanitário)' : '(Vazio)'}</h3>
-                        <p className="text-zinc-500">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-zinc-800 flex items-center gap-2">
+                          {barn.name} 
+                          {barn.isRented && <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full uppercase">Integração</span>}
+                        </h3>
+                        <p className="text-zinc-500 text-sm mt-1">
                           Capacidade: {barn.capacity} aves | Tipo: {barn.type}
                         </p>
-                        <p className="text-sm text-zinc-500 mt-1">
-                          Custo do lote: <span className="font-medium text-zinc-700">R$ {totalCost.toFixed(2)}</span>
+                        <p className="text-sm text-zinc-600 mt-1 font-medium">
+                          {barn.isRented 
+                            ? 'A Integradora fornece os pintinhos e a ração de graça. Você entra com a estrutura, cama e manejo.' 
+                            : `Custo do lote: R$ ${totalCost.toFixed(2)}`}
                         </p>
                       </div>
                       <motion.button
                         whileTap={!isDisabled ? { scale: 0.95 } : {}}
-                        onClick={() => handleBuyFlock(barn.id, barn.type, barn.capacity)}
+                        onClick={() => handleBuyFlock(barn.id, barn.type, barn.capacity, barn.isRented)}
                         disabled={isDisabled}
-                        className={`px-6 py-2 rounded-lg font-bold transition-opacity hover:opacity-90 ${!isDisabled ? 'text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
-                        style={!isDisabled ? { backgroundColor: company?.color || '#2563eb' } : {}}
+                        className={`px-6 py-3 rounded-lg font-bold transition-opacity whitespace-nowrap shadow-sm ${!isDisabled ? 'text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                        style={!isDisabled ? { backgroundColor: barn.isRented ? '#3b82f6' : (company?.color || '#10b981') } : {}}
                       >
                         {isInSanitaryVoid 
                           ? `Vazio Sanitário (${barn.sanitaryVoidDays}d)` 
-                          : canAfford ? 'Comprar e Alojar Lote' : 'Saldo Insuficiente'}
+                          : barn.isRented ? 'Solicitar Lote Integrado' : (canAfford ? 'Comprar e Alojar Lote' : 'Saldo Insuficiente')}
                       </motion.button>
                     </motion.div>
                   );

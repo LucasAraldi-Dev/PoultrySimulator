@@ -190,6 +190,8 @@ export interface Employee {
   dailySalary: number; // Salário diário
 }
 
+export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
+
 export interface GameState {
   // Player Data
   company: Company | null;
@@ -198,6 +200,16 @@ export interface GameState {
   currentDay: number;
   level: number;
   xp: number;
+
+  // Environment
+  currentWeather: WeatherType;
+  weatherDaysLeft: number;
+
+  // Emergency Loan
+  emergencyLoanAvailable: boolean;
+  emergencyLoanActive: boolean;
+  takeEmergencyLoan: (amount: number) => void;
+  payEmergencyLoan: () => void;
 
   // Research
   unlockedResearches: string[];
@@ -253,8 +265,7 @@ export interface GameState {
   buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;
   buyChicks: (barnId: string, quantity: number, cost: number) => void;
   sellEggs: (quantity: number, pricePerEgg: number) => void;
-  sellBatch: (barnId: string, pricePerKg: number, isProcessed?: boolean) => void;
-  discardBatch: (barnId: string, pricePerBird: number) => void; // Para descarte de Postura
+  sellBatch: (barnId: string) => void; // Para descarte de Postura
   feedFlock: (barnId: string, feedId: string, amountKg: number) => void;
   advanceDay: (days?: number) => void; // Parâmetro days opcional para avançar vários dias
   resetGame: (initialChoice: 'POSTURA' | 'CORTE', companyName: string, companyColor: string, regionId: string) => void;

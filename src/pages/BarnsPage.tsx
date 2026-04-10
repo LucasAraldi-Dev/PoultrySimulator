@@ -10,7 +10,6 @@ export default function BarnsPage() {
   const barns = useGameStore(state => state.barns);
   const inventory = useGameStore(state => state.inventory);
   const sellBatch = useGameStore(state => state.sellBatch);
-  const discardBatch = useGameStore(state => state.discardBatch);
   const marketPrices = useGameStore(state => state.marketPrices);
   const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
   const cleanBarn = useGameStore(state => state.cleanBarn);
@@ -21,27 +20,20 @@ export default function BarnsPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedBarnId, setSelectedBarnId] = useState<string | null>(null);
-  const [modalType, setModalType] = useState<'SELL' | 'DISCARD' | null>(null);
-  const [expectedRevenue, setExpectedRevenue] = useState(0);
+  const [modalType, setModalType] = useState<'SELL' | 'DISCARD'>('SELL');
 
   const totalFeed = inventory.reduce((acc, item) => acc + item.quantity, 0);
 
-  const handleOpenModal = (barnId: string, type: 'SELL' | 'DISCARD', revenue: number) => {
+  const handleOpenModal = (barnId: string, type: 'SELL' | 'DISCARD') => {
     setSelectedBarnId(barnId);
     setModalType(type);
-    setExpectedRevenue(revenue);
     setModalOpen(true);
   };
 
   const handleConfirmAction = () => {
-    if (!selectedBarnId) return;
-    
-    if (modalType === 'SELL') {
-      sellBatch(selectedBarnId, hasSlaughterhouse ? marketPrices.processedMeat : marketPrices.meat, hasSlaughterhouse);
-    } else if (modalType === 'DISCARD') {
-      discardBatch(selectedBarnId, DISCARD_BIRD_PRICE);
+    if (selectedBarnId) {
+      sellBatch(selectedBarnId);
     }
-    
     setModalOpen(false);
   };
 
@@ -180,12 +172,20 @@ export default function BarnsPage() {
                         </select>
                         <button 
                           onClick={() => {
-                            const amount = Number(prompt(`Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} transferir do estoque geral para o silo? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
-                            if (!isNaN(amount) && amount > 0) {
-                              useGameStore.getState().fillSilo(barn.id, amount);
+                            if (barn.isRented) {
+                              // Integração pega ração de graça (já descontado no lucro final)
+                              const amount = Number(prompt(`Integração: Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} solicitar da integradora? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
+                              if (!isNaN(amount) && amount > 0) {
+                                useGameStore.getState().fillSilo(barn.id, amount);
+                              }
+                            } else {
+                              const amount = Number(prompt(`Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} transferir do estoque geral para o silo? (Máx: ${barn.siloCapacity - barn.siloBalance} kg)`));
+                              if (!isNaN(amount) && amount > 0) {
+                                useGameStore.getState().fillSilo(barn.id, amount);
+                              }
                             }
                           }}
-                          className="px-3 py-2 bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 rounded font-bold text-sm"
+                          className={`px-3 py-2 rounded font-bold text-sm border ${barn.isRented ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'}`}
                         >
                           Abastecer
                         </button>
@@ -247,7 +247,12 @@ export default function BarnsPage() {
                       {barn.type === 'CORTE' ? (
                         <p className="text-sm text-emerald-700 mb-4">
                           O lote atual pesa no total <strong>{((barn.batch.animalCount * barn.batch.currentWeight) / 1000).toFixed(2)} toneladas</strong>.
-                          {hasSlaughterhouse ? (
+                          {barn.isRented ? (
+                            <>
+                              <br/><br/>
+                              Este lote pertence à <strong>Integradora</strong>. Ao finalizar, você receberá por cabeça de acordo com a sua performance (Mortalidade e Conversão Alimentar).
+                            </>
+                          ) : hasSlaughterhouse ? (
                             <>Venda processada (Abatedouro Próprio) por <strong>R$ {marketPrices.processedMeat.toFixed(2)}/kg</strong>.</>
                           ) : (
                             <>Venda vivo para intermediários por <strong>R$ {marketPrices.meat.toFixed(2)}/kg</strong>.</>
@@ -284,15 +289,15 @@ export default function BarnsPage() {
                     
                     {barn.type === 'CORTE' && (
                       <button 
-                        onClick={() => handleOpenModal(barn.id, 'SELL', ((barn.batch!.animalCount * barn.batch!.currentWeight) * (hasSlaughterhouse ? marketPrices.processedMeat : marketPrices.meat)))}
-                        className={`w-full py-3 text-white rounded-md font-bold transition-all shadow-sm ${hasSlaughterhouse ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                        onClick={() => handleOpenModal(barn.id, 'SELL')}
+                        className={`w-full py-3 text-white rounded-md font-bold transition-all shadow-sm ${barn.isRented ? 'bg-blue-600 hover:bg-blue-700' : hasSlaughterhouse ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                       >
-                        {hasSlaughterhouse ? 'Abater e Vender (Premium)' : 'Vender Lote para Abate'}
+                        {barn.isRented ? 'Entregar Lote (Fim do Contrato)' : hasSlaughterhouse ? 'Abater Lote (Enviar Abatedouro)' : 'Vender Lote para Abate'}
                       </button>
                     )}
                     {barn.type === 'POSTURA' && barn.batch.ageDays > MAX_LAYER_AGE_DAYS && (
                       <button 
-                        onClick={() => handleOpenModal(barn.id, 'DISCARD', barn.batch!.animalCount * DISCARD_BIRD_PRICE)}
+                        onClick={() => handleOpenModal(barn.id, 'DISCARD')}
                         className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-md font-bold transition-all shadow-sm flex items-center justify-center gap-2"
                       >
                         <Trash2 size={18} /> Descartar Lote Velho (R$ {DISCARD_BIRD_PRICE.toFixed(2)}/ave)
@@ -336,13 +341,9 @@ export default function BarnsPage() {
         <div className="space-y-4">
           <p className="text-zinc-600">
             {modalType === 'SELL' 
-              ? 'Tem certeza que deseja finalizar e vender todo o lote atual deste galpão?' 
+              ? 'Tem certeza que deseja finalizar este lote e enviá-mo para venda ou processamento?' 
               : 'Este lote já atingiu a idade máxima produtiva. Deseja vender as aves para o mercado de descarte?'}
           </p>
-          <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center">
-            <p className="text-emerald-700 text-sm font-medium mb-1">Receita Estimada</p>
-            <p className="text-3xl font-bold text-emerald-600">R$ {expectedRevenue.toFixed(2)}</p>
-          </div>
           <div className="flex justify-end gap-3 mt-6">
             <button 
               onClick={() => setModalOpen(false)}
@@ -354,7 +355,7 @@ export default function BarnsPage() {
               onClick={handleConfirmAction}
               className={`px-4 py-2 font-bold text-white rounded-lg shadow-md ${modalType === 'SELL' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
             >
-              {modalType === 'SELL' ? 'Confirmar Venda' : 'Confirmar Descarte'}
+              {modalType === 'SELL' ? 'Confirmar' : 'Confirmar Descarte'}
             </button>
           </div>
         </div>
