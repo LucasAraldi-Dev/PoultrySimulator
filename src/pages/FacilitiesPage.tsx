@@ -146,33 +146,36 @@ export default function FacilitiesPage() {
                 const isLocked = level < model.requiredLevel;
 
                 return (
-                  <div key={model.id} className={`p-4 border rounded-lg relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200'}`}>
+                  <div key={model.id} className={`p-0 overflow-hidden border rounded-xl relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200 shadow-sm hover:shadow-md transition-shadow'}`}>
+                    <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=modern%20poultry%20layer%20barn%20interior%20with%20cages%20or%20aviary%20system%2C%20realistic&image_size=landscape_16_9')` }}>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                      <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+                        <h4 className="font-bold text-white text-lg">{model.name}</h4>
+                        <span className="text-xs font-bold bg-white/20 backdrop-blur-md text-white px-2 py-1 rounded">
+                          {model.baseCapacity.toLocaleString()} aves
+                        </span>
+                      </div>
+                    </div>
                     {isLocked && (
-                      <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[1px] flex items-center justify-center rounded-lg z-10">
+                      <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[2px] flex items-center justify-center z-10">
                         <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
                           <Lock size={12} /> Nível {model.requiredLevel}
                         </div>
                       </div>
                     )}
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-bold text-zinc-800">{model.name}</h4>
-                        <p className="text-xs text-zinc-500">{model.description}</p>
+                    <div className="p-4">
+                      <p className="text-sm text-zinc-600 mb-3 h-10">{model.description}</p>
+                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
+                        <span className="text-xs text-red-500 font-bold">Custo: R$ {(model.baseDailyCost * landMod).toFixed(2)}/dia</span>
+                        <button
+                          onClick={() => handleBuyBarnModel(model, 'POSTURA')}
+                          disabled={!canAfford || isLocked}
+                          className={`px-4 py-2 rounded-lg text-sm font-bold transition-opacity ${canAfford && !isLocked ? 'text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                          style={canAfford && !isLocked ? { backgroundColor: company?.color || '#2563eb' } : {}}
+                        >
+                          Comprar R$ {cost.toLocaleString()}
+                        </button>
                       </div>
-                      <span className="text-xs font-bold bg-zinc-100 px-2 py-1 rounded">
-                        {model.baseCapacity.toLocaleString()} aves
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="text-xs text-red-500 font-medium">Custo Diário: R$ {(model.baseDailyCost * landMod).toFixed(2)}</span>
-                      <button
-                        onClick={() => handleBuyBarnModel(model, 'POSTURA')}
-                        disabled={!canAfford || isLocked}
-                        className={`px-4 py-1.5 rounded text-sm font-bold transition-opacity ${canAfford && !isLocked ? 'text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
-                        style={canAfford && !isLocked ? { backgroundColor: company?.color || '#2563eb' } : {}}
-                      >
-                        Comprar R$ {cost.toLocaleString()}
-                      </button>
                     </div>
                   </div>
                 );
@@ -205,33 +208,36 @@ export default function FacilitiesPage() {
                 const isLocked = level < model.requiredLevel;
 
                 return (
-                  <div key={model.id} className={`p-4 border rounded-lg relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200'}`}>
+                  <div key={model.id} className={`p-0 overflow-hidden border rounded-xl relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200 shadow-sm hover:shadow-md transition-shadow'}`}>
+                    <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=modern%20broiler%20poultry%20barn%20interior%20with%20chickens%2C%20realistic&image_size=landscape_16_9')` }}>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                      <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+                        <h4 className="font-bold text-white text-lg">{model.name}</h4>
+                        <span className="text-xs font-bold bg-white/20 backdrop-blur-md text-white px-2 py-1 rounded">
+                          {model.baseCapacity.toLocaleString()} aves
+                        </span>
+                      </div>
+                    </div>
                     {isLocked && (
-                      <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[1px] flex items-center justify-center rounded-lg z-10">
+                      <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[2px] flex items-center justify-center z-10">
                         <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
                           <Lock size={12} /> Nível {model.requiredLevel}
                         </div>
                       </div>
                     )}
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="font-bold text-zinc-800">{model.name}</h4>
-                        <p className="text-xs text-zinc-500">{model.description}</p>
+                    <div className="p-4">
+                      <p className="text-sm text-zinc-600 mb-3 h-10">{model.description}</p>
+                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
+                        <span className="text-xs text-red-500 font-bold">Custo: R$ {(model.baseDailyCost * landMod).toFixed(2)}/dia</span>
+                        <button
+                          onClick={() => handleBuyBarnModel(model, 'CORTE')}
+                          disabled={!canAfford || isLocked}
+                          className={`px-4 py-2 rounded-lg text-sm font-bold transition-opacity ${canAfford && !isLocked ? 'text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+                          style={canAfford && !isLocked ? { backgroundColor: company?.color || '#2563eb' } : {}}
+                        >
+                          Comprar R$ {cost.toLocaleString()}
+                        </button>
                       </div>
-                      <span className="text-xs font-bold bg-zinc-100 px-2 py-1 rounded">
-                        {model.baseCapacity.toLocaleString()} aves
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="text-xs text-red-500 font-medium">Custo Diário: R$ {(model.baseDailyCost * landMod).toFixed(2)}</span>
-                      <button
-                        onClick={() => handleBuyBarnModel(model, 'CORTE')}
-                        disabled={!canAfford || isLocked}
-                        className={`px-4 py-1.5 rounded text-sm font-bold transition-opacity ${canAfford && !isLocked ? 'text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
-                        style={canAfford && !isLocked ? { backgroundColor: company?.color || '#2563eb' } : {}}
-                      >
-                        Comprar R$ {cost.toLocaleString()}
-                      </button>
                     </div>
                   </div>
                 );
@@ -458,22 +464,26 @@ export default function FacilitiesPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Fábrica de Ração */}
-          <div className={`bg-white p-6 rounded-xl border ${hasFeedMill ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-zinc-200'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-lg ${hasFeedMill ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
-                  <Tractor size={24} />
+          <div className={`bg-white p-0 overflow-hidden rounded-xl border ${hasFeedMill ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-zinc-200'}`}>
+            <div className="h-40 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=isometric%20industrial%20feed%20mill%20building%20for%20a%20farm%20game%2C%20realistic%20texture&image_size=landscape_16_9')` }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${hasFeedMill ? 'bg-emerald-500 text-white' : 'bg-white/20 backdrop-blur-md text-white'}`}>
+                    <Tractor size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Fábrica de Ração</h3>
                 </div>
-                <h3 className="text-lg font-bold text-zinc-800">Fábrica de Ração</h3>
+                {hasFeedMill && (
+                  <span className="text-xs font-bold text-emerald-800 bg-emerald-400 px-2 py-1 rounded uppercase tracking-wider shadow-lg">
+                    Operacional
+                  </span>
+                )}
               </div>
-              {hasFeedMill && (
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded uppercase tracking-wider">
-                  Operacional
-                </span>
-              )}
             </div>
             
-            {!hasFeedMill ? (
+            <div className="p-6">
+              {!hasFeedMill ? (
               <>
                 <p className="text-zinc-500 text-sm mb-6">
                   Construa sua própria fábrica para produzir ração comprando os ingredientes a preço de atacado (40% de desconto sobre o preço de mercado).
@@ -554,25 +564,30 @@ export default function FacilitiesPage() {
                 </div>
               </div>
             )}
+            </div>
           </div>
 
           {/* Abatedouro Próprio */}
-          <div className={`bg-white p-6 rounded-xl border ${hasSlaughterhouse ? 'border-blue-300 ring-2 ring-blue-100' : 'border-zinc-200'}`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-lg ${hasSlaughterhouse ? 'bg-blue-100 text-blue-600' : 'bg-zinc-100 text-zinc-500'}`}>
-                  <Factory size={24} />
+          <div className={`bg-white p-0 overflow-hidden rounded-xl border ${hasSlaughterhouse ? 'border-blue-300 ring-2 ring-blue-100' : 'border-zinc-200'}`}>
+            <div className="h-40 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=isometric%20industrial%20meat%20processing%20plant%20factory%20for%20farm%20game%2C%20realistic&image_size=landscape_16_9')` }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${hasSlaughterhouse ? 'bg-blue-500 text-white' : 'bg-white/20 backdrop-blur-md text-white'}`}>
+                    <Factory size={24} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Abatedouro Próprio</h3>
                 </div>
-                <h3 className="text-lg font-bold text-zinc-800">Abatedouro Próprio</h3>
+                {hasSlaughterhouse && (
+                  <span className="text-xs font-bold text-blue-900 bg-blue-400 px-2 py-1 rounded uppercase tracking-wider shadow-lg">
+                    Operacional
+                  </span>
+                )}
               </div>
-              {hasSlaughterhouse && (
-                <span className="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded uppercase tracking-wider">
-                  Operacional
-                </span>
-              )}
             </div>
             
-            {!hasSlaughterhouse ? (
+            <div className="p-6">
+              {!hasSlaughterhouse ? (
               <>
                 <p className="text-zinc-500 text-sm mb-6">
                   Processe seus próprios frangos! Frango abatido e embalado tem um valor agregado quase 2x maior do que o frango vivo vendido a intermediários.
@@ -594,6 +609,7 @@ export default function FacilitiesPage() {
                 </p>
               </div>
             )}
+            </div>
           </div>
         </div>
       </section>

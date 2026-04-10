@@ -1,9 +1,11 @@
 import { useGameStore } from '../store/useGameStore';
 import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS } from '../store/constants';
-import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ShoppingCart, ArrowRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+
+import { FarmMap } from '../components/FarmMap';
 
 export default function Dashboard() {
   const money = useGameStore(state => state.money);
@@ -15,7 +17,6 @@ export default function Dashboard() {
   const activeEvent = useGameStore(state => state.activeEvent);
   const marketPrices = useGameStore(state => state.marketPrices);
   const sellEggs = useGameStore(state => state.sellEggs);
-  const buyFeed = useGameStore(state => state.buyFeed);
   const activeMissions = useGameStore(state => state.activeMissions);
   const deliverMission = useGameStore(state => state.deliverMission);
 
@@ -55,11 +56,6 @@ export default function Dashboard() {
   if (activeEvent) {
     alerts.push(`EVENTO (${activeEvent.name}): ${activeEvent.description}`);
   }
-
-  const handleQuickBuyFeed = () => {
-    const cost = 100 * (FEEDS['feed_basic'].costPerKg * marketPrices.feedModifier);
-    buyFeed('feed_basic', 100, cost);
-  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -148,6 +144,11 @@ export default function Dashboard() {
           <p className="text-2xl font-bold text-zinc-800">{products.eggs.toLocaleString()}</p>
         </motion.div>
       </motion.div>
+
+      {/* Mapa Isométrico da Fazenda */}
+      <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
+        <FarmMap />
+      </div>
 
       {/* Grid Principal do Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -248,14 +249,6 @@ export default function Dashboard() {
                 <Package size={20} className="text-zinc-500" />
                 Estoque Geral
               </h2>
-              <button 
-                onClick={handleQuickBuyFeed}
-                disabled={money < 100 * (FEEDS['feed_basic'].costPerKg * marketPrices.feedModifier)}
-                className="text-sm font-bold text-white bg-zinc-800 hover:bg-black px-3 py-1.5 rounded flex items-center gap-2 disabled:opacity-50"
-              >
-                <ShoppingCart size={14} />
-                +100kg Básica
-              </button>
             </div>
             {inventory.length > 0 ? (
               <div className="space-y-3">
