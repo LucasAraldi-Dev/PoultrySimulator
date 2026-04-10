@@ -8,7 +8,6 @@ import { Modal } from '../components/Modal';
 
 export default function BarnsPage() {
   const barns = useGameStore(state => state.barns);
-  const inventory = useGameStore(state => state.inventory);
   const sellBatch = useGameStore(state => state.sellBatch);
   const marketPrices = useGameStore(state => state.marketPrices);
   const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
@@ -21,8 +20,6 @@ export default function BarnsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedBarnId, setSelectedBarnId] = useState<string | null>(null);
   const [modalType, setModalType] = useState<'SELL' | 'DISCARD'>('SELL');
-
-  const totalFeed = inventory.reduce((acc, item) => acc + item.quantity, 0);
 
   const handleOpenModal = (barnId: string, type: 'SELL' | 'DISCARD') => {
     setSelectedBarnId(barnId);
@@ -101,7 +98,7 @@ export default function BarnsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   
                   {/* Stats Principais */}
-                  <div className="col-span-1 lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="col-span-1 lg:col-span-2 grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-100">
                       <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1">Aves Vivas</p>
                       <p className="text-2xl font-bold text-zinc-800">{barn.batch.animalCount.toLocaleString()}</p>
@@ -125,7 +122,7 @@ export default function BarnsPage() {
                   </div>
                   
                   {/* KPIs de Produção */}
-                  <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 col-span-2 md:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-100 col-span-2 lg:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                       <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-1 flex items-center gap-1">
                         <Package size={14} /> Consumo Total
@@ -157,10 +154,10 @@ export default function BarnsPage() {
                   </div>
                   
                   {/* Controles de Lote */}
-                  <div className="col-span-2 md:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-2 flex flex-col justify-between">
+                  <div className="col-span-2 lg:col-span-4 bg-white p-4 rounded-lg border border-zinc-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="sm:col-span-2 lg:col-span-2 flex flex-col justify-between">
                       <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Ração no Silo ({barn.siloBalance.toFixed(0)} kg / {barn.siloCapacity} kg)</label>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <select 
                           value={barn.selectedFeedId || 'feed_basic'}
                           onChange={(e) => selectFeed(barn.id, e.target.value)}
@@ -185,7 +182,7 @@ export default function BarnsPage() {
                               }
                             }
                           }}
-                          className={`px-3 py-2 rounded font-bold text-sm border ${barn.isRented ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'}`}
+                          className={`w-full sm:w-auto px-3 py-2 rounded font-bold text-sm border ${barn.isRented ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'}`}
                         >
                           Abastecer
                         </button>
@@ -216,7 +213,7 @@ export default function BarnsPage() {
                   
                   {/* Status de Doença */}
                   {barn.batch.activeDisease && (
-                    <div className="col-span-2 md:col-span-4 bg-red-100 border border-red-200 p-3 rounded-lg text-sm text-red-800">
+                    <div className="col-span-2 lg:col-span-4 bg-red-100 border border-red-200 p-3 rounded-lg text-sm text-red-800">
                       <div className="flex justify-between items-center mb-2">
                         <p className="font-bold flex items-center gap-2">
                           <AlertCircle size={16} /> 
