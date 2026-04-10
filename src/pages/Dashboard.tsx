@@ -5,6 +5,8 @@ import { PageTransition } from '../components/PageTransition';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
+import { FarmMap } from '../components/FarmMap';
+
 export default function Dashboard() {
   const money = useGameStore(state => state.money);
   const totalProfit = useGameStore(state => state.totalProfit);
@@ -142,6 +144,11 @@ export default function Dashboard() {
           <p className="text-2xl font-bold text-zinc-800">{products.eggs.toLocaleString()}</p>
         </motion.div>
       </motion.div>
+
+      {/* Mapa Isométrico da Fazenda */}
+      <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
+        <FarmMap />
+      </div>
 
       {/* Grid Principal do Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
