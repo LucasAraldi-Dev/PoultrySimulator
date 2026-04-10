@@ -213,7 +213,10 @@ export const useGameStore = create<GameState>((set) => ({
       feedPriceHistory: [{ day: 1, priceModifier: region.feedCostModifier }],
       barns: [initialBarn],
       inventory: [
-        { itemId: 'feed_basic', quantity: 500 }
+        { itemId: 'feed_basic', quantity: 500 },
+        { itemId: 'wood_shavings', quantity: 10 },
+        { itemId: 'gas', quantity: 15 },
+        { itemId: 'parts', quantity: 5 }
       ],
       pendingDeliveries: [],
       ownedMachinery: [],
@@ -354,10 +357,23 @@ export const useGameStore = create<GameState>((set) => ({
   }),
 
   buyChicks: (barnId, quantity, cost) => set((state) => {
+    // Verifica se tem maravalha suficiente (ex: 1 m3 para cada 1000 aves)
+    const shavingsNeeded = Math.max(1, Math.ceil(quantity / 1000));
+    const shavingsIdx = state.inventory.findIndex(i => i.itemId === 'wood_shavings');
+    
+    if (shavingsIdx < 0 || state.inventory[shavingsIdx].quantity < shavingsNeeded) {
+      alert(`Você precisa de ${shavingsNeeded} m³ de Maravalha (Cama) para alojar esse lote! Compre no mercado.`);
+      return state;
+    }
+
     if (state.money >= cost) {
+      const newInventory = [...state.inventory];
+      newInventory[shavingsIdx].quantity -= shavingsNeeded;
+
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
+        inventory: newInventory,
         barns: state.barns.map(barn => {
           if (barn.id === barnId && !barn.batch) {
             return {
@@ -549,11 +565,37 @@ export const useGameStore = create<GameState>((set) => ({
   }),
 
   produceFeed: (feedId, amountKg, costToProduce) => set((state) => {
+    // 1 tonelada de ração precisa de: 600kg milho, 350kg soja, 50kg premix
+    const factor = amountKg / 1000;
+    const cornNeeded = 600 * factor;
+    const soyNeeded = 350 * factor;
+    const premixNeeded = 50 * factor;
+
+    const cornIdx = state.inventory.findIndex(i => i.itemId === 'corn');
+    const soyIdx = state.inventory.findIndex(i => i.itemId === 'soy');
+    const premixIdx = state.inventory.findIndex(i => i.itemId === 'premix');
+
+    if (
+      cornIdx < 0 || state.inventory[cornIdx].quantity < cornNeeded ||
+      soyIdx < 0 || state.inventory[soyIdx].quantity < soyNeeded ||
+      premixIdx < 0 || state.inventory[premixIdx].quantity < premixNeeded
+    ) {
+      alert(`Matéria-prima insuficiente! Para ${amountKg}kg de ração você precisa de ${cornNeeded}kg de Milho, ${soyNeeded}kg de Soja e ${premixNeeded}kg de Premix.`);
+      return state;
+    }
+
     if (state.money >= costToProduce && state.hasFeedMill) {
-      const existingItem = state.inventory.find(i => i.itemId === feedId);
-      const newInventory = existingItem
-        ? state.inventory.map(i => i.itemId === feedId ? { ...i, quantity: i.quantity + amountKg } : i)
-        : [...state.inventory, { itemId: feedId, quantity: amountKg }];
+      const newInventory = [...state.inventory];
+      newInventory[cornIdx].quantity -= cornNeeded;
+      newInventory[soyIdx].quantity -= soyNeeded;
+      newInventory[premixIdx].quantity -= premixNeeded;
+
+      const existingItem = newInventory.findIndex(i => i.itemId === feedId);
+      if (existingItem >= 0) {
+        newInventory[existingItem].quantity += amountKg;
+      } else {
+        newInventory.push({ itemId: feedId, quantity: amountKg });
+      }
       
       return {
         money: state.money - costToProduce,
@@ -628,6 +670,35 @@ export const useGameStore = create<GameState>((set) => ({
       let laborCost = state.employees.reduce((acc, emp) => acc + emp.dailySalary, 0);
       dailyExpenses += laborCost;
       detailedExpenses.labor += laborCost;
+
+      // Despesas de Energia e Água
+      let energyCost = state.barns.reduce((acc, barn) => acc + (barn.equipment.length * 5), 0); // R$ 5 por equipamento/dia
+      if (state.hasFeedMill) energyCost += 50;
+      if (state.hasIncubator) energyCost += 30;
+      if (state.hasSlaughterhouse) energyCost += 100;
+
+      let waterCost = state.barns.reduce((acc, barn) => acc + (barn.batch ? barn.batch.animalCount * 0.005 : 0), 0); // R$ 0.005 por ave/dia
+      
+      let infraCost = energyCost + waterCost;
+      
+      // Quebras e Falhas (Consumo de Peças / Manutenção)
+      // Se não tiver peças, a manutenção sobe absurdamente (multa/conserto emergencial)
+      const partsIdx = currentInventory.findIndex(i => i.itemId === 'parts');
+      let partsNeeded = Math.floor(state.barns.reduce((acc, barn) => acc + barn.equipment.length, 0) / 10);
+      if (state.hasFeedMill) partsNeeded += 1;
+      if (state.hasSlaughterhouse) partsNeeded += 2;
+      
+      if (partsNeeded > 0) {
+        if (partsIdx >= 0 && currentInventory[partsIdx].quantity >= partsNeeded) {
+          currentInventory[partsIdx].quantity -= partsNeeded;
+        } else {
+          // Manutenção emergencial cara se não tiver peça em estoque
+          infraCost += partsNeeded * 500;
+        }
+      }
+
+      dailyExpenses += infraCost;
+      detailedExpenses.maintenance += infraCost;
 
       const caretakerBuff = state.employees.filter(e => e.role === 'TRATADOR').reduce((acc, emp) => acc + (emp.experienceLevel * 0.02), 0);
 
@@ -888,6 +959,17 @@ export const useGameStore = create<GameState>((set) => ({
         const feedData = FEEDS[usedFeedId] || FEEDS['feed_basic'];
         const starved = feedFed < dailyFeedNeeded;
 
+        // Consumo de Gás para Aquecimento (Pintinhos até 14 dias)
+        let missingGas = false;
+        if (newBatch.ageDays <= 14) {
+          const gasIdx = currentInventory.findIndex(i => i.itemId === 'gas');
+          if (gasIdx >= 0 && currentInventory[gasIdx].quantity > 0) {
+            currentInventory[gasIdx].quantity -= 1; // 1 botijão/unidade por dia por galpão
+          } else {
+            missingGas = true; // Sem aquecimento! Mortalidade alta
+          }
+        }
+
         // Mortalidade normal reduzida pelo bônus da ração e pelos equipamentos
         let equipmentMortalityBonus = 0;
         let equipmentGrowthBonus = 0;
@@ -944,6 +1026,10 @@ export const useGameStore = create<GameState>((set) => ({
            if (!barn.equipment.includes('eq_ventilador')) {
              eventMortal = currentEvent.severity;
            }
+        }
+        
+        if (missingGas) {
+          eventMortal *= 10; // Sem gás o frio mata 10x mais!
         }
 
         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
@@ -1142,6 +1228,30 @@ export const useGameStore = create<GameState>((set) => ({
     return state;
   }),
 
+  medicateBatch: (barnId) => set((state) => {
+    const medIdx = state.inventory.findIndex(i => i.itemId === 'medication');
+    if (medIdx < 0 || state.inventory[medIdx].quantity < 1) {
+      alert(`Você precisa de 1 unidade de Medicamento para tratar o lote! Compre no mercado.`);
+      return state;
+    }
+    
+    const newInventory = [...state.inventory];
+    newInventory[medIdx].quantity -= 1;
+
+    return {
+      inventory: newInventory,
+      barns: state.barns.map(barn => {
+        if (barn.id === barnId && barn.batch) {
+          return {
+            ...barn,
+            batch: { ...barn.batch, activeDisease: null }
+          };
+        }
+        return barn;
+      })
+    };
+  }),
+
   hireEmployee: (role) => set((state) => {
     const baseSalaries = {
       'TRATADOR': 50,
@@ -1203,10 +1313,21 @@ export const useGameStore = create<GameState>((set) => ({
   }),
 
     cleanBarn: (barnId, cost) => set((state) => {
+    // Requer 1 m3 de maravalha para limpar o galpão e restaurar higiene
+    const shavingsIdx = state.inventory.findIndex(i => i.itemId === 'wood_shavings');
+    if (shavingsIdx < 0 || state.inventory[shavingsIdx].quantity < 1) {
+      alert(`Você precisa de 1 m³ de Maravalha (Cama) para limpar o galpão e renovar a cama! Compre no mercado.`);
+      return state;
+    }
+
     if (state.money >= cost) {
+      const newInventory = [...state.inventory];
+      newInventory[shavingsIdx].quantity -= 1;
+
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
+        inventory: newInventory,
         barns: state.barns.map(barn => {
           if (barn.id === barnId && barn.batch) {
             return {

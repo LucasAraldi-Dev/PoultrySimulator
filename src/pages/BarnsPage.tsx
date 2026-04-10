@@ -15,6 +15,7 @@ export default function BarnsPage() {
   const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
   const cleanBarn = useGameStore(state => state.cleanBarn);
   const vaccinateBatch = useGameStore(state => state.vaccinateBatch);
+  const medicateBatch = useGameStore(state => state.medicateBatch);
   const selectFeed = useGameStore(state => state.selectFeed);
   const money = useGameStore(state => state.money);
 
@@ -204,13 +205,21 @@ export default function BarnsPage() {
                   {/* Status de Doença */}
                   {barn.batch.activeDisease && (
                     <div className="col-span-2 md:col-span-4 bg-red-100 border border-red-200 p-3 rounded-lg text-sm text-red-800">
-                      <p className="font-bold flex items-center gap-2">
-                        <AlertCircle size={16} /> 
-                        Surto de {barn.batch.activeDisease.name}!
-                      </p>
-                      <p className="mt-1">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-bold flex items-center gap-2">
+                          <AlertCircle size={16} /> 
+                          Surto de {barn.batch.activeDisease.name}!
+                        </p>
+                        <button 
+                          onClick={() => medicateBatch(barn.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700 flex items-center gap-1"
+                        >
+                          <Syringe size={14} /> Usar Medicamento
+                        </button>
+                      </div>
+                      <p>
                         O lote está doente. {barn.batch.activeDisease.mortalityModifier > 1 ? 'Mortalidade alta! ' : ''} 
-                        Use Ração Medicada para mitigar os danos ou espere a cura natural em {barn.batch.activeDisease.durationDays - barn.batch.activeDisease.daysActive} dias.
+                        Trate imediatamente ou use Ração Medicada para mitigar os danos até a cura natural em {barn.batch.activeDisease.durationDays - barn.batch.activeDisease.daysActive} dias.
                       </p>
                     </div>
                   )}

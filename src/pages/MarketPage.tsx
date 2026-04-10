@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
-import { FEEDS, CHICK_COST, EGG_PRICE, LAYER_COST } from '../store/constants';
-import { ShoppingCart, DollarSign, Package, Egg, Bird, Truck } from 'lucide-react';
+import { FEEDS, CHICK_COST, EGG_PRICE, LAYER_COST, RAW_MATERIALS } from '../store/constants';
+import { ShoppingCart, DollarSign, Package, Egg, Bird, Truck, Box } from 'lucide-react';
 import { BarnType } from '../store/types';
 import { PageTransition } from '../components/PageTransition';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,11 +31,29 @@ export default function MarketPage() {
   const emptyBarns = barns.filter(b => !b.batch);
 
   const handleBuyFeed = (feedId: string) => {
-    const kg = feedAmounts[feedId] || 0;
-    if (kg <= 0) return;
-    const cost = kg * (FEEDS[feedId].costPerKg * marketPrices.feedModifier);
+    const feed = FEEDS[feedId];
+    if (!feed) return;
+    
+    const currentCost = feed.costPerKg * marketPrices.feedModifier;
+    const kg = feedAmounts[feedId] || 100;
     const pref = deliveryPrefs[feedId] || { scheduledInDays: 0, useOwnTruck: false };
-    buyFeed(feedId, kg, cost, pref.scheduledInDays, pref.useOwnTruck);
+
+    const totalCost = kg * currentCost;
+    buyFeed(feedId, kg, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    setFeedAmounts({ ...feedAmounts, [feedId]: 100 });
+  };
+
+  const handleBuyRawMaterial = (matId: string) => {
+    const mat = RAW_MATERIALS[matId];
+    if (!mat) return;
+    
+    const currentCost = mat.costPerUnit * marketPrices.feedModifier;
+    const qty = feedAmounts[matId] || 100;
+    const pref = deliveryPrefs[matId] || { scheduledInDays: 0, useOwnTruck: false };
+
+    const totalCost = qty * currentCost;
+    buyFeed(matId, qty, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    setFeedAmounts({ ...feedAmounts, [matId]: 100 });
   };
 
   const handleBuyFlock = (barnId: string, type: BarnType, capacity: number) => {
@@ -150,9 +168,9 @@ export default function MarketPage() {
                 .map(d => (
                   <div key={d.id} className="py-3 flex items-center justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="font-bold text-zinc-800 truncate">{FEEDS[d.itemId]?.name || d.itemId}</p>
+                      <p className="font-bold text-zinc-800 truncate">{FEEDS[d.itemId]?.name || RAW_MATERIALS[d.itemId]?.name || d.itemId}</p>
                       <p className="text-xs text-zinc-500">
-                        {d.quantity.toFixed(0)} kg • {d.mode === 'CAMINHAO' ? 'Retirada com caminhão' : 'Entrega do fornecedor'}
+                        {d.quantity.toFixed(0)} {RAW_MATERIALS[d.itemId]?.unit || 'kg'} • {d.mode === 'CAMINHAO' ? 'Retirada com caminhão' : 'Entrega do fornecedor'}
                       </p>
                     </div>
                     <div className="text-right">
@@ -233,9 +251,107 @@ export default function MarketPage() {
             ))}
           </div>
         </div>
+
+        {/* Matérias-Primas e Insumos */}
+        <div className="mt-8">
+          <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2 flex items-center gap-2">
+            <Box size={20} className="text-amber-700" />
+            Insumos & Matérias-Primas
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.values(RAW_MATERIALS).map(mat => (
+              <RawMaterialCard
+                key={mat.id}
+                mat={mat}
+                marketPrices={marketPrices}
+                feedAmounts={feedAmounts}
+                setFeedAmounts={setFeedAmounts}
+                handleBuyRawMaterial={handleBuyRawMaterial}
+                money={money}
+                region={region}
+                ownedMachinery={ownedMachinery}
+                deliveryPrefs={deliveryPrefs}
+                setDeliveryPrefs={setDeliveryPrefs}
+              />
+            ))}
+          </div>
+        </div>
       </section>
 
     </PageTransition>
+  );
+}
+
+// Componente auxiliar para Insumos
+function RawMaterialCard({ mat, marketPrices, feedAmounts, setFeedAmounts, handleBuyRawMaterial, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs }: any) {
+  const currentCost = mat.costPerUnit * marketPrices.feedModifier;
+  
+  const hasFeedTruck = ownedMachinery?.includes('prem_truck_feed') || ownedMachinery?.includes('gen_truck_feed');
+  const pref = deliveryPrefs[mat.id] || { scheduledInDays: 0, useOwnTruck: false };
+  const mode = pref.useOwnTruck && hasFeedTruck ? 'CAMINHAO' : 'ENTREGA';
+  const baseTransitDays = Math.min(6, Math.max(1, Math.ceil(((region?.freightCostPerKg || 0.05) * 20))));
+  const transitDays = mode === 'CAMINHAO' ? 1 : baseTransitDays;
+  const dispatchIn = Math.max(0, Math.floor(pref.scheduledInDays));
+  const etaLabel = dispatchIn === 0 ? `${transitDays} dia(s)` : `${dispatchIn + transitDays} dia(s)`;
+
+  return (
+    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
+      <div>
+        <h3 className="text-lg font-bold text-zinc-800 mb-1">{mat.name}</h3>
+        <p className="text-xs text-zinc-500 mb-3">{mat.description}</p>
+        <div className="flex items-center gap-2 mb-4">
+          <p className="text-2xl font-bold text-amber-600">R$ {currentCost.toFixed(2)}<span className="text-sm text-zinc-500 font-normal">/{mat.unit}</span></p>
+        </div>
+      </div>
+
+      <div className="mt-auto">
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <p className="text-[11px] font-bold text-zinc-500">Envio</p>
+            <select
+              value={pref.scheduledInDays}
+              onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
+              className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
+            >
+              <option value={0}>Enviar hoje</option>
+              <option value={1}>Enviar em 1 dia</option>
+              <option value={2}>Enviar em 2 dias</option>
+              <option value={3}>Enviar em 3 dias</option>
+            </select>
+          </div>
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+            <p className="text-[11px] font-bold text-zinc-500">Logística</p>
+            <button
+              type="button"
+              onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
+              className={`w-full mt-1 px-2 py-1 rounded-md text-[11px] font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
+              disabled={!hasFeedTruck}
+            >
+              {mode === 'CAMINHAO' ? 'Buscar' : 'Entrega'}
+            </button>
+            <p className="text-[10px] text-zinc-500 mt-1">Prev: {etaLabel}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <input 
+            type="number"
+            min="1"
+            value={feedAmounts[mat.id] || 100}
+            onChange={(e) => setFeedAmounts({...feedAmounts, [mat.id]: Number(e.target.value)})}
+            className="w-24 p-2 rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+          <button
+            onClick={() => handleBuyRawMaterial(mat.id)}
+            disabled={money < ((feedAmounts[mat.id] || 100) * currentCost)}
+            className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShoppingCart size={18} />
+            Comprar
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

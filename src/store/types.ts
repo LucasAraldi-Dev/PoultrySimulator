@@ -91,8 +91,8 @@ export interface Barn {
 }
 
 export interface InventoryItem {
-  itemId: string; // ID da Ração ou outro insumo
-  quantity: number; // Quantidade em kg
+  itemId: string; // ID da Ração, Milho, Soja, Diesel, etc.
+  quantity: number; // Quantidade (kg, m3, L, etc.)
 }
 
 export interface FeedDelivery {
@@ -278,6 +278,7 @@ export interface GameState {
   // Batch Management
   vaccinateBatch: (barnId: string, cost: number) => void;
   cleanBarn: (barnId: string, cost: number) => void;
+  medicateBatch: (barnId: string) => void;
   
   // Feed Management
   selectFeed: (barnId: string, feedId: string) => void;
