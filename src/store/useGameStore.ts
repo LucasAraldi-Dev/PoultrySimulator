@@ -213,7 +213,7 @@ export const useGameStore = create<GameState>()(
           itemId: i.item_id,
           quantity: i.quantity
         }))
-      }));
+      });
     } catch (err) {
       console.error("Erro ao buscar estado do jogo", err);
       get().logout();
