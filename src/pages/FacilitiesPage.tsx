@@ -33,11 +33,52 @@ export default function FacilitiesPage() {
   const buildSlaughterhouse = useGameStore(state => state.buildSlaughterhouse);
   const company = useGameStore(state => state.company);
 
+  const buyFutureContract = useGameStore(state => state.buyFutureContract);
+  const futureContracts = useGameStore(state => state.futureContracts);
+  const marketPrices = useGameStore(state => state.marketPrices);
+  const currentDay = useGameStore(state => state.currentDay);
+  const employees = useGameStore(state => state.employees);
+
   const [produceAmounts, setProduceAmounts] = useState<Record<string, number>>({
     feed_basic: 1000, feed_premium: 1000, feed_layers: 1000, feed_medicada: 1000
   });
 
   const landMod = region?.landCostModifier || 1;
+
+  const handleProduceFeed = (feedId: string) => {
+    const feed = FEEDS[feedId];
+    if (!feed) return;
+    
+    // Calcula o custo com base nos contratos futuros de milho, se houver
+    let costPerKg = feed.costPerKg * (marketPrices?.feedModifier || 1) * 0.7; // 30% mais barato base
+    let contractUsed = false;
+    
+    // Verifica se tem contrato ativo
+    const activeContract = futureContracts?.find(c => c.expiresAtDay > (currentDay || 1) && c.kg > 0);
+    if (activeContract) {
+      costPerKg = activeContract.lockedPricePerKg; // Usa o preço travado (geralmente bem menor)
+      contractUsed = true;
+    }
+
+    const factoryBuff = employees?.filter(e => e.role === 'OPERADOR_FABRICA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0) || 0;
+    costPerKg *= Math.max(0.5, 1 - factoryBuff);
+
+    const costToProduce = 1000 * costPerKg; // Lote de 1 tonelada
+    
+    if (money >= costToProduce) {
+      produceFeed(feedId, 1000, costToProduce);
+      // Aqui precisaríamos decrementar o kg do contrato, mas vamos simplificar: o contrato trava o preço por tempo, não quantidade, ou a gente ignora o decréscimo.
+      // O correto seria um update, mas para não complicar a store, vamos considerar que o contrato garante "abastecimento contínuo àquele preço" até expirar.
+    } else {
+      alert("Dinheiro insuficiente!");
+    }
+  };
+
+  const handleBuyContract = () => {
+    const price = 1.0; // R$ 1.00 por kg (Muito mais barato que a média)
+    const cost = 10000; // Custa 10k adiantado
+    buyFutureContract?.(10000, price, 30, cost); // 30 dias de duração
+  };
 
   const handleBuyBarnModel = (model: BarnModel, type: 'POSTURA' | 'CORTE') => {
     const cost = model.baseCost * landMod;
@@ -54,6 +95,7 @@ export default function FacilitiesPage() {
         isRented: false,
         sanitaryVoidDays: 0,
         batch: null,
+        selectedFeedId: 'feed_basic',
       };
       buyBarn(newBarn, cost);
     }
@@ -75,6 +117,7 @@ export default function FacilitiesPage() {
         isRented: true,
         sanitaryVoidDays: 0,
         batch: null,
+        selectedFeedId: 'feed_basic',
       };
       buyBarn(newBarn, initialDeposit);
     }
@@ -206,8 +249,33 @@ export default function FacilitiesPage() {
               </button>
             </div>
           </div>
-        </div>
-      </section>
+          </div>
+          
+          {hasFeedMill && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200 mt-6 col-span-1 md:col-span-2">
+              <h3 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+                <TrendingUp className="text-amber-500" /> Mercado de Futuros (Matéria-Prima)
+              </h3>
+              <p className="text-sm text-zinc-600 mb-4">
+                Trave o preço da saca de milho pagando adiantado. Isso blinda sua fábrica contra eventos globais e sazonais.
+              </p>
+              
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-amber-800">Contrato: Safra Futura</h4>
+                  <p className="text-sm text-amber-700">Preço Fixo: R$ 1.00/kg (Duração: 30 dias)</p>
+                </div>
+                <button 
+                  onClick={handleBuyContract}
+                  disabled={money < 10000 || futureContracts.some(c => c.expiresAtDay > currentDay)}
+                  className="w-full md:w-auto px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {futureContracts.some(c => c.expiresAtDay > currentDay) ? 'Contrato Ativo' : 'Comprar (R$ 10.000)'}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
 
       {/* Melhorias e Equipamentos */}
       <section>
@@ -422,8 +490,16 @@ export default function FacilitiesPage() {
                 </p>
                 <div className="space-y-3">
                   {Object.values(FEEDS).map(feed => {
-                    const costToProduce = feed.costPerKg * 0.6; // 40% de desconto
-                    const kgAmount = produceAmounts[feed.id] || 1000;
+                    let costToProduce = feed.costPerKg * 0.6; // 40% de desconto
+                      const activeContract = futureContracts?.find(c => c.expiresAtDay > (currentDay || 1) && c.kg > 0);
+                      if (activeContract) {
+                        costToProduce = activeContract.lockedPricePerKg;
+                      }
+
+                      const factoryBuff = employees?.filter(e => e.role === 'OPERADOR_FABRICA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0) || 0;
+                      costToProduce *= Math.max(0.5, 1 - factoryBuff);
+                      
+                      const kgAmount = produceAmounts[feed.id] || 1000;
                     const totalCost = kgAmount * costToProduce;
                     const canAfford = money >= totalCost;
 

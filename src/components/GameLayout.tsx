@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
-import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle, Calendar } from 'lucide-react';
+import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle, Calendar, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatGameDate } from '../lib/utils';
@@ -73,6 +73,7 @@ export default function GameLayout() {
     { to: '/galpoes', icon: Home, label: 'Galpões' },
     { to: '/mercado', icon: ShoppingCart, label: 'Mercado' },
     { to: '/fabricas', icon: Settings, label: 'Fábricas' },
+    { to: '/rh', icon: Users, label: 'RH/Consultoria' },
     { to: '/financas', icon: DollarSign, label: 'Finanças' },
   ];
 
@@ -118,7 +119,7 @@ export default function GameLayout() {
                 flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-4 rounded-xl transition-colors whitespace-nowrap flex-1 md:flex-none justify-center md:justify-start
                 ${isActive ? 'text-white bg-white/10 md:bg-transparent' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}
               `}
-              style={({ isActive }) => isActive ? { md: { backgroundColor: company.color } } : {}}
+              style={({ isActive }) => isActive ? { backgroundColor: window.innerWidth >= 768 ? company.color : 'rgba(255,255,255,0.1)' } : {}}
             >
               <item.icon size={24} className="md:w-6 md:h-6 w-7 h-7" />
               <span className="text-[10px] md:text-base font-medium">{item.label}</span>
