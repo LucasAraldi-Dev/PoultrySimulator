@@ -7,6 +7,7 @@ import BarnsPage from './pages/BarnsPage';
 import MarketPage from './pages/MarketPage';
 import FacilitiesPage from './pages/FacilitiesPage';
 import FinancePage from './pages/FinancePage';
+import RHPage from './pages/RHPage';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -22,6 +23,7 @@ function AnimatedRoutes() {
           <Route path="/mercado" element={<MarketPage />} />
           <Route path="/fabricas" element={<FacilitiesPage />} />
           <Route path="/financas" element={<FinancePage />} />
+          <Route path="/rh" element={<RHPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

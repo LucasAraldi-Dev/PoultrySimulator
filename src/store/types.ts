@@ -120,7 +120,7 @@ export interface RandomEvent {
   id: string;
   name: string;
   description: string;
-  effectType: 'MORTALITY_SPIKE' | 'FEED_LOSS' | 'EQUIPMENT_BREAK';
+  effectType: 'MORTALITY_SPIKE' | 'FEED_LOSS' | 'EQUIPMENT_BREAK' | 'FREIGHT_SPIKE' | 'FEED_SPIKE' | 'DISEASE_SPIKE';
   severity: number;
 }
 
@@ -168,6 +168,14 @@ export interface DailyTask {
   description: string;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  role: 'TRATADOR' | 'MOTORISTA' | 'OPERADOR_FABRICA';
+  experienceLevel: number; // 1 a 5 (cada nível melhora eficiência)
+  dailySalary: number; // Salário diário
+}
+
 export interface GameState {
   // Player Data
   company: Company | null;
@@ -193,6 +201,7 @@ export interface GameState {
   barns: Barn[];
   inventory: InventoryItem[]; // Estoque de insumos (rações e ingredientes)
   ownedMachinery: string[]; // IDs of purchased machinery
+  employees: Employee[]; // Funcionários contratados
   products: {
     eggs: number; // Quantidade de ovos no estoque
     meat: number; // Frangos vivos/abatidos para venda (kg ou unidades)
@@ -202,6 +211,10 @@ export interface GameState {
   hasFeedMill: boolean;
   hasIncubator: boolean;
   hasSlaughterhouse: boolean;
+  
+  // Mercado de Futuros (Fábrica)
+  futureContracts: { id: string; type: string; kg: number; lockedPricePerKg: number; expiresAtDay: number }[];
+  buyFutureContract: (kg: number, pricePerKg: number, daysToDeliver: number, cost: number) => void;
   
   // Metrics & History
   totalProfit: number;
@@ -231,15 +244,22 @@ export interface GameState {
   takeLoan: (amount: number) => void;
   payLoan: (amount: number) => void;
   
+  // Employees
+  hireEmployee: (role: Employee['role']) => void;
+  fireEmployee: (employeeId: string) => void;
+  trainEmployee: (employeeId: string, cost: number) => void;
+
+  // Consultants
+  hireVeterinarian: () => void;
+  hireFinancialAdvisor: () => void;
+  financialBuffDays: number;
+  
   // Batch Management
   vaccinateBatch: (barnId: string, cost: number) => void;
   cleanBarn: (barnId: string, cost: number) => void;
   
   // Feed Management
   selectFeed: (barnId: string, feedId: string) => void;
-  
-  // Daily Tasks
-  completeDailyTasks: () => void;
   
   // Novas Ações - Fábrica
   buildFeedMill: (cost: number) => void;

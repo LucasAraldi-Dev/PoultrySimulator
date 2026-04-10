@@ -89,10 +89,11 @@ export default function FinancePage() {
           <div className="bg-zinc-900 p-6 rounded-xl shadow-lg border border-zinc-800 text-white relative overflow-hidden">
             <div className="flex items-center gap-3 mb-2 relative z-10">
               <DollarSign size={20} className="text-amber-400" />
-              <h3 className="text-lg font-medium text-zinc-300">Banco / Dívida</h3>
+              <h3 className="text-lg font-medium text-zinc-300">Banco do Brasil (PRONAF)</h3>
             </div>
             <p className="text-3xl font-bold text-amber-400 relative z-10">R$ {bankLoan.toFixed(2)}</p>
-            <div className="mt-4 flex gap-2 relative z-10">
+            <p className="text-xs text-amber-500/80 mb-3 relative z-10">Juros: 5.5% a.a.</p>
+            <div className="mt-2 flex gap-2 relative z-10">
               <button onClick={handleTakeLoan} className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-bold py-2 rounded transition-colors border border-amber-500/30">Pegar</button>
               <button onClick={handlePayLoan} disabled={bankLoan <= 0} className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-sm font-bold py-2 rounded transition-colors border border-emerald-500/30 disabled:opacity-50">Pagar</button>
             </div>

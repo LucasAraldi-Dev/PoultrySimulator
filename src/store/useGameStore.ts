@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
-import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS } from './constants';
+import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS, GLOBAL_EVENTS } from './constants';
+import { getGameMonth } from '../lib/utils';
 
 const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
   const landMod = REGIONS[regionId]?.landCostModifier || 1;
@@ -42,17 +43,17 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     isRented: false,
     sanitaryVoidDays: 0,
     batch: {
-        id: 'batch_1',
-        animalCount: 1000,
-        ageDays: 1,
-        currentWeight: 0.05,
-        totalFeedConsumed: 0,
-        mortalityCount: 0,
-        activeDisease: null,
-        vaccineProtectionDays: 0,
-        hygieneLevel: 100,
-      },
-      selectedFeedId: 'feed_broiler_pre',
+      id: 'batch_1',
+      animalCount: 1000,
+      ageDays: 1,
+      currentWeight: 0.05,
+      totalFeedConsumed: 0,
+      mortalityCount: 0,
+      activeDisease: null,
+      vaccineProtectionDays: 0,
+      hygieneLevel: 100,
+    },
+    selectedFeedId: 'feed_broiler_pre',
   };
 };
 
@@ -75,6 +76,7 @@ export const useGameStore = create<GameState>((set) => ({
   barns: [],
   inventory: [],
   ownedMachinery: [],
+  employees: [],
   products: {
     eggs: 0,
     meat: 0,
@@ -82,6 +84,8 @@ export const useGameStore = create<GameState>((set) => ({
   hasFeedMill: false,
   hasIncubator: false,
   hasSlaughterhouse: false,
+  futureContracts: [],
+  financialBuffDays: 0,
   totalProfit: 0,
   totalExpenses: 0,
   detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
@@ -133,10 +137,13 @@ export const useGameStore = create<GameState>((set) => ({
         { itemId: 'feed_basic', quantity: 500 }
       ],
       ownedMachinery: [],
+      employees: [],
       products: { eggs: 0, meat: 0 },
       hasFeedMill: false,
       hasIncubator: false,
       hasSlaughterhouse: false,
+      futureContracts: [],
+      financialBuffDays: 0,
       totalProfit: 0,
       totalExpenses: 0,
       detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
@@ -216,19 +223,26 @@ export const useGameStore = create<GameState>((set) => ({
   }),
 
   buyFeed: (feedId, kg, totalCost) => set((state) => {
-    if (state.money >= totalCost) {
+    let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
+    
+    // Buff de Motorista
+    const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
+    freightCost *= Math.max(0.2, 1 - driverBuff);
+
+    // Impacto de evento no frete
+    if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
+      freightCost *= state.activeEvent.severity;
+    }
+
+    if (state.money >= totalCost + freightCost) {
       const existingItem = state.inventory.find(i => i.itemId === feedId);
       const newInventory = existingItem
         ? state.inventory.map(i => i.itemId === feedId ? { ...i, quantity: i.quantity + kg } : i)
         : [...state.inventory, { itemId: feedId, quantity: kg }];
       
-      // Separar custo da ração e custo do frete no momento da compra (simplificado: frete é 15% do total ou baseado na região)
-      const regionFreight = state.region ? state.region.freightCostPerKg : 0.05;
-      const freightCost = kg * regionFreight;
-      
       return {
-        money: state.money - totalCost,
-        totalExpenses: state.totalExpenses + totalCost,
+        money: state.money - (totalCost + freightCost),
+        totalExpenses: state.totalExpenses + (totalCost + freightCost),
         detailedExpenses: {
           ...state.detailedExpenses,
           freight: state.detailedExpenses.freight + freightCost,
@@ -268,7 +282,11 @@ export const useGameStore = create<GameState>((set) => ({
 
   sellEggs: (quantity, pricePerEgg) => set((state) => {
     if (state.products.eggs >= quantity) {
-      const revenue = quantity * pricePerEgg;
+      let finalPrice = pricePerEgg;
+      if (state.financialBuffDays > 0) {
+        finalPrice *= 1.10;
+      }
+      const revenue = quantity * finalPrice;
       state.addXp(Math.floor(quantity / 50)); // 1 XP por cada 50 ovos vendidos (Mais difícil)
       return {
         money: state.money + revenue,
@@ -297,6 +315,11 @@ export const useGameStore = create<GameState>((set) => ({
           finalPrice *= 1.15; // +15%
         } else if (!isProcessed && state.ownedMachinery.includes('gen_truck_live')) {
           finalPrice *= 1.05; // +5%
+        }
+
+        // Bônus de Consultor Financeiro
+        if (state.financialBuffDays > 0) {
+          finalPrice *= 1.10;
         }
 
         revenue = totalKg * finalPrice;
@@ -378,6 +401,26 @@ export const useGameStore = create<GameState>((set) => ({
 
   feedFlock: (barnId, feedId, amountKg) => set((state) => state), // Não mais necessário clique manual, automático
 
+  buyFutureContract: (kg, pricePerKg, daysToDeliver, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        futureContracts: [
+          ...state.futureContracts,
+          {
+            id: `contract_${Date.now()}`,
+            type: 'corn',
+            kg,
+            lockedPricePerKg: pricePerKg,
+            expiresAtDay: state.currentDay + daysToDeliver
+          }
+        ]
+      };
+    }
+    return state;
+  }),
+
   buildFeedMill: (cost) => set((state) => {
     if (state.money >= cost && !state.hasFeedMill) {
       return {
@@ -427,17 +470,27 @@ export const useGameStore = create<GameState>((set) => ({
     let currentMarketPrices = { ...state.marketPrices };
     let currentEvent = null;
     let newMissions = [...state.activeMissions];
+    let currentLoan = state.bankLoan;
+    let currentFeedPriceHistory = [...state.feedPriceHistory];
+    let currentFinancialBuff = state.financialBuffDays;
 
     for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
+      
+      if (currentFinancialBuff > 0) currentFinancialBuff -= 1;
 
-      // Juros do empréstimo (0.5% ao dia)
+      // Despesas com funcionários e Buffs
+      let laborCost = state.employees.reduce((acc, emp) => acc + emp.dailySalary, 0);
+      dailyExpenses += laborCost;
+      detailedExpenses.labor += laborCost;
+
+      const caretakerBuff = state.employees.filter(e => e.role === 'TRATADOR').reduce((acc, emp) => acc + (emp.experienceLevel * 0.02), 0);
+
+      // Juros do empréstimo (PRONAF: ~5.5% ao ano -> ~0.015% ao dia)
       if (currentLoan > 0) {
-        const interest = currentLoan * 0.005;
+        const interest = currentLoan * 0.00015;
         currentLoan += interest;
-        // Opcional: cobrar automaticamente ou apenas deixar acumular
-        // money -= interest;
       }
 
       // Analisa tarefas diárias não feitas e aplica penalidades
@@ -509,12 +562,7 @@ export const useGameStore = create<GameState>((set) => ({
       }
 
       if (Math.random() < 0.02) { // 2% chance per day
-        const events = [
-          { id: 'heat_wave', name: 'Onda de Calor', description: 'As temperaturas subiram drasticamente! Mortalidade aumentada em galpões sem ventilação.', effectType: 'MORTALITY_SPIKE', severity: 2.0 },
-          { id: 'rat_infestation', name: 'Infestação de Ratos', description: 'Ratos invadiram seus estoques de ração e destruíram 10% do seu estoque!', effectType: 'FEED_LOSS', severity: 0.1 },
-          { id: 'power_outage', name: 'Queda de Energia', description: 'Uma tempestade derrubou a rede elétrica. Todos os equipamentos falharam hoje.', effectType: 'EQUIPMENT_BREAK', severity: 1.0 },
-        ];
-        currentEvent = events[Math.floor(Math.random() * events.length)] as import('./types').RandomEvent;
+        currentEvent = GLOBAL_EVENTS[Math.floor(Math.random() * GLOBAL_EVENTS.length)];
 
         // Mitigação de geradores
         if (currentEvent.effectType === 'EQUIPMENT_BREAK') {
@@ -533,14 +581,30 @@ export const useGameStore = create<GameState>((set) => ({
         }));
       }
 
+      // Sazonalidade e Eventos de Mercado
+      const currentMonth = getGameMonth(currentDay);
+      let seasonalFeedMod = 1.0;
+      let seasonalMeatMod = 1.0;
+      let seasonalEggMod = 1.0;
+
+      // Safra de milho no Brasil (Meio do ano tem mais oferta = mais barato)
+      if (currentMonth >= 5 && currentMonth <= 7) seasonalFeedMod = 0.85; 
+      // Entressafra (Começo de ano = mais caro)
+      if (currentMonth >= 0 && currentMonth <= 3) seasonalFeedMod = 1.15; 
+
+      // Festas de fim de ano aumentam demanda por carne
+      if (currentMonth === 11) seasonalMeatMod = 1.20; 
+      // Quaresma aumenta demanda por ovos
+      if (currentMonth === 2 || currentMonth === 3) seasonalEggMod = 1.15; 
+
+      if (currentEvent?.effectType === 'FEED_SPIKE') seasonalFeedMod *= currentEvent.severity;
+
       // Flutuação de mercado a cada dia
-      // Ovos: +/- 5% do base, multiplicado pelo bônus regional
-      currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1);
-      // Carne: +/- 10% do base, multiplicado pelo bônus regional
-      currentMarketPrices.meat = MEAT_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1);
-      currentMarketPrices.processedMeat = MEAT_PROCESSED_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1);
-      // Ração: modificador de 0.8 a 1.3
-      let feedBaseMod = (0.8 + Math.random() * 0.5) * (state.region?.feedCostModifier || 1);
+      currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1) * seasonalEggMod;
+      currentMarketPrices.meat = MEAT_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1) * seasonalMeatMod;
+      currentMarketPrices.processedMeat = MEAT_PROCESSED_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1) * seasonalMeatMod;
+      
+      let feedBaseMod = (0.8 + Math.random() * 0.5) * (state.region?.feedCostModifier || 1) * seasonalFeedMod;
       
       // Bônus Caminhão Ração
       if (state.ownedMachinery.includes('prem_truck_feed')) {
@@ -668,7 +732,7 @@ export const useGameStore = create<GameState>((set) => ({
         if (!newBatch.activeDisease) {
           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
-          diseaseChance *= diseasePenalty;
+          diseaseChance *= diseasePenalty * diseaseSpikeMod;
           
           if (newBatch.vaccineProtectionDays > 0) {
             diseaseChance *= 0.1; // 90% menos chance com vacina
@@ -701,6 +765,8 @@ export const useGameStore = create<GameState>((set) => ({
            }
         }
 
+        const diseaseSpikeMod = currentEvent?.effectType === 'DISEASE_SPIKE' ? currentEvent.severity : 1;
+
         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
         const diseaseEgg = newBatch.activeDisease ? newBatch.activeDisease.eggModifier : 1;
@@ -711,9 +777,9 @@ export const useGameStore = create<GameState>((set) => ({
           newBatch.mortalityCount += dead;
         } else {
           // Mortalidade normal reduzida pelo bônus da ração e multiplicada pela doença e eventos
-          const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * diseaseMortal * eventMortal * mortalityPenalty * 10;
-          if (Math.random() < mortalityChance) {
-            const dead = Math.max(1, Math.floor(newBatch.animalCount * baseMortality * diseaseMortal * eventMortal * mortalityPenalty));
+            const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * Math.max(0.1, 1 - caretakerBuff) * diseaseMortal * eventMortal * mortalityPenalty * 10;
+            if (Math.random() < mortalityChance) {
+              const dead = Math.max(1, Math.floor(newBatch.animalCount * baseMortality * diseaseMortal * eventMortal * mortalityPenalty * Math.max(0.1, 1 - caretakerBuff)));
             newBatch.animalCount -= dead;
             newBatch.mortalityCount += dead;
           }
@@ -768,6 +834,7 @@ export const useGameStore = create<GameState>((set) => ({
       feedPriceHistory: currentFeedPriceHistory,
       activeEvent: currentEvent,
       activeMissions: newMissions,
+      financialBuffDays: currentFinancialBuff,
       dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)), // Reseta tarefas diárias
       products: {
         ...state.products,
@@ -844,7 +911,67 @@ export const useGameStore = create<GameState>((set) => ({
     return state;
   }),
 
-  cleanBarn: (barnId, cost) => set((state) => {
+  hireEmployee: (role) => set((state) => {
+    const baseSalaries = {
+      'TRATADOR': 50,
+      'MOTORISTA': 70,
+      'OPERADOR_FABRICA': 80
+    };
+    const newEmployee = {
+      id: `emp_${Date.now()}`,
+      name: `Funcionário ${state.employees.length + 1}`,
+      role,
+      experienceLevel: 1,
+      dailySalary: baseSalaries[role]
+    };
+    return { employees: [...state.employees, newEmployee] };
+  }),
+
+  fireEmployee: (employeeId) => set((state) => ({
+    employees: state.employees.filter(e => e.id !== employeeId)
+  })),
+
+  trainEmployee: (employeeId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        employees: state.employees.map(e => {
+          if (e.id === employeeId && e.experienceLevel < 5) {
+            return { ...e, experienceLevel: e.experienceLevel + 1, dailySalary: e.dailySalary * 1.2 };
+          }
+          return e;
+        })
+      };
+    }
+    return state;
+  }),
+
+  hireVeterinarian: () => set((state) => {
+    const cost = 500;
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        barns: state.barns.map(barn => barn.batch ? { ...barn, batch: { ...barn.batch, activeDisease: null } } : barn)
+      };
+    }
+    return state;
+  }),
+
+  hireFinancialAdvisor: () => set((state) => {
+    const cost = 1000;
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        financialBuffDays: 7
+      };
+    }
+    return state;
+  }),
+
+    cleanBarn: (barnId, cost) => set((state) => {
     if (state.money >= cost) {
       return {
         money: state.money - cost,
