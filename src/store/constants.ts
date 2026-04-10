@@ -427,6 +427,15 @@ export const getCobb500Data = (day: number) => {
   };
 };
 
+export const GLOBAL_EVENTS: import('./types').RandomEvent[] = [
+  { id: 'diesel_crisis', name: 'Crise Global do Petróleo', description: 'Conflitos no Oriente Médio (Irã/Israel) dispararam o preço do barril. O custo de frete subiu absurdamente!', effectType: 'FREIGHT_SPIKE', severity: 1.5 },
+  { id: 'corn_shortage', name: 'Quebra de Safra Histórica', description: 'Seca severa no Centro-Oeste destruiu as lavouras de milho. O preço da ração disparou no mercado!', effectType: 'FEED_SPIKE', severity: 1.4 },
+  { id: 'heat_wave', name: 'Onda de Calor Extrema', description: 'El Niño brutal! Temperaturas recordes. Mortalidade aumentada em galpões sem climatização.', effectType: 'MORTALITY_SPIKE', severity: 2.5 },
+  { id: 'rat_infestation', name: 'Infestação de Roedores', description: 'Ratos invadiram seus estoques de ração e contaminaram 10% do seu estoque!', effectType: 'FEED_LOSS', severity: 0.1 },
+  { id: 'power_outage', name: 'Apagão Nacional', description: 'Falha no sistema interligado nacional. Equipamentos pararam hoje.', effectType: 'EQUIPMENT_BREAK', severity: 1.0 },
+  { id: 'bird_flu', name: 'Alerta de Gripe Aviária', description: 'Focos de gripe aviária (H5N1) detectados em aves silvestres próximas! Risco de doenças disparou.', effectType: 'DISEASE_SPIKE', severity: 3.0 },
+];
+
 export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
   {
     id: 'clean_drinkers',

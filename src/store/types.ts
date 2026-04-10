@@ -120,7 +120,7 @@ export interface RandomEvent {
   id: string;
   name: string;
   description: string;
-  effectType: 'MORTALITY_SPIKE' | 'FEED_LOSS' | 'EQUIPMENT_BREAK';
+  effectType: 'MORTALITY_SPIKE' | 'FEED_LOSS' | 'EQUIPMENT_BREAK' | 'FREIGHT_SPIKE' | 'FEED_SPIKE' | 'DISEASE_SPIKE';
   severity: number;
 }
 

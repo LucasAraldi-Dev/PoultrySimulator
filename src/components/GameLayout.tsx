@@ -1,8 +1,9 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
-import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatGameDate } from '../lib/utils';
 
 export default function GameLayout() {
   const { pathname } = useLocation();
@@ -162,8 +163,8 @@ export default function GameLayout() {
                   R$ {money.toFixed(2)}
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100 text-sm md:text-base mt-2">
-                  <Clock size={18} />
-                  Dia {currentDay}
+                  <Calendar size={18} />
+                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">(Dia {currentDay})</span>
                 </div>
               </div>
             </div>

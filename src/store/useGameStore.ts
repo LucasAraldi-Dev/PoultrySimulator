@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
-import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS } from './constants';
+import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS, GLOBAL_EVENTS } from './constants';
+import { getGameMonth } from '../lib/utils';
 
 const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
   const landMod = REGIONS[regionId]?.landCostModifier || 1;
