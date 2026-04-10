@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { FEEDS, CHICK_COST, EGG_PRICE, LAYER_COST } from '../store/constants';
-import { ShoppingCart, DollarSign, Package, Egg, Bird, Lock } from 'lucide-react';
+import { ShoppingCart, DollarSign, Package, Egg, Bird, Truck } from 'lucide-react';
 import { BarnType } from '../store/types';
 import { PageTransition } from '../components/PageTransition';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,11 +17,16 @@ export default function MarketPage() {
   const marketPrices = useGameStore(state => state.marketPrices);
   const company = useGameStore(state => state.company);
   const level = useGameStore(state => state.level);
+  const region = useGameStore(state => state.region);
+  const ownedMachinery = useGameStore(state => state.ownedMachinery);
+  const pendingDeliveries = useGameStore(state => state.pendingDeliveries);
+  const currentDay = useGameStore(state => state.currentDay);
 
   const [feedAmounts, setFeedAmounts] = useState<Record<string, number>>({
     feed_broiler_pre: 100, feed_basic: 100, feed_terminacao: 100, feed_premium: 100,
     feed_layers_start: 100, feed_layers: 100, feed_layers_premium: 100, feed_medicada: 100
   });
+  const [deliveryPrefs, setDeliveryPrefs] = useState<Record<string, { scheduledInDays: number; useOwnTruck: boolean }>>({});
 
   const emptyBarns = barns.filter(b => !b.batch);
 
@@ -29,7 +34,8 @@ export default function MarketPage() {
     const kg = feedAmounts[feedId] || 0;
     if (kg <= 0) return;
     const cost = kg * (FEEDS[feedId].costPerKg * marketPrices.feedModifier);
-    buyFeed(feedId, kg, cost);
+    const pref = deliveryPrefs[feedId] || { scheduledInDays: 0, useOwnTruck: false };
+    buyFeed(feedId, kg, cost, pref.scheduledInDays, pref.useOwnTruck);
   };
 
   const handleBuyFlock = (barnId: string, type: BarnType, capacity: number) => {
@@ -131,13 +137,53 @@ export default function MarketPage() {
           <Package size={24} className="text-amber-600" />
           Fornecedores de Ração
         </h2>
+
+        {pendingDeliveries.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 mb-6">
+            <h3 className="text-lg font-bold text-zinc-800 mb-2 flex items-center gap-2">
+              <Truck size={20} className="text-zinc-700" /> Pedidos em Transporte
+            </h3>
+            <div className="divide-y divide-zinc-100">
+              {pendingDeliveries
+                .slice()
+                .sort((a, b) => a.arrivesAtDay - b.arrivesAtDay)
+                .map(d => (
+                  <div key={d.id} className="py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-bold text-zinc-800 truncate">{FEEDS[d.itemId]?.name || d.itemId}</p>
+                      <p className="text-xs text-zinc-500">
+                        {d.quantity.toFixed(0)} kg • {d.mode === 'CAMINHAO' ? 'Retirada com caminhão' : 'Entrega do fornecedor'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-zinc-800">Chega no dia {d.arrivesAtDay}</p>
+                      <p className="text-xs text-zinc-500">Faltam {Math.max(0, d.arrivesAtDay - currentDay)} dia(s)</p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
         
         {/* Ração para Corte */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2">Linha Frango de Corte</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.values(FEEDS).filter(f => f.id.includes('broiler') || f.id.includes('basic') || f.id.includes('terminacao') || f.id === 'feed_premium').map(feed => (
-              <FeedCard key={feed.id} feed={feed} marketPrices={marketPrices} level={level} feedAmounts={feedAmounts} setFeedAmounts={setFeedAmounts} handleBuyFeed={handleBuyFeed} money={money} />
+              <FeedCard
+                key={feed.id}
+                feed={feed}
+                marketPrices={marketPrices}
+                level={level}
+                feedAmounts={feedAmounts}
+                setFeedAmounts={setFeedAmounts}
+                handleBuyFeed={handleBuyFeed}
+                money={money}
+                region={region}
+                ownedMachinery={ownedMachinery}
+                deliveryPrefs={deliveryPrefs}
+                setDeliveryPrefs={setDeliveryPrefs}
+              />
             ))}
           </div>
         </div>
@@ -147,7 +193,20 @@ export default function MarketPage() {
           <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2">Linha Postura (Ovos)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.values(FEEDS).filter(f => f.id.includes('layers')).map(feed => (
-              <FeedCard key={feed.id} feed={feed} marketPrices={marketPrices} level={level} feedAmounts={feedAmounts} setFeedAmounts={setFeedAmounts} handleBuyFeed={handleBuyFeed} money={money} />
+              <FeedCard
+                key={feed.id}
+                feed={feed}
+                marketPrices={marketPrices}
+                level={level}
+                feedAmounts={feedAmounts}
+                setFeedAmounts={setFeedAmounts}
+                handleBuyFeed={handleBuyFeed}
+                money={money}
+                region={region}
+                ownedMachinery={ownedMachinery}
+                deliveryPrefs={deliveryPrefs}
+                setDeliveryPrefs={setDeliveryPrefs}
+              />
             ))}
           </div>
         </div>
@@ -157,7 +216,20 @@ export default function MarketPage() {
           <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2">Rações Especiais</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Object.values(FEEDS).filter(f => f.id.includes('medicada')).map(feed => (
-              <FeedCard key={feed.id} feed={feed} marketPrices={marketPrices} level={level} feedAmounts={feedAmounts} setFeedAmounts={setFeedAmounts} handleBuyFeed={handleBuyFeed} money={money} />
+              <FeedCard
+                key={feed.id}
+                feed={feed}
+                marketPrices={marketPrices}
+                level={level}
+                feedAmounts={feedAmounts}
+                setFeedAmounts={setFeedAmounts}
+                handleBuyFeed={handleBuyFeed}
+                money={money}
+                region={region}
+                ownedMachinery={ownedMachinery}
+                deliveryPrefs={deliveryPrefs}
+                setDeliveryPrefs={setDeliveryPrefs}
+              />
             ))}
           </div>
         </div>
@@ -170,7 +242,7 @@ export default function MarketPage() {
 // Componente auxiliar para não repetir o código do card
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
-function FeedCard({ feed, marketPrices, level, feedAmounts, setFeedAmounts, handleBuyFeed, money }: any) {
+function FeedCard({ feed, marketPrices, feedAmounts, setFeedAmounts, handleBuyFeed, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs }: any) {
   const currentCost = feed.costPerKg * marketPrices.feedModifier;
   const feedPriceHistory = useGameStore(state => state.feedPriceHistory);
   
@@ -178,6 +250,14 @@ function FeedCard({ feed, marketPrices, level, feedAmounts, setFeedAmounts, hand
   const chartData = feedPriceHistory.map(h => ({
     price: feed.costPerKg * h.priceModifier
   }));
+
+  const hasFeedTruck = ownedMachinery?.includes('prem_truck_feed') || ownedMachinery?.includes('gen_truck_feed');
+  const pref = deliveryPrefs[feed.id] || { scheduledInDays: 0, useOwnTruck: false };
+  const mode = pref.useOwnTruck && hasFeedTruck ? 'CAMINHAO' : 'ENTREGA';
+  const baseTransitDays = Math.min(6, Math.max(1, Math.ceil(((region?.freightCostPerKg || 0.05) * 20))));
+  const transitDays = mode === 'CAMINHAO' ? 1 : baseTransitDays;
+  const dispatchIn = Math.max(0, Math.floor(pref.scheduledInDays));
+  const etaLabel = dispatchIn === 0 ? `${transitDays} dia(s)` : `${dispatchIn + transitDays} dia(s)`;
 
   return (
     <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
@@ -219,6 +299,35 @@ function FeedCard({ feed, marketPrices, level, feedAmounts, setFeedAmounts, hand
             </span>
           </li>
         </ul>
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+          <p className="text-[11px] font-bold text-zinc-500">Envio</p>
+          <select
+            value={pref.scheduledInDays}
+            onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
+            className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
+          >
+            <option value={0}>Enviar hoje</option>
+            <option value={1}>Enviar em 1 dia</option>
+            <option value={2}>Enviar em 2 dias</option>
+            <option value={3}>Enviar em 3 dias</option>
+          </select>
+        </div>
+        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+          <p className="text-[11px] font-bold text-zinc-500">Logística</p>
+          <button
+            type="button"
+            onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
+            className={`w-full mt-1 px-2 py-1 rounded-md text-sm font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
+            disabled={!hasFeedTruck}
+            title={!hasFeedTruck ? 'Compre um Caminhão de Ração em Fábricas para habilitar retirada' : ''}
+          >
+            {mode === 'CAMINHAO' ? 'Buscar com caminhão' : 'Entrega do fornecedor'}
+          </button>
+          <p className="text-[11px] text-zinc-500 mt-1">Previsão: {etaLabel}</p>
+        </div>
       </div>
 
       <div className="flex gap-2 mt-4">

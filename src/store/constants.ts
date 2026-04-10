@@ -112,6 +112,66 @@ export const REGIONS: Record<string, import('./types').Region> = {
     productSaleModifier: 1.0, 
     landCostModifier: 1.1, 
     freightCostPerKg: 0.08,
+  },
+  'pr_cascavel': {
+    id: 'pr_cascavel',
+    name: 'Cascavel',
+    state: 'PR',
+    description: 'Oeste do Paraná, forte em grãos e integração. Ótima base para expandir com logística equilibrada.',
+    feedCostModifier: 0.92,
+    productSaleModifier: 1.02,
+    landCostModifier: 1.05,
+    freightCostPerKg: 0.06,
+  },
+  'rs_lajeado': {
+    id: 'rs_lajeado',
+    name: 'Lajeado',
+    state: 'RS',
+    description: 'Vale do Taquari, região de proteína e cooperativas. Mercado exigente, mas paga melhor qualidade.',
+    feedCostModifier: 0.98,
+    productSaleModifier: 1.08,
+    landCostModifier: 1.08,
+    freightCostPerKg: 0.07,
+  },
+  'go_rio_verde': {
+    id: 'go_rio_verde',
+    name: 'Rio Verde',
+    state: 'GO',
+    description: 'Polo do agro em Goiás. Boa oferta de milho/soja e fácil escoamento para o Sudeste.',
+    feedCostModifier: 0.78,
+    productSaleModifier: 0.95,
+    landCostModifier: 0.95,
+    freightCostPerKg: 0.03,
+  },
+  'mg_uberlandia': {
+    id: 'mg_uberlandia',
+    name: 'Uberlândia',
+    state: 'MG',
+    description: 'Hub logístico entre Centro-Oeste e Sudeste. Frete eficiente, terra intermediária, bom preço de venda.',
+    feedCostModifier: 0.95,
+    productSaleModifier: 1.08,
+    landCostModifier: 1.12,
+    freightCostPerKg: 0.05,
+  },
+  'ba_barreiras': {
+    id: 'ba_barreiras',
+    name: 'Barreiras',
+    state: 'BA',
+    description: 'MATOPIBA em expansão. Grãos crescentes, mas riscos climáticos e logística mais longa.',
+    feedCostModifier: 0.9,
+    productSaleModifier: 0.92,
+    landCostModifier: 0.85,
+    freightCostPerKg: 0.12,
+  },
+  'pa_paragominas': {
+    id: 'pa_paragominas',
+    name: 'Paragominas',
+    state: 'PA',
+    description: 'Fronteira agrícola distante. Terra barata, mas frete caro e instabilidade de abastecimento.',
+    feedCostModifier: 1.22,
+    productSaleModifier: 1.05,
+    landCostModifier: 0.75,
+    freightCostPerKg: 0.18,
   }
 };
 
@@ -445,6 +505,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     startedAt: null,
     completed: false,
     effectType: 'DISEASE',
+    severity: 'MEDIA',
   },
   {
     id: 'check_temperature',
@@ -454,6 +515,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     startedAt: null,
     completed: false,
     effectType: 'GROWTH',
+    severity: 'MEDIA',
   },
   {
     id: 'remove_dead',
@@ -463,6 +525,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     startedAt: null,
     completed: false,
     effectType: 'MORTALITY',
+    severity: 'ALTA',
   }
 ];
 

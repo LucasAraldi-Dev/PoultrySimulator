@@ -1,7 +1,74 @@
 import { create } from 'zustand';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
-import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS, GLOBAL_EVENTS } from './constants';
+import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS } from './constants';
 import { getGameMonth } from '../lib/utils';
+
+const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
+  const tasks: Omit<DailyTask, 'startedAt' | 'completed'>[] = [
+    {
+      id: 'clean_drinkers',
+      name: 'Limpar Bebedouros',
+      description: 'Reduz contaminação da água e risco sanitário.',
+      durationMinutes: 2,
+      effectType: 'DISEASE',
+      severity: 'MEDIA',
+    },
+    {
+      id: 'check_temperature',
+      name: 'Checar Climatização',
+      description: 'Ajusta temperatura, ventilação e cortinas para conforto térmico.',
+      durationMinutes: 3,
+      effectType: 'GROWTH',
+      severity: 'ALTA',
+    },
+    {
+      id: 'biosecurity',
+      name: 'Biosseguridade (Pedilúvio/Acesso)',
+      description: 'Controle de entrada, troca de botas e rotina de higienização.',
+      durationMinutes: 5,
+      effectType: 'DISEASE',
+      severity: 'ALTA',
+    },
+    {
+      id: 'check_feed_silo',
+      name: 'Checar Estoque de Ração',
+      description: 'Confere consumo previsto e planeja reposição para evitar falta.',
+      durationMinutes: 1,
+      effectType: 'MORTALITY',
+      severity: 'ALTA',
+    },
+    {
+      id: 'record_weights',
+      name: 'Aferir Peso (Amostragem)',
+      description: 'Amostragem do lote para detectar desvio de ganho e ajustar manejo.',
+      durationMinutes: 8,
+      effectType: 'GROWTH',
+      severity: 'BAIXA',
+    },
+    {
+      id: 'check_litter',
+      name: 'Manejo de Cama',
+      description: 'Revolve cama, remove umidade e reduz amônia.',
+      durationMinutes: 4,
+      effectType: 'DISEASE',
+      severity: 'BAIXA',
+    },
+  ];
+
+  const hasMortalityHistory = barns.some(b => b.batch && b.batch.mortalityCount > 0);
+  if (hasMortalityHistory) {
+    tasks.push({
+      id: 'remove_dead',
+      name: 'Retirar Aves Mortas',
+      description: 'Remove carcaças e evita disseminação de patógenos.',
+      durationMinutes: 3,
+      effectType: 'MORTALITY',
+      severity: 'ALTA',
+    });
+  }
+
+  return tasks.map(t => ({ ...t, startedAt: null, completed: false }));
+};
 
 const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
   const landMod = REGIONS[regionId]?.landCostModifier || 1;
@@ -69,7 +136,7 @@ export const useGameStore = create<GameState>((set) => ({
   loanInstallmentsRemaining: 0,
   nextLoanPaymentDay: 0,
   missedPayments: 0,
-  dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)),
+  dailyTasks: [],
   marketPrices: {
     egg: EGG_PRICE,
     meat: MEAT_PRICE_PER_KG,
@@ -79,6 +146,7 @@ export const useGameStore = create<GameState>((set) => ({
   feedPriceHistory: [],
   barns: [],
   inventory: [],
+  pendingDeliveries: [],
   ownedMachinery: [],
   employees: [],
   products: {
@@ -119,6 +187,7 @@ export const useGameStore = create<GameState>((set) => ({
 
   resetGame: (initialChoice: 'POSTURA' | 'CORTE', companyName: string, companyColor: string, regionId: string) => set((state) => {
     const region = REGIONS[regionId];
+    const initialBarn = createInitialBarn(initialChoice, regionId);
     return {
       company: {
         name: companyName,
@@ -134,7 +203,7 @@ export const useGameStore = create<GameState>((set) => ({
       loanInstallmentsRemaining: 0,
       nextLoanPaymentDay: 0,
       missedPayments: 0,
-      dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)),
+      dailyTasks: generateDailyTasks([initialBarn]),
       marketPrices: {
         egg: EGG_PRICE * region.productSaleModifier,
         meat: MEAT_PRICE_PER_KG * region.productSaleModifier,
@@ -142,10 +211,11 @@ export const useGameStore = create<GameState>((set) => ({
         feedModifier: region.feedCostModifier,
       },
       feedPriceHistory: [{ day: 1, priceModifier: region.feedCostModifier }],
-      barns: [createInitialBarn(initialChoice, regionId)],
+      barns: [initialBarn],
       inventory: [
         { itemId: 'feed_basic', quantity: 500 }
       ],
+      pendingDeliveries: [],
       ownedMachinery: [],
       employees: [],
       products: { eggs: 0, meat: 0 },
@@ -232,7 +302,7 @@ export const useGameStore = create<GameState>((set) => ({
     return state;
   }),
 
-  buyFeed: (feedId, kg, totalCost) => set((state) => {
+  buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, useOwnTruck = false) => set((state) => {
     let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
     
     // Buff de Motorista
@@ -244,12 +314,20 @@ export const useGameStore = create<GameState>((set) => ({
       freightCost *= state.activeEvent.severity;
     }
 
+    const hasFeedTruck = state.ownedMachinery.includes('prem_truck_feed') || state.ownedMachinery.includes('gen_truck_feed');
+    const mode: 'ENTREGA' | 'CAMINHAO' = useOwnTruck && hasFeedTruck ? 'CAMINHAO' : 'ENTREGA';
+
+    if (mode === 'CAMINHAO') {
+      const truckMod = state.ownedMachinery.includes('prem_truck_feed') ? 0.2 : 0.35;
+      freightCost *= truckMod;
+    }
+
+    const baseTransitDays = Math.min(6, Math.max(1, Math.ceil((state.region?.freightCostPerKg || 0.05) * 20)));
+    const transitDays = mode === 'CAMINHAO' ? 1 : baseTransitDays;
+    const dispatchAtDay = state.currentDay + Math.max(0, Math.floor(scheduledInDays));
+    const arrivesAtDay = dispatchAtDay + transitDays;
+
     if (state.money >= totalCost + freightCost) {
-      const existingItem = state.inventory.find(i => i.itemId === feedId);
-      const newInventory = existingItem
-        ? state.inventory.map(i => i.itemId === feedId ? { ...i, quantity: i.quantity + kg } : i)
-        : [...state.inventory, { itemId: feedId, quantity: kg }];
-      
       return {
         money: state.money - (totalCost + freightCost),
         totalExpenses: state.totalExpenses + (totalCost + freightCost),
@@ -257,7 +335,19 @@ export const useGameStore = create<GameState>((set) => ({
           ...state.detailedExpenses,
           freight: state.detailedExpenses.freight + freightCost,
         },
-        inventory: newInventory,
+        pendingDeliveries: [
+          ...state.pendingDeliveries,
+          {
+            id: `delivery_${Date.now()}_${Math.random()}`,
+            itemId: feedId,
+            quantity: kg,
+            orderedAtDay: state.currentDay,
+            dispatchAtDay,
+            arrivesAtDay,
+            freightCost,
+            mode,
+          }
+        ],
       };
     }
     return state;
@@ -496,10 +586,24 @@ export const useGameStore = create<GameState>((set) => ({
     let currentNextLoanPaymentDay = state.nextLoanPaymentDay;
     let currentMissedPayments = state.missedPayments;
     let penaltyApplied = 0;
+    let pendingDeliveries = [...state.pendingDeliveries];
 
     for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
+
+      const arriving = pendingDeliveries.filter(d => d.arrivesAtDay <= currentDay);
+      if (arriving.length > 0) {
+        arriving.forEach(d => {
+          const existingItem = currentInventory.find(i => i.itemId === d.itemId);
+          if (existingItem) {
+            existingItem.quantity += d.quantity;
+          } else {
+            currentInventory.push({ itemId: d.itemId, quantity: d.quantity });
+          }
+        });
+        pendingDeliveries = pendingDeliveries.filter(d => d.arrivesAtDay > currentDay);
+      }
       
       // Fechamento do mês (a cada 30 dias)
       if (currentDay % 30 === 0) {
@@ -540,9 +644,22 @@ export const useGameStore = create<GameState>((set) => ({
       
       state.dailyTasks.forEach(task => {
         if (!task.completed) {
-          if (task.effectType === 'DISEASE') diseasePenalty *= 1.5; // +50% chance
-          if (task.effectType === 'GROWTH') growthPenalty *= 0.9; // -10% growth
-          if (task.effectType === 'MORTALITY') mortalityPenalty *= 2.0; // +100% mortality
+          const severity = task.severity || 'MEDIA';
+          if (severity === 'BAIXA') {
+            if (task.effectType === 'DISEASE') diseasePenalty *= 1.1;
+            if (task.effectType === 'GROWTH') growthPenalty *= 0.97;
+            if (task.effectType === 'MORTALITY') mortalityPenalty *= 1.15;
+          }
+          if (severity === 'MEDIA') {
+            if (task.effectType === 'DISEASE') diseasePenalty *= 1.3;
+            if (task.effectType === 'GROWTH') growthPenalty *= 0.92;
+            if (task.effectType === 'MORTALITY') mortalityPenalty *= 1.5;
+          }
+          if (severity === 'ALTA') {
+            if (task.effectType === 'DISEASE') diseasePenalty *= 1.6;
+            if (task.effectType === 'GROWTH') growthPenalty *= 0.85;
+            if (task.effectType === 'MORTALITY') mortalityPenalty *= 2.2;
+          }
         }
       });
       
@@ -706,8 +823,31 @@ export const useGameStore = create<GameState>((set) => ({
           baseMortality = cobbData.dailyMortalityPct / 100; // 0.1% -> 0.001
           expectedWeightG = cobbData.weightG;
         } else {
-          // Postura: Média de 100g a 120g por ave adulta, e menos quando jovem
-          dailyFeedNeeded = newBatch.animalCount * Math.min(0.12, 0.02 + (newBatch.ageDays * 0.001));
+          if (newBatch.ageDays <= 42) {
+            dailyFeedNeeded = newBatch.animalCount * 0.06;
+          } else if (newBatch.ageDays <= 120) {
+            dailyFeedNeeded = newBatch.animalCount * 0.09;
+          } else {
+            dailyFeedNeeded = newBatch.animalCount * 0.115;
+          }
+        }
+
+        const appetiteModifier = Math.max(
+          0.6,
+          (newBatch.activeDisease ? 0.9 : 1) *
+            (newBatch.hygieneLevel < 40 ? 0.85 : newBatch.hygieneLevel < 70 ? 0.95 : 1) *
+            growthPenalty
+        );
+        dailyFeedNeeded *= appetiteModifier;
+
+        if (barn.type === 'CORTE') {
+          const expectedWeightKg = expectedWeightG > 0 ? expectedWeightG / 1000 : newBatch.currentWeight;
+          if (expectedWeightKg > 0) {
+            const weightFactor = newBatch.currentWeight / expectedWeightKg;
+            if (weightFactor > 1.05) {
+              dailyFeedNeeded *= 1 + Math.min(0.25, (weightFactor - 1) * 0.2);
+            }
+          }
         }
         
         // Procura ração no inventário (prioridade para a selecionada, mas usa outras se faltar)
@@ -880,13 +1020,14 @@ export const useGameStore = create<GameState>((set) => ({
       activeEvent: currentEvent,
       activeMissions: newMissions,
       financialBuffDays: currentFinancialBuff,
-      dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)), // Reseta tarefas diárias
+      dailyTasks: generateDailyTasks(newBarns),
       products: {
         ...state.products,
         eggs: newEggs
       },
       barns: newBarns,
-      inventory: currentInventory
+      inventory: currentInventory,
+      pendingDeliveries
     };
   }),
 

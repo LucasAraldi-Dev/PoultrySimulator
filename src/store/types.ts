@@ -95,6 +95,17 @@ export interface InventoryItem {
   quantity: number; // Quantidade em kg
 }
 
+export interface FeedDelivery {
+  id: string;
+  itemId: string;
+  quantity: number;
+  orderedAtDay: number;
+  dispatchAtDay: number;
+  arrivesAtDay: number;
+  freightCost: number;
+  mode: 'ENTREGA' | 'CAMINHAO';
+}
+
 export interface BatchHistory {
   id: string;
   barnId: string;
@@ -165,6 +176,7 @@ export interface DailyTask {
   startedAt: number | null; // timestamp in ms
   completed: boolean;
   effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
+  severity: 'BAIXA' | 'MEDIA' | 'ALTA';
   description: string;
 }
 
@@ -200,6 +212,7 @@ export interface GameState {
   // Assets
   barns: Barn[];
   inventory: InventoryItem[]; // Estoque de insumos (rações e ingredientes)
+  pendingDeliveries: FeedDelivery[]; // Pedidos em transporte
   ownedMachinery: string[]; // IDs of purchased machinery
   employees: Employee[]; // Funcionários contratados
   products: {
@@ -231,7 +244,7 @@ export interface GameState {
   upgradeBarn: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
-  buyFeed: (feedId: string, kg: number, totalCost: number) => void;
+  buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;
   buyChicks: (barnId: string, quantity: number, cost: number) => void;
   sellEggs: (quantity: number, pricePerEgg: number) => void;
   sellBatch: (barnId: string, pricePerKg: number, isProcessed?: boolean) => void;

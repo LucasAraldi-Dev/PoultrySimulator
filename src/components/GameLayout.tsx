@@ -234,6 +234,13 @@ export default function GameLayout() {
                 
                 {dailyTasks.map(task => {
                   const isStarted = task.startedAt !== null;
+                  const severity = task.severity || 'MEDIA';
+                  const severityLabel = severity === 'ALTA' ? 'Crítica' : severity === 'BAIXA' ? 'Básica' : 'Importante';
+                  const severityClasses = severity === 'ALTA'
+                    ? 'bg-red-100 text-red-700'
+                    : severity === 'BAIXA'
+                      ? 'bg-zinc-100 text-zinc-600'
+                      : 'bg-amber-100 text-amber-700';
                   let progress = 0;
                   let timeLeftStr = "";
                   
@@ -262,7 +269,10 @@ export default function GameLayout() {
                             <Loader2 size={12} className="animate-spin" /> {timeLeftStr}
                           </span>
                         ) : (
-                          <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded text-xs font-bold">{task.durationMinutes} min</span>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`${severityClasses} px-2 py-1 rounded text-xs font-bold`}>{severityLabel}</span>
+                            <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded text-xs font-bold">{task.durationMinutes} min</span>
+                          </div>
                         )}
                       </div>
                       
