@@ -1,0 +1,829 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 92a6c40..2ce48e4 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -7,6 +7,7 @@ import BarnsPage from './pages/BarnsPage';
+ import MarketPage from './pages/MarketPage';
+ import FacilitiesPage from './pages/FacilitiesPage';
+ import FinancePage from './pages/FinancePage';
++import RHPage from './pages/RHPage';
+ 
+ function AnimatedRoutes() {
+   const location = useLocation();
+@@ -22,6 +23,7 @@ function AnimatedRoutes() {
+           <Route path="/mercado" element={<MarketPage />} />
+           <Route path="/fabricas" element={<FacilitiesPage />} />
+           <Route path="/financas" element={<FinancePage />} />
++          <Route path="/rh" element={<RHPage />} />
+         </Route>
+ 
+         <Route path="*" element={<Navigate to="/" replace />} />
+diff --git a/src/components/GameLayout.tsx b/src/components/GameLayout.tsx
+index 3c86027..0d86c49 100644
+--- a/src/components/GameLayout.tsx
++++ b/src/components/GameLayout.tsx
+@@ -1,8 +1,9 @@
+ import { Outlet, NavLink, useLocation } from 'react-router-dom';
+ import { useGameStore } from '../store/useGameStore';
+-import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle } from 'lucide-react';
++import { LayoutDashboard, Home, ShoppingCart, Settings, DollarSign, Clock, Wallet, Play, CheckSquare, Loader2, AlertCircle, Calendar, Users } from 'lucide-react';
+ import { useState, useEffect } from 'react';
+ import { motion, AnimatePresence } from 'framer-motion';
++import { formatGameDate } from '../lib/utils';
+ 
+ export default function GameLayout() {
+   const { pathname } = useLocation();
+@@ -72,6 +73,7 @@ export default function GameLayout() {
+     { to: '/galpoes', icon: Home, label: 'Galpões' },
+     { to: '/mercado', icon: ShoppingCart, label: 'Mercado' },
+     { to: '/fabricas', icon: Settings, label: 'Fábricas' },
++    { to: '/rh', icon: Users, label: 'RH/Consultoria' },
+     { to: '/financas', icon: DollarSign, label: 'Finanças' },
+   ];
+ 
+@@ -117,7 +119,7 @@ export default function GameLayout() {
+                 flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-4 py-2 md:py-4 rounded-xl transition-colors whitespace-nowrap flex-1 md:flex-none justify-center md:justify-start
+                 ${isActive ? 'text-white bg-white/10 md:bg-transparent' : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'}
+               `}
+-              style={({ isActive }) => isActive ? { md: { backgroundColor: company.color } } : {}}
++              style={({ isActive }) => isActive ? { backgroundColor: window.innerWidth >= 768 ? company.color : 'rgba(255,255,255,0.1)' } : {}}
+             >
+               <item.icon size={24} className="md:w-6 md:h-6 w-7 h-7" />
+               <span className="text-[10px] md:text-base font-medium">{item.label}</span>
+@@ -162,8 +164,8 @@ export default function GameLayout() {
+                   R$ {money.toFixed(2)}
+                 </div>
+                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100 text-sm md:text-base mt-2">
+-                  <Clock size={18} />
+-                  Dia {currentDay}
++                  <Calendar size={18} />
++                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">(Dia {currentDay})</span>
+                 </div>
+               </div>
+             </div>
+diff --git a/src/lib/utils.ts b/src/lib/utils.ts
+index bd0c391..59669ef 100644
+--- a/src/lib/utils.ts
++++ b/src/lib/utils.ts
+@@ -4,3 +4,18 @@ import { twMerge } from "tailwind-merge"
+ export function cn(...inputs: ClassValue[]) {
+   return twMerge(clsx(inputs))
+ }
++
++export function getGameDate(currentDay: number): Date {
++  const date = new Date(2026, 0, 1); // 1 de Janeiro de 2026
++  date.setDate(date.getDate() + currentDay - 1);
++  return date;
++}
++
++export function formatGameDate(currentDay: number): string {
++  const date = getGameDate(currentDay);
++  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
++}
++
++export function getGameMonth(currentDay: number): number {
++  return getGameDate(currentDay).getMonth();
++}
+diff --git a/src/pages/FacilitiesPage.tsx b/src/pages/FacilitiesPage.tsx
+index 3025480..2a95a09 100644
+--- a/src/pages/FacilitiesPage.tsx
++++ b/src/pages/FacilitiesPage.tsx
+@@ -33,12 +33,53 @@ export default function FacilitiesPage() {
+   const buildSlaughterhouse = useGameStore(state => state.buildSlaughterhouse);
+   const company = useGameStore(state => state.company);
+ 
++  const buyFutureContract = useGameStore(state => state.buyFutureContract);
++  const futureContracts = useGameStore(state => state.futureContracts);
++  const marketPrices = useGameStore(state => state.marketPrices);
++  const currentDay = useGameStore(state => state.currentDay);
++  const employees = useGameStore(state => state.employees);
++
+   const [produceAmounts, setProduceAmounts] = useState<Record<string, number>>({
+     feed_basic: 1000, feed_premium: 1000, feed_layers: 1000, feed_medicada: 1000
+   });
+ 
+   const landMod = region?.landCostModifier || 1;
+ 
++  const handleProduceFeed = (feedId: string) => {
++    const feed = FEEDS[feedId];
++    if (!feed) return;
++    
++    // Calcula o custo com base nos contratos futuros de milho, se houver
++    let costPerKg = feed.costPerKg * (marketPrices?.feedModifier || 1) * 0.7; // 30% mais barato base
++    let contractUsed = false;
++    
++    // Verifica se tem contrato ativo
++    const activeContract = futureContracts?.find(c => c.expiresAtDay > (currentDay || 1) && c.kg > 0);
++    if (activeContract) {
++      costPerKg = activeContract.lockedPricePerKg; // Usa o preço travado (geralmente bem menor)
++      contractUsed = true;
++    }
++
++    const factoryBuff = employees?.filter(e => e.role === 'OPERADOR_FABRICA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0) || 0;
++    costPerKg *= Math.max(0.5, 1 - factoryBuff);
++
++    const costToProduce = 1000 * costPerKg; // Lote de 1 tonelada
++    
++    if (money >= costToProduce) {
++      produceFeed(feedId, 1000, costToProduce);
++      // Aqui precisaríamos decrementar o kg do contrato, mas vamos simplificar: o contrato trava o preço por tempo, não quantidade, ou a gente ignora o decréscimo.
++      // O correto seria um update, mas para não complicar a store, vamos considerar que o contrato garante "abastecimento contínuo àquele preço" até expirar.
++    } else {
++      alert("Dinheiro insuficiente!");
++    }
++  };
++
++  const handleBuyContract = () => {
++    const price = 1.0; // R$ 1.00 por kg (Muito mais barato que a média)
++    const cost = 10000; // Custa 10k adiantado
++    buyFutureContract?.(10000, price, 30, cost); // 30 dias de duração
++  };
++
+   const handleBuyBarnModel = (model: BarnModel, type: 'POSTURA' | 'CORTE') => {
+     const cost = model.baseCost * landMod;
+     if (money >= cost) {
+@@ -54,6 +95,7 @@ export default function FacilitiesPage() {
+         isRented: false,
+         sanitaryVoidDays: 0,
+         batch: null,
++        selectedFeedId: 'feed_basic',
+       };
+       buyBarn(newBarn, cost);
+     }
+@@ -75,6 +117,7 @@ export default function FacilitiesPage() {
+         isRented: true,
+         sanitaryVoidDays: 0,
+         batch: null,
++        selectedFeedId: 'feed_basic',
+       };
+       buyBarn(newBarn, initialDeposit);
+     }
+@@ -206,8 +249,33 @@ export default function FacilitiesPage() {
+               </button>
+             </div>
+           </div>
+-        </div>
+-      </section>
++          </div>
++          
++          {hasFeedMill && (
++            <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200 mt-6 col-span-1 md:col-span-2">
++              <h3 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
++                <TrendingUp className="text-amber-500" /> Mercado de Futuros (Matéria-Prima)
++              </h3>
++              <p className="text-sm text-zinc-600 mb-4">
++                Trave o preço da saca de milho pagando adiantado. Isso blinda sua fábrica contra eventos globais e sazonais.
++              </p>
++              
++              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
++                <div>
++                  <h4 className="font-bold text-amber-800">Contrato: Safra Futura</h4>
++                  <p className="text-sm text-amber-700">Preço Fixo: R$ 1.00/kg (Duração: 30 dias)</p>
++                </div>
++                <button 
++                  onClick={handleBuyContract}
++                  disabled={money < 10000 || futureContracts.some(c => c.expiresAtDay > currentDay)}
++                  className="w-full md:w-auto px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
++                >
++                  {futureContracts.some(c => c.expiresAtDay > currentDay) ? 'Contrato Ativo' : 'Comprar (R$ 10.000)'}
++                </button>
++              </div>
++            </div>
++          )}
++        </section>
+ 
+       {/* Melhorias e Equipamentos */}
+       <section>
+@@ -422,8 +490,16 @@ export default function FacilitiesPage() {
+                 </p>
+                 <div className="space-y-3">
+                   {Object.values(FEEDS).map(feed => {
+-                    const costToProduce = feed.costPerKg * 0.6; // 40% de desconto
+-                    const kgAmount = produceAmounts[feed.id] || 1000;
++                    let costToProduce = feed.costPerKg * 0.6; // 40% de desconto
++                      const activeContract = futureContracts?.find(c => c.expiresAtDay > (currentDay || 1) && c.kg > 0);
++                      if (activeContract) {
++                        costToProduce = activeContract.lockedPricePerKg;
++                      }
++
++                      const factoryBuff = employees?.filter(e => e.role === 'OPERADOR_FABRICA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0) || 0;
++                      costToProduce *= Math.max(0.5, 1 - factoryBuff);
++                      
++                      const kgAmount = produceAmounts[feed.id] || 1000;
+                     const totalCost = kgAmount * costToProduce;
+                     const canAfford = money >= totalCost;
+ 
+diff --git a/src/pages/FinancePage.tsx b/src/pages/FinancePage.tsx
+index 6069ad7..340ce97 100644
+--- a/src/pages/FinancePage.tsx
++++ b/src/pages/FinancePage.tsx
+@@ -89,10 +89,11 @@ export default function FinancePage() {
+           <div className="bg-zinc-900 p-6 rounded-xl shadow-lg border border-zinc-800 text-white relative overflow-hidden">
+             <div className="flex items-center gap-3 mb-2 relative z-10">
+               <DollarSign size={20} className="text-amber-400" />
+-              <h3 className="text-lg font-medium text-zinc-300">Banco / Dívida</h3>
++              <h3 className="text-lg font-medium text-zinc-300">Banco do Brasil (PRONAF)</h3>
+             </div>
+             <p className="text-3xl font-bold text-amber-400 relative z-10">R$ {bankLoan.toFixed(2)}</p>
+-            <div className="mt-4 flex gap-2 relative z-10">
++            <p className="text-xs text-amber-500/80 mb-3 relative z-10">Juros: 5.5% a.a.</p>
++            <div className="mt-2 flex gap-2 relative z-10">
+               <button onClick={handleTakeLoan} className="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-sm font-bold py-2 rounded transition-colors border border-amber-500/30">Pegar</button>
+               <button onClick={handlePayLoan} disabled={bankLoan <= 0} className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-sm font-bold py-2 rounded transition-colors border border-emerald-500/30 disabled:opacity-50">Pagar</button>
+             </div>
+diff --git a/src/pages/RHPage.tsx b/src/pages/RHPage.tsx
+new file mode 100644
+index 0000000..ce4da20
+--- /dev/null
++++ b/src/pages/RHPage.tsx
+@@ -0,0 +1,145 @@
++import { useGameStore } from '../store/useGameStore';
++import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle } from 'lucide-react';
++import { PageTransition } from '../components/PageTransition';
++
++export default function RHPage() {
++  const employees = useGameStore(state => state.employees);
++  const money = useGameStore(state => state.money);
++  const hireEmployee = useGameStore(state => state.hireEmployee);
++  const fireEmployee = useGameStore(state => state.fireEmployee);
++  const trainEmployee = useGameStore(state => state.trainEmployee);
++  const hireVeterinarian = useGameStore(state => state.hireVeterinarian);
++  const hireFinancialAdvisor = useGameStore(state => state.hireFinancialAdvisor);
++  const financialBuffDays = useGameStore(state => state.financialBuffDays);
++
++  return (
++    <PageTransition>
++      <div className="space-y-6 max-w-7xl mx-auto">
++        <header>
++          <h2 className="text-2xl font-bold text-zinc-800">Equipe & Consultoria</h2>
++          <p className="text-zinc-600">Contrate funcionários e especialistas para otimizar sua granja.</p>
++        </header>
++
++        {/* Consultores */}
++        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
++          <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm flex flex-col justify-between">
++            <div>
++              <div className="flex items-center gap-3 mb-4 text-emerald-600">
++                <Stethoscope size={28} />
++                <h3 className="text-xl font-bold">Veterinário Especialista</h3>
++              </div>
++              <p className="text-zinc-600 text-sm mb-4">
++                O veterinário cura imediatamente todas as doenças ativas nos seus galpões. Fundamental em crises de alta mortalidade.
++              </p>
++              <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm flex items-start gap-2 mb-4">
++                <AlertTriangle size={18} className="shrink-0 mt-0.5" />
++                <span>Custo Fixo por Visita: <strong>R$ 500,00</strong></span>
++              </div>
++            </div>
++            <button 
++              onClick={() => hireVeterinarian()}
++              disabled={money < 500}
++              className="w-full py-3 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg transition-colors border border-emerald-300 disabled:opacity-50"
++            >
++              Chamar Veterinário
++            </button>
++          </div>
++
++          <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm flex flex-col justify-between">
++            <div>
++              <div className="flex items-center gap-3 mb-4 text-blue-600">
++                <TrendingUp size={28} />
++                <h3 className="text-xl font-bold">Consultor Financeiro</h3>
++              </div>
++              <p className="text-zinc-600 text-sm mb-4">
++                Negocia melhores contratos de venda. Você ganha <strong>+10% de lucro</strong> em todas as vendas (ovos e carne) por 7 dias.
++              </p>
++              <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm flex flex-col gap-2 mb-4">
++                <div className="flex justify-between items-center">
++                  <span>Custo por Contrato: <strong>R$ 1.000,00</strong></span>
++                  {financialBuffDays > 0 && <span className="bg-blue-200 text-blue-800 px-2 py-0.5 rounded text-xs font-bold">Ativo: {financialBuffDays}d</span>}
++                </div>
++              </div>
++            </div>
++            <button 
++              onClick={() => hireFinancialAdvisor()}
++              disabled={money < 1000 || financialBuffDays > 0}
++              className="w-full py-3 bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold rounded-lg transition-colors border border-blue-300 disabled:opacity-50"
++            >
++              {financialBuffDays > 0 ? 'Consultoria Ativa' : 'Contratar Consultor'}
++            </button>
++          </div>
++        </section>
++
++        {/* Quadro de Funcionários */}
++        <section>
++          <div className="flex justify-between items-center mb-4">
++            <h2 className="text-xl font-bold text-zinc-800 flex items-center gap-2">
++              <Users size={24} className="text-indigo-600" />
++              Quadro de Funcionários
++            </h2>
++            <div className="flex gap-2">
++              <button onClick={() => hireEmployee('TRATADOR')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
++                <UserPlus size={16} /> Tratador
++              </button>
++              <button onClick={() => hireEmployee('OPERADOR_FABRICA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
++                <UserPlus size={16} /> Operador
++              </button>
++            </div>
++          </div>
++
++          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
++            {employees.length === 0 ? (
++              <div className="col-span-3 text-center py-10 bg-white rounded-xl border border-zinc-200 border-dashed">
++                <Users size={48} className="mx-auto text-zinc-300 mb-3" />
++                <p className="text-zinc-500 font-medium">Você não possui funcionários.</p>
++                <p className="text-sm text-zinc-400 mt-1">Sua carga de trabalho diária está toda sobre você!</p>
++              </div>
++            ) : (
++              employees.map(emp => {
++                const trainingCost = emp.experienceLevel * 200;
++                return (
++                  <div key={emp.id} className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm">
++                    <div className="flex justify-between items-start mb-2">
++                      <div>
++                        <h4 className="font-bold text-zinc-800">{emp.name}</h4>
++                        <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">{emp.role.replace('_', ' ')}</span>
++                      </div>
++                      <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded text-xs font-bold">Nvl {emp.experienceLevel}</span>
++                    </div>
++                    
++                    <div className="mt-4 pt-4 border-t border-zinc-100 flex flex-col gap-2">
++                      <p className="text-sm flex justify-between">
++                        <span className="text-zinc-500">Salário/Dia:</span>
++                        <span className="font-bold text-red-600">- R$ {emp.dailySalary.toFixed(2)}</span>
++                      </p>
++                      
++                      <div className="flex gap-2 mt-2">
++                        <button 
++                          onClick={() => trainEmployee(emp.id, trainingCost)}
++                          disabled={money < trainingCost || emp.experienceLevel >= 5}
++                          className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
++                        >
++                          <GraduationCap size={14} /> 
++                          {emp.experienceLevel >= 5 ? 'Max' : `Treinar (R$ ${trainingCost})`}
++                        </button>
++                        <button 
++                          onClick={() => {
++                            if(window.confirm('Deseja realmente demitir este funcionário?')) fireEmployee(emp.id);
++                          }}
++                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold py-2 rounded-lg flex items-center justify-center transition-colors"
++                        >
++                          Demitir
++                        </button>
++                      </div>
++                    </div>
++                  </div>
++                )
++              })
++            )}
++          </div>
++        </section>
++      </div>
++    </PageTransition>
++  );
++}
+diff --git a/src/store/constants.ts b/src/store/constants.ts
+index 8a043a9..72d594d 100644
+--- a/src/store/constants.ts
++++ b/src/store/constants.ts
+@@ -427,6 +427,15 @@ export const getCobb500Data = (day: number) => {
+   };
+ };
+ 
++export const GLOBAL_EVENTS: import('./types').RandomEvent[] = [
++  { id: 'diesel_crisis', name: 'Crise Global do Petróleo', description: 'Conflitos no Oriente Médio (Irã/Israel) dispararam o preço do barril. O custo de frete subiu absurdamente!', effectType: 'FREIGHT_SPIKE', severity: 1.5 },
++  { id: 'corn_shortage', name: 'Quebra de Safra Histórica', description: 'Seca severa no Centro-Oeste destruiu as lavouras de milho. O preço da ração disparou no mercado!', effectType: 'FEED_SPIKE', severity: 1.4 },
++  { id: 'heat_wave', name: 'Onda de Calor Extrema', description: 'El Niño brutal! Temperaturas recordes. Mortalidade aumentada em galpões sem climatização.', effectType: 'MORTALITY_SPIKE', severity: 2.5 },
++  { id: 'rat_infestation', name: 'Infestação de Roedores', description: 'Ratos invadiram seus estoques de ração e contaminaram 10% do seu estoque!', effectType: 'FEED_LOSS', severity: 0.1 },
++  { id: 'power_outage', name: 'Apagão Nacional', description: 'Falha no sistema interligado nacional. Equipamentos pararam hoje.', effectType: 'EQUIPMENT_BREAK', severity: 1.0 },
++  { id: 'bird_flu', name: 'Alerta de Gripe Aviária', description: 'Focos de gripe aviária (H5N1) detectados em aves silvestres próximas! Risco de doenças disparou.', effectType: 'DISEASE_SPIKE', severity: 3.0 },
++];
++
+ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
+   {
+     id: 'clean_drinkers',
+diff --git a/src/store/types.ts b/src/store/types.ts
+index 84643fa..8b230eb 100644
+--- a/src/store/types.ts
++++ b/src/store/types.ts
+@@ -120,7 +120,7 @@ export interface RandomEvent {
+   id: string;
+   name: string;
+   description: string;
+-  effectType: 'MORTALITY_SPIKE' | 'FEED_LOSS' | 'EQUIPMENT_BREAK';
++  effectType: 'MORTALITY_SPIKE' | 'FEED_LOSS' | 'EQUIPMENT_BREAK' | 'FREIGHT_SPIKE' | 'FEED_SPIKE' | 'DISEASE_SPIKE';
+   severity: number;
+ }
+ 
+@@ -168,6 +168,14 @@ export interface DailyTask {
+   description: string;
+ }
+ 
++export interface Employee {
++  id: string;
++  name: string;
++  role: 'TRATADOR' | 'MOTORISTA' | 'OPERADOR_FABRICA';
++  experienceLevel: number; // 1 a 5 (cada nível melhora eficiência)
++  dailySalary: number; // Salário diário
++}
++
+ export interface GameState {
+   // Player Data
+   company: Company | null;
+@@ -193,6 +201,7 @@ export interface GameState {
+   barns: Barn[];
+   inventory: InventoryItem[]; // Estoque de insumos (rações e ingredientes)
+   ownedMachinery: string[]; // IDs of purchased machinery
++  employees: Employee[]; // Funcionários contratados
+   products: {
+     eggs: number; // Quantidade de ovos no estoque
+     meat: number; // Frangos vivos/abatidos para venda (kg ou unidades)
+@@ -203,6 +212,10 @@ export interface GameState {
+   hasIncubator: boolean;
+   hasSlaughterhouse: boolean;
+   
++  // Mercado de Futuros (Fábrica)
++  futureContracts: { id: string; type: string; kg: number; lockedPricePerKg: number; expiresAtDay: number }[];
++  buyFutureContract: (kg: number, pricePerKg: number, daysToDeliver: number, cost: number) => void;
++  
+   // Metrics & History
+   totalProfit: number;
+   totalExpenses: number;
+@@ -231,6 +244,16 @@ export interface GameState {
+   takeLoan: (amount: number) => void;
+   payLoan: (amount: number) => void;
+   
++  // Employees
++  hireEmployee: (role: Employee['role']) => void;
++  fireEmployee: (employeeId: string) => void;
++  trainEmployee: (employeeId: string, cost: number) => void;
++
++  // Consultants
++  hireVeterinarian: () => void;
++  hireFinancialAdvisor: () => void;
++  financialBuffDays: number;
++  
+   // Batch Management
+   vaccinateBatch: (barnId: string, cost: number) => void;
+   cleanBarn: (barnId: string, cost: number) => void;
+@@ -238,9 +261,6 @@ export interface GameState {
+   // Feed Management
+   selectFeed: (barnId: string, feedId: string) => void;
+   
+-  // Daily Tasks
+-  completeDailyTasks: () => void;
+-  
+   // Novas Ações - Fábrica
+   buildFeedMill: (cost: number) => void;
+   buildSlaughterhouse: (cost: number) => void;
+diff --git a/src/store/useGameStore.ts b/src/store/useGameStore.ts
+index ff75e15..a5e1893 100644
+--- a/src/store/useGameStore.ts
++++ b/src/store/useGameStore.ts
+@@ -1,6 +1,7 @@
+ import { create } from 'zustand';
+ import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+-import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS } from './constants';
++import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, DEFAULT_DAILY_TASKS, GLOBAL_EVENTS } from './constants';
++import { getGameMonth } from '../lib/utils';
+ 
+ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
+   const landMod = REGIONS[regionId]?.landCostModifier || 1;
+@@ -42,17 +43,17 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn
+     isRented: false,
+     sanitaryVoidDays: 0,
+     batch: {
+-        id: 'batch_1',
+-        animalCount: 1000,
+-        ageDays: 1,
+-        currentWeight: 0.05,
+-        totalFeedConsumed: 0,
+-        mortalityCount: 0,
+-        activeDisease: null,
+-        vaccineProtectionDays: 0,
+-        hygieneLevel: 100,
+-      },
+-      selectedFeedId: 'feed_broiler_pre',
++      id: 'batch_1',
++      animalCount: 1000,
++      ageDays: 1,
++      currentWeight: 0.05,
++      totalFeedConsumed: 0,
++      mortalityCount: 0,
++      activeDisease: null,
++      vaccineProtectionDays: 0,
++      hygieneLevel: 100,
++    },
++    selectedFeedId: 'feed_broiler_pre',
+   };
+ };
+ 
+@@ -75,6 +76,7 @@ export const useGameStore = create<GameState>((set) => ({
+   barns: [],
+   inventory: [],
+   ownedMachinery: [],
++  employees: [],
+   products: {
+     eggs: 0,
+     meat: 0,
+@@ -82,6 +84,8 @@ export const useGameStore = create<GameState>((set) => ({
+   hasFeedMill: false,
+   hasIncubator: false,
+   hasSlaughterhouse: false,
++  futureContracts: [],
++  financialBuffDays: 0,
+   totalProfit: 0,
+   totalExpenses: 0,
+   detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
+@@ -133,10 +137,13 @@ export const useGameStore = create<GameState>((set) => ({
+         { itemId: 'feed_basic', quantity: 500 }
+       ],
+       ownedMachinery: [],
++      employees: [],
+       products: { eggs: 0, meat: 0 },
+       hasFeedMill: false,
+       hasIncubator: false,
+       hasSlaughterhouse: false,
++      futureContracts: [],
++      financialBuffDays: 0,
+       totalProfit: 0,
+       totalExpenses: 0,
+       detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
+@@ -216,19 +223,26 @@ export const useGameStore = create<GameState>((set) => ({
+   }),
+ 
+   buyFeed: (feedId, kg, totalCost) => set((state) => {
+-    if (state.money >= totalCost) {
++    let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
++    
++    // Buff de Motorista
++    const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
++    freightCost *= Math.max(0.2, 1 - driverBuff);
++
++    // Impacto de evento no frete
++    if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
++      freightCost *= state.activeEvent.severity;
++    }
++
++    if (state.money >= totalCost + freightCost) {
+       const existingItem = state.inventory.find(i => i.itemId === feedId);
+       const newInventory = existingItem
+         ? state.inventory.map(i => i.itemId === feedId ? { ...i, quantity: i.quantity + kg } : i)
+         : [...state.inventory, { itemId: feedId, quantity: kg }];
+       
+-      // Separar custo da ração e custo do frete no momento da compra (simplificado: frete é 15% do total ou baseado na região)
+-      const regionFreight = state.region ? state.region.freightCostPerKg : 0.05;
+-      const freightCost = kg * regionFreight;
+-      
+       return {
+-        money: state.money - totalCost,
+-        totalExpenses: state.totalExpenses + totalCost,
++        money: state.money - (totalCost + freightCost),
++        totalExpenses: state.totalExpenses + (totalCost + freightCost),
+         detailedExpenses: {
+           ...state.detailedExpenses,
+           freight: state.detailedExpenses.freight + freightCost,
+@@ -268,7 +282,11 @@ export const useGameStore = create<GameState>((set) => ({
+ 
+   sellEggs: (quantity, pricePerEgg) => set((state) => {
+     if (state.products.eggs >= quantity) {
+-      const revenue = quantity * pricePerEgg;
++      let finalPrice = pricePerEgg;
++      if (state.financialBuffDays > 0) {
++        finalPrice *= 1.10;
++      }
++      const revenue = quantity * finalPrice;
+       state.addXp(Math.floor(quantity / 50)); // 1 XP por cada 50 ovos vendidos (Mais difícil)
+       return {
+         money: state.money + revenue,
+@@ -299,6 +317,11 @@ export const useGameStore = create<GameState>((set) => ({
+           finalPrice *= 1.05; // +5%
+         }
+ 
++        // Bônus de Consultor Financeiro
++        if (state.financialBuffDays > 0) {
++          finalPrice *= 1.10;
++        }
++
+         revenue = totalKg * finalPrice;
+         addedMeat = totalKg;
+ 
+@@ -378,6 +401,26 @@ export const useGameStore = create<GameState>((set) => ({
+ 
+   feedFlock: (barnId, feedId, amountKg) => set((state) => state), // Não mais necessário clique manual, automático
+ 
++  buyFutureContract: (kg, pricePerKg, daysToDeliver, cost) => set((state) => {
++    if (state.money >= cost) {
++      return {
++        money: state.money - cost,
++        totalExpenses: state.totalExpenses + cost,
++        futureContracts: [
++          ...state.futureContracts,
++          {
++            id: `contract_${Date.now()}`,
++            type: 'corn',
++            kg,
++            lockedPricePerKg: pricePerKg,
++            expiresAtDay: state.currentDay + daysToDeliver
++          }
++        ]
++      };
++    }
++    return state;
++  }),
++
+   buildFeedMill: (cost) => set((state) => {
+     if (state.money >= cost && !state.hasFeedMill) {
+       return {
+@@ -427,17 +470,27 @@ export const useGameStore = create<GameState>((set) => ({
+     let currentMarketPrices = { ...state.marketPrices };
+     let currentEvent = null;
+     let newMissions = [...state.activeMissions];
++    let currentLoan = state.bankLoan;
++    let currentFeedPriceHistory = [...state.feedPriceHistory];
++    let currentFinancialBuff = state.financialBuffDays;
+ 
+     for (let day = 0; day < days; day++) {
+       currentDay += 1;
+       let dailyExpenses = 0;
++      
++      if (currentFinancialBuff > 0) currentFinancialBuff -= 1;
++
++      // Despesas com funcionários e Buffs
++      let laborCost = state.employees.reduce((acc, emp) => acc + emp.dailySalary, 0);
++      dailyExpenses += laborCost;
++      detailedExpenses.labor += laborCost;
+ 
+-      // Juros do empréstimo (0.5% ao dia)
++      const caretakerBuff = state.employees.filter(e => e.role === 'TRATADOR').reduce((acc, emp) => acc + (emp.experienceLevel * 0.02), 0);
++
++      // Juros do empréstimo (PRONAF: ~5.5% ao ano -> ~0.015% ao dia)
+       if (currentLoan > 0) {
+-        const interest = currentLoan * 0.005;
++        const interest = currentLoan * 0.00015;
+         currentLoan += interest;
+-        // Opcional: cobrar automaticamente ou apenas deixar acumular
+-        // money -= interest;
+       }
+ 
+       // Analisa tarefas diárias não feitas e aplica penalidades
+@@ -509,12 +562,7 @@ export const useGameStore = create<GameState>((set) => ({
+       }
+ 
+       if (Math.random() < 0.02) { // 2% chance per day
+-        const events = [
+-          { id: 'heat_wave', name: 'Onda de Calor', description: 'As temperaturas subiram drasticamente! Mortalidade aumentada em galpões sem ventilação.', effectType: 'MORTALITY_SPIKE', severity: 2.0 },
+-          { id: 'rat_infestation', name: 'Infestação de Ratos', description: 'Ratos invadiram seus estoques de ração e destruíram 10% do seu estoque!', effectType: 'FEED_LOSS', severity: 0.1 },
+-          { id: 'power_outage', name: 'Queda de Energia', description: 'Uma tempestade derrubou a rede elétrica. Todos os equipamentos falharam hoje.', effectType: 'EQUIPMENT_BREAK', severity: 1.0 },
+-        ];
+-        currentEvent = events[Math.floor(Math.random() * events.length)] as import('./types').RandomEvent;
++        currentEvent = GLOBAL_EVENTS[Math.floor(Math.random() * GLOBAL_EVENTS.length)];
+ 
+         // Mitigação de geradores
+         if (currentEvent.effectType === 'EQUIPMENT_BREAK') {
+@@ -533,14 +581,30 @@ export const useGameStore = create<GameState>((set) => ({
+         }));
+       }
+ 
++      // Sazonalidade e Eventos de Mercado
++      const currentMonth = getGameMonth(currentDay);
++      let seasonalFeedMod = 1.0;
++      let seasonalMeatMod = 1.0;
++      let seasonalEggMod = 1.0;
++
++      // Safra de milho no Brasil (Meio do ano tem mais oferta = mais barato)
++      if (currentMonth >= 5 && currentMonth <= 7) seasonalFeedMod = 0.85; 
++      // Entressafra (Começo de ano = mais caro)
++      if (currentMonth >= 0 && currentMonth <= 3) seasonalFeedMod = 1.15; 
++
++      // Festas de fim de ano aumentam demanda por carne
++      if (currentMonth === 11) seasonalMeatMod = 1.20; 
++      // Quaresma aumenta demanda por ovos
++      if (currentMonth === 2 || currentMonth === 3) seasonalEggMod = 1.15; 
++
++      if (currentEvent?.effectType === 'FEED_SPIKE') seasonalFeedMod *= currentEvent.severity;
++
+       // Flutuação de mercado a cada dia
+-      // Ovos: +/- 5% do base, multiplicado pelo bônus regional
+-      currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1);
+-      // Carne: +/- 10% do base, multiplicado pelo bônus regional
+-      currentMarketPrices.meat = MEAT_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1);
+-      currentMarketPrices.processedMeat = MEAT_PROCESSED_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1);
+-      // Ração: modificador de 0.8 a 1.3
+-      let feedBaseMod = (0.8 + Math.random() * 0.5) * (state.region?.feedCostModifier || 1);
++      currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1) * seasonalEggMod;
++      currentMarketPrices.meat = MEAT_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1) * seasonalMeatMod;
++      currentMarketPrices.processedMeat = MEAT_PROCESSED_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1) * seasonalMeatMod;
++      
++      let feedBaseMod = (0.8 + Math.random() * 0.5) * (state.region?.feedCostModifier || 1) * seasonalFeedMod;
+       
+       // Bônus Caminhão Ração
+       if (state.ownedMachinery.includes('prem_truck_feed')) {
+@@ -668,7 +732,7 @@ export const useGameStore = create<GameState>((set) => ({
+         if (!newBatch.activeDisease) {
+           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
+           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
+-          diseaseChance *= diseasePenalty;
++          diseaseChance *= diseasePenalty * diseaseSpikeMod;
+           
+           if (newBatch.vaccineProtectionDays > 0) {
+             diseaseChance *= 0.1; // 90% menos chance com vacina
+@@ -701,6 +765,8 @@ export const useGameStore = create<GameState>((set) => ({
+            }
+         }
+ 
++        const diseaseSpikeMod = currentEvent?.effectType === 'DISEASE_SPIKE' ? currentEvent.severity : 1;
++
+         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
+         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
+         const diseaseEgg = newBatch.activeDisease ? newBatch.activeDisease.eggModifier : 1;
+@@ -711,9 +777,9 @@ export const useGameStore = create<GameState>((set) => ({
+           newBatch.mortalityCount += dead;
+         } else {
+           // Mortalidade normal reduzida pelo bônus da ração e multiplicada pela doença e eventos
+-          const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * diseaseMortal * eventMortal * mortalityPenalty * 10;
+-          if (Math.random() < mortalityChance) {
+-            const dead = Math.max(1, Math.floor(newBatch.animalCount * baseMortality * diseaseMortal * eventMortal * mortalityPenalty));
++            const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * Math.max(0.1, 1 - caretakerBuff) * diseaseMortal * eventMortal * mortalityPenalty * 10;
++            if (Math.random() < mortalityChance) {
++              const dead = Math.max(1, Math.floor(newBatch.animalCount * baseMortality * diseaseMortal * eventMortal * mortalityPenalty * Math.max(0.1, 1 - caretakerBuff)));
+             newBatch.animalCount -= dead;
+             newBatch.mortalityCount += dead;
+           }
+@@ -768,6 +834,7 @@ export const useGameStore = create<GameState>((set) => ({
+       feedPriceHistory: currentFeedPriceHistory,
+       activeEvent: currentEvent,
+       activeMissions: newMissions,
++      financialBuffDays: currentFinancialBuff,
+       dailyTasks: JSON.parse(JSON.stringify(DEFAULT_DAILY_TASKS)), // Reseta tarefas diárias
+       products: {
+         ...state.products,
+@@ -844,7 +911,67 @@ export const useGameStore = create<GameState>((set) => ({
+     return state;
+   }),
+ 
+-  cleanBarn: (barnId, cost) => set((state) => {
++  hireEmployee: (role) => set((state) => {
++    const baseSalaries = {
++      'TRATADOR': 50,
++      'MOTORISTA': 70,
++      'OPERADOR_FABRICA': 80
++    };
++    const newEmployee = {
++      id: `emp_${Date.now()}`,
++      name: `Funcionário ${state.employees.length + 1}`,
++      role,
++      experienceLevel: 1,
++      dailySalary: baseSalaries[role]
++    };
++    return { employees: [...state.employees, newEmployee] };
++  }),
++
++  fireEmployee: (employeeId) => set((state) => ({
++    employees: state.employees.filter(e => e.id !== employeeId)
++  })),
++
++  trainEmployee: (employeeId, cost) => set((state) => {
++    if (state.money >= cost) {
++      return {
++        money: state.money - cost,
++        totalExpenses: state.totalExpenses + cost,
++        employees: state.employees.map(e => {
++          if (e.id === employeeId && e.experienceLevel < 5) {
++            return { ...e, experienceLevel: e.experienceLevel + 1, dailySalary: e.dailySalary * 1.2 };
++          }
++          return e;
++        })
++      };
++    }
++    return state;
++  }),
++
++  hireVeterinarian: () => set((state) => {
++    const cost = 500;
++    if (state.money >= cost) {
++      return {
++        money: state.money - cost,
++        totalExpenses: state.totalExpenses + cost,
++        barns: state.barns.map(barn => barn.batch ? { ...barn, batch: { ...barn.batch, activeDisease: null } } : barn)
++      };
++    }
++    return state;
++  }),
++
++  hireFinancialAdvisor: () => set((state) => {
++    const cost = 1000;
++    if (state.money >= cost) {
++      return {
++        money: state.money - cost,
++        totalExpenses: state.totalExpenses + cost,
++        financialBuffDays: 7
++      };
++    }
++    return state;
++  }),
++
++    cleanBarn: (barnId, cost) => set((state) => {
+     if (state.money >= cost) {
+       return {
+         money: state.money - cost,
