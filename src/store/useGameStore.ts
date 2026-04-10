@@ -5,7 +5,9 @@ import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_K
   DISCARD_BIRD_PRICE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
+import { api } from '../lib/api';
 
+// Funções utilitárias mantidas para não quebrar a tipagem existente
 const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
   const tasks: Omit<DailyTask, 'startedAt' | 'completed'>[] = [
     {
@@ -131,7 +133,91 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
   };
 };
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
+  isAuthenticated: !!localStorage.getItem('access_token'),
+  setAuth: (access: string, refresh: string) => {
+    localStorage.setItem('access_token', access);
+    localStorage.setItem('refresh_token', refresh);
+    set({ isAuthenticated: true });
+    get().fetchGameState();
+  },
+  logout: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    set({ isAuthenticated: false, company: null });
+  },
+  fetchGameState: async () => {
+    try {
+      const response = await api.get('/game/state/');
+      const player = response.data;
+      
+      // Mapear dados do backend para o formato do Frontend (GameState)
+      set((state) => ({
+        company: { name: player.company_name, color: player.company_color },
+        money: player.money,
+        currentDay: player.current_day,
+        totalProfit: player.total_profit,
+        totalExpenses: player.total_expenses,
+        currentMonthRevenue: player.current_month_revenue,
+        hasFeedMill: player.has_feed_mill,
+        hasIncubator: player.has_incubator,
+        hasSlaughterhouse: player.has_slaughterhouse,
+        
+        products: {
+          eggs: player.products?.eggs || 0,
+          meat: player.products?.meat || 0,
+        },
+        
+        // Conversão dos arrays de barns e inventory
+        // (O backend precisará enviar isso no serializer em detalhes no futuro. Por ora, mapeia o básico)
+        barns: player.barns.map((b: any) => ({
+          id: b.id.toString(),
+          name: b.name,
+          type: b.barn_type,
+          capacity: b.capacity,
+          level: b.level,
+          siloCapacity: b.silo_capacity,
+          siloBalance: b.silo_balance,
+          selectedFeedId: b.selected_feed_id || 'feed_basic',
+          isRented: b.is_rented,
+          sanitaryVoidDays: b.sanitary_void_days,
+          equipment: [], // Não no backend ainda
+          dailyCost: 0,
+          size: 'PEQUENO',
+          batch: b.batch ? {
+            id: b.batch.id.toString(),
+            animalCount: b.batch.animal_count,
+            ageDays: b.batch.age_days,
+            currentWeight: b.batch.weight,
+            mortalityCount: b.batch.mortality_count,
+            activeDisease: null,
+            totalFeedConsumed: 0,
+            vaccineProtectionDays: 0,
+            hygieneLevel: 100,
+          } : null
+        })),
+        
+        inventory: player.inventory.map((i: any) => ({
+          itemId: i.item_id,
+          quantity: i.quantity
+        }))
+      }));
+    } catch (err) {
+      console.error("Erro ao buscar estado do jogo", err);
+      get().logout();
+    }
+  },
+  
+  syncAdvanceDay: async () => {
+    try {
+      const res = await api.post('/game/advance-day/');
+      // Ao avançar o dia, buscamos o estado atualizado do backend e injetamos no store
+      await get().fetchGameState();
+    } catch (err) {
+      console.error("Erro ao avançar dia no backend", err);
+    }
+  },
+
   company: null,
   region: null,
   money: 0,

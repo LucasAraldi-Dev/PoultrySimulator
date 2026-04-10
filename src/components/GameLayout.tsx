@@ -28,7 +28,7 @@ export default function GameLayout() {
   const company = useGameStore(state => state.company);
   const money = useGameStore(state => state.money);
   const currentDay = useGameStore(state => state.currentDay);
-  const advanceDay = useGameStore(state => state.advanceDay);
+  const syncAdvanceDay = useGameStore(state => state.syncAdvanceDay);
   const level = useGameStore(state => state.level);
   const xp = useGameStore(state => state.xp);
   
@@ -126,8 +126,8 @@ export default function GameLayout() {
     setIsAnimatingDay(true);
     
     // Animação de 1.5s antes de realmente passar o dia
-    setTimeout(() => {
-      advanceDay(1);
+    setTimeout(async () => {
+      await syncAdvanceDay();
       setIsAnimatingDay(false);
     }, 1500);
   };

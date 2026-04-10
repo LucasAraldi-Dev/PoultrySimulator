@@ -193,6 +193,13 @@ export interface Employee {
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
 
 export interface GameState {
+  // Auth state
+  isAuthenticated: boolean;
+  setAuth: (access: string, refresh: string) => void;
+  logout: () => void;
+  fetchGameState: () => Promise<void>;
+  syncAdvanceDay: () => Promise<void>;
+
   // Player Data
   company: Company | null;
   region: Region | null;
