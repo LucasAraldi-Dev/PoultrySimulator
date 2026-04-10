@@ -41,7 +41,7 @@ export default function LoginPage() {
             <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
               <Building2 className="text-white" size={24} />
             </div>
-            <h1 className="text-3xl font-black text-zinc-800 tracking-tight">Avicultura<span className="text-emerald-500">PRO</span></h1>
+            <h1 className="text-3xl font-black text-zinc-800 tracking-tight">Poultry<span className="text-emerald-500">Manager</span></h1>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">

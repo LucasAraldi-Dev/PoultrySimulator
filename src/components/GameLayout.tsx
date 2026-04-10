@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useGameStore } from '../store/useGameStore';
 import { 
   LayoutDashboard, 
@@ -17,7 +17,8 @@ import {
   Users, 
   Microscope,
   Sun,
-  Moon
+  Moon,
+  Cloud
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,10 +26,13 @@ import { formatGameDate } from '../lib/utils';
 
 export default function GameLayout() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const company = useGameStore(state => state.company);
   const money = useGameStore(state => state.money);
   const currentDay = useGameStore(state => state.currentDay);
   const syncAdvanceDay = useGameStore(state => state.syncAdvanceDay);
+  const advanceDay = useGameStore(state => state.advanceDay);
+  const isAuthenticated = useGameStore(state => state.isAuthenticated);
   const level = useGameStore(state => state.level);
   const xp = useGameStore(state => state.xp);
   
@@ -127,7 +131,11 @@ export default function GameLayout() {
     
     // Animação de 1.5s antes de realmente passar o dia
     setTimeout(async () => {
-      await syncAdvanceDay();
+      if (isAuthenticated) {
+        await syncAdvanceDay();
+      } else {
+        advanceDay(1);
+      }
       setIsAnimatingDay(false);
     }, 1500);
   };
@@ -299,6 +307,15 @@ export default function GameLayout() {
             </div>
 
             <div className="flex gap-2 items-center justify-end w-1/2">
+              {!isAuthenticated && (
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="hidden md:flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-zinc-200 mr-2"
+                >
+                  <Cloud size={16} className="text-emerald-500" />
+                  <span>Salvar na Nuvem</span>
+                </button>
+              )}
               {/* Weather Indicator */}
               <div className="hidden md:flex items-center gap-3 bg-zinc-100 px-4 py-2 rounded-xl shadow-inner relative group cursor-help">
                 {getWeatherIcon()}

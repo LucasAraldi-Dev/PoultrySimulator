@@ -62,7 +62,7 @@ export default function RegisterPage() {
               <Building2 className="text-white" size={24} />
             </div>
             <h1 className="text-2xl font-black text-zinc-800 tracking-tight">Criar sua Fazenda</h1>
-            <p className="text-sm text-zinc-500">Registre-se no Avicultura<span className="text-emerald-500 font-bold">PRO</span></p>
+            <p className="text-sm text-zinc-500">Salve seu progresso na nuvem com o Poultry<span className="text-emerald-500 font-bold">Manager</span></p>
           </div>
 
           <form onSubmit={handleRegister} className="space-y-4">

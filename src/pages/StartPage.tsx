@@ -146,7 +146,7 @@ export default function StartPage() {
           className="p-8 text-center text-white transition-colors duration-500"
           style={{ backgroundColor: currentColorObj.value }}
         >
-          <h1 className="text-4xl font-bold mb-2">Poultry Simulator Beta</h1>
+          <h1 className="text-4xl font-bold mb-2">Poultry Manager</h1>
           <p className="text-white/80">O simulador de gerenciamento avícola definitivo</p>
         </div>
         

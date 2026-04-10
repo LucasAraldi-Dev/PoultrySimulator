@@ -218,42 +218,131 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
+  // Async Economy Actions (Para Nuvem - Híbrido)
   buyItemApi: async (itemId, quantity, totalCost) => {
-    try {
-      await api.post('/economy/buy-item/', { item_id: itemId, quantity, total_cost: totalCost });
-      await get().fetchGameState();
-    } catch (err) {
-      console.error("Erro na compra de item", err);
-      alert("Saldo insuficiente ou erro de comunicação com o servidor.");
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/buy-item/', { item_id: itemId, quantity, total_cost: totalCost });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro na compra de item", err);
+        alert("Saldo insuficiente ou erro de comunicação com o servidor.");
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (state.money >= totalCost) {
+        const newInv = [...state.inventory];
+        const existing = newInv.findIndex(i => i.itemId === itemId);
+        if (existing >= 0) newInv[existing].quantity += quantity;
+        else newInv.push({ itemId, quantity });
+        
+        set({ money: state.money - totalCost, totalExpenses: state.totalExpenses + totalCost, inventory: newInv });
+      }
     }
   },
 
   sellProductsApi: async (productType, quantity, pricePerUnit) => {
-    try {
-      await api.post('/economy/sell-products/', { product_type: productType, quantity, price_per_unit: pricePerUnit });
-      await get().fetchGameState();
-    } catch (err) {
-      console.error("Erro na venda de produtos", err);
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/sell-products/', { product_type: productType, quantity, price_per_unit: pricePerUnit });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro na venda de produtos", err);
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (productType === 'eggs' && state.products.eggs >= quantity) {
+        const revenue = quantity * pricePerUnit;
+        set({ 
+          money: state.money + revenue, 
+          totalProfit: state.totalProfit + revenue,
+          products: { ...state.products, eggs: state.products.eggs - quantity }
+        });
+      } else if (productType === 'meat' && state.products.meat >= quantity) {
+        const revenue = quantity * pricePerUnit;
+        set({ 
+          money: state.money + revenue, 
+          totalProfit: state.totalProfit + revenue,
+          products: { ...state.products, meat: state.products.meat - quantity }
+        });
+      }
     }
   },
 
   buyBarnApi: async (name, type, capacity, cost) => {
-    try {
-      await api.post('/economy/buy-barn/', { name, type, capacity, cost });
-      await get().fetchGameState();
-    } catch (err) {
-      console.error("Erro ao construir galpão", err);
-      alert("Erro ao construir galpão.");
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/buy-barn/', { name, type, capacity, cost });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro ao construir galpão", err);
+        alert("Erro ao construir galpão.");
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (state.money >= cost) {
+        const newBarn: Barn = {
+          id: `barn_${Date.now()}`,
+          name,
+          type,
+          size: capacity > 10000 ? 'GRANDE' : capacity > 5000 ? 'MEDIO' : 'PEQUENO',
+          level: 1,
+          capacity,
+          equipment: [],
+          dailyCost: type === 'POSTURA' ? 10 : 15,
+          isRented: false,
+          sanitaryVoidDays: 0,
+          siloBalance: 0,
+          siloCapacity: 5000,
+          batch: null,
+          selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
+        };
+        set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: [...state.barns, newBarn] });
+      }
     }
   },
 
   buyBatchApi: async (barnId, animalCount, cost) => {
-    try {
-      await api.post('/economy/buy-batch/', { barn_id: barnId, animal_count: animalCount, cost });
-      await get().fetchGameState();
-    } catch (err) {
-      console.error("Erro ao alojar lote", err);
-      alert("Erro ao alojar lote.");
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/buy-batch/', { barn_id: barnId, animal_count: animalCount, cost });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro ao alojar lote", err);
+        alert("Erro ao alojar lote.");
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (state.money >= cost) {
+        const newBarns = state.barns.map(b => {
+          if (b.id === barnId && !b.batch) {
+            return {
+              ...b,
+              batch: {
+                id: `batch_${Date.now()}`,
+                animalCount,
+                ageDays: 1,
+                currentWeight: b.type === 'POSTURA' ? 0.05 : 0.05,
+                totalFeedConsumed: 0,
+                mortalityCount: 0,
+                activeDisease: null,
+                vaccineProtectionDays: 0,
+                hygieneLevel: 100,
+              }
+            };
+          }
+          return b;
+        });
+        set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: newBarns });
+      }
     }
   },
 
