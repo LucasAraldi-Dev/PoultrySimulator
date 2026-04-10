@@ -222,6 +222,12 @@ export interface GameState {
   unlockedResearches: string[];
   unlockResearch: (researchId: string) => void;
   
+  // Async Economy Actions
+  buyItemApi: (itemId: string, quantity: number, totalCost: number) => Promise<void>;
+  sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;
+  buyBarnApi: (name: string, type: 'POSTURA' | 'CORTE', capacity: number, cost: number) => Promise<void>;
+  buyBatchApi: (barnId: string, animalCount: number, cost: number) => Promise<void>;
+  
   // Bank Loan
   bankLoan: number;
   

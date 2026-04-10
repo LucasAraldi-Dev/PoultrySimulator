@@ -20,6 +20,7 @@ export default function FacilitiesPage() {
   const level = useGameStore(state => state.level);
   const barns = useGameStore(state => state.barns);
   const buyBarn = useGameStore(state => state.buyBarn);
+  const buyBarnApi = useGameStore(state => state.buyBarnApi);
   const upgradeBarn = useGameStore(state => state.upgradeBarn);
   const buyEquipment = useGameStore(state => state.buyEquipment);
   const hasFeedMill = useGameStore(state => state.hasFeedMill);
@@ -83,23 +84,7 @@ export default function FacilitiesPage() {
   const handleBuyBarnModel = (model: BarnModel, type: 'POSTURA' | 'CORTE') => {
     const cost = model.baseCost * landMod;
     if (money >= cost) {
-      const newBarn: Barn = {
-        id: `barn_${Date.now()}`,
-        name: `${model.name} (${type.charAt(0) + type.slice(1).toLowerCase()} ${barns.length + 1})`,
-        type,
-        size: model.size,
-        level: 1,
-        capacity: model.baseCapacity,
-        equipment: [],
-        dailyCost: model.baseDailyCost * landMod,
-        isRented: false,
-        sanitaryVoidDays: 0,
-        batch: null,
-        selectedFeedId: 'feed_basic',
-        siloBalance: 0,
-        siloCapacity: model.size === 'PEQUENO' ? 5000 : model.size === 'MEDIO' ? 10000 : 20000,
-      };
-      buyBarn(newBarn, cost);
+      buyBarnApi(model.name, type, model.baseCapacity, cost);
     }
   };
 

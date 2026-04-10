@@ -8,9 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MarketPage() {
   const money = useGameStore(state => state.money);
-  const buyFeed = useGameStore(state => state.buyFeed);
-  const buyChicks = useGameStore(state => state.buyChicks);
-  const sellEggs = useGameStore(state => state.sellEggs);
+  const sellProductsApi = useGameStore(state => state.sellProductsApi);
+  const buyItemApi = useGameStore(state => state.buyItemApi);
+  const buyBatchApi = useGameStore(state => state.buyBatchApi);
   
   const barns = useGameStore(state => state.barns);
   const products = useGameStore(state => state.products);
@@ -39,7 +39,7 @@ export default function MarketPage() {
     const pref = deliveryPrefs[feedId] || { scheduledInDays: 0, useOwnTruck: false };
 
     const totalCost = kg * currentCost;
-    buyFeed(feedId, kg, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    buyItemApi(feedId, kg, totalCost, pref.scheduledInDays, pref.useOwnTruck);
     setFeedAmounts({ ...feedAmounts, [feedId]: 100 });
   };
 
@@ -52,14 +52,14 @@ export default function MarketPage() {
     const pref = deliveryPrefs[matId] || { scheduledInDays: 0, useOwnTruck: false };
 
     const totalCost = qty * currentCost;
-    buyFeed(matId, qty, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    buyItemApi(matId, qty, totalCost, pref.scheduledInDays, pref.useOwnTruck);
     setFeedAmounts({ ...feedAmounts, [matId]: 100 });
   };
 
   const handleBuyFlock = (barnId: string, type: BarnType, capacity: number, isRented: boolean) => {
     // Se for integração (isRented = true), não tem custo de alojamento do pintinho (integradora fornece)
     const cost = isRented ? 0 : (type === 'POSTURA' ? capacity * LAYER_COST : capacity * CHICK_COST);
-    buyChicks(barnId, capacity, cost);
+    buyBatchApi(barnId, capacity, cost);
   };
 
   return (
@@ -86,8 +86,8 @@ export default function MarketPage() {
                 <p className="text-zinc-600 font-medium">Você possui <strong className="text-zinc-800">{products.eggs.toLocaleString()}</strong> ovos.</p>
                 <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.egg.toFixed(2)} / un</p>
               </div>
-              <button 
-                onClick={() => sellEggs(products.eggs, marketPrices.egg)}
+              <button
+                onClick={() => sellProductsApi('eggs', products.eggs, marketPrices.egg)}
                 disabled={products.eggs === 0}
                 className="w-full px-6 py-3 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-lg"
                 style={{ backgroundColor: company?.color || '#10b981' }}
@@ -115,20 +115,11 @@ export default function MarketPage() {
                 </p>
                 <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.processedMeat.toFixed(2)} / kg</p>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
                   if (qty > 0) {
-                    useGameStore.setState(state => {
-                      const newInv = state.inventory.filter(i => i.itemId !== 'processed_meat');
-                      const revenue = qty * state.marketPrices.processedMeat;
-                      return {
-                        inventory: newInv,
-                        money: state.money + revenue,
-                        totalProfit: state.totalProfit + revenue,
-                        currentMonthRevenue: state.currentMonthRevenue + revenue
-                      };
-                    });
+                    sellProductsApi('meat', qty, marketPrices.processedMeat);
                   }
                 }}
                 disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}

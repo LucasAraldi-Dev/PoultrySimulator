@@ -44,9 +44,8 @@ def advance_day(request):
                     fed_ratio = barn.silo_balance / feed_needed if feed_needed > 0 else 0
                     barn.silo_balance = 0
                 
-                # Produção (Apenas Postura)
+                # Penalidade: se não comeu tudo, produz menos ovos
                 if barn.barn_type == 'POSTURA':
-                    # Penalidade: se não comeu tudo, produz menos ovos
                     produced = int(batch.animal_count * EGG_PRODUCTION_RATE * fed_ratio)
                     daily_eggs_produced += produced
                     

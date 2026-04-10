@@ -218,6 +218,45 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
+  buyItemApi: async (itemId, quantity, totalCost) => {
+    try {
+      await api.post('/economy/buy-item/', { item_id: itemId, quantity, total_cost: totalCost });
+      await get().fetchGameState();
+    } catch (err) {
+      console.error("Erro na compra de item", err);
+      alert("Saldo insuficiente ou erro de comunicação com o servidor.");
+    }
+  },
+
+  sellProductsApi: async (productType, quantity, pricePerUnit) => {
+    try {
+      await api.post('/economy/sell-products/', { product_type: productType, quantity, price_per_unit: pricePerUnit });
+      await get().fetchGameState();
+    } catch (err) {
+      console.error("Erro na venda de produtos", err);
+    }
+  },
+
+  buyBarnApi: async (name, type, capacity, cost) => {
+    try {
+      await api.post('/economy/buy-barn/', { name, type, capacity, cost });
+      await get().fetchGameState();
+    } catch (err) {
+      console.error("Erro ao construir galpão", err);
+      alert("Erro ao construir galpão.");
+    }
+  },
+
+  buyBatchApi: async (barnId, animalCount, cost) => {
+    try {
+      await api.post('/economy/buy-batch/', { barn_id: barnId, animal_count: animalCount, cost });
+      await get().fetchGameState();
+    } catch (err) {
+      console.error("Erro ao alojar lote", err);
+      alert("Erro ao alojar lote.");
+    }
+  },
+
   company: null,
   region: null,
   money: 0,
