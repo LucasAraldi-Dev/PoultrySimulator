@@ -4,61 +4,39 @@ export const FEEDS: Record<string, FeedItem> = {
   // Broilers
   'feed_broiler_pre': {
     id: 'feed_broiler_pre',
-    name: 'Ração Pré-Inicial Guabi (Corte)',
+    name: 'Ração Pré-Inicial (Corte)',
     costPerKg: 3.5,
     requiredLevel: 1,
-    bonus: { mortalityModifier: 0.8, growthModifier: 1.2, eggModifier: 1.0 },
+    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
   },
   'feed_basic': {
     id: 'feed_basic',
-    name: 'Ração Crescimento BRF (Milho/Soja)',
+    name: 'Ração Crescimento (Corte)',
     costPerKg: 1.5,
     requiredLevel: 1,
     bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
   },
   'feed_terminacao': {
     id: 'feed_terminacao',
-    name: 'Ração Terminação Seara (Engorda)',
+    name: 'Ração Terminação (Engorda)',
     costPerKg: 2.2,
     requiredLevel: 1,
-    bonus: { mortalityModifier: 1.1, growthModifier: 1.3, eggModifier: 1.0 },
-  },
-  'feed_premium': {
-    id: 'feed_premium',
-    name: 'Ração Premium Supra (Corte)',
-    costPerKg: 2.8,
-    requiredLevel: 1,
-    bonus: { mortalityModifier: 0.9, growthModifier: 1.5, eggModifier: 1.0 },
+    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
   },
   // Layers
   'feed_layers_start': {
     id: 'feed_layers_start',
-    name: 'Ração Cria e Recria Presence (Postura)',
+    name: 'Ração Cria e Recria (Postura)',
     costPerKg: 1.8,
     requiredLevel: 1,
-    bonus: { mortalityModifier: 0.9, growthModifier: 1.1, eggModifier: 1.0 },
+    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
   },
   'feed_layers': {
     id: 'feed_layers',
-    name: 'Ração Postura Fase 1 Guabi',
+    name: 'Ração Postura Fase 1',
     costPerKg: 2.0,
     requiredLevel: 1,
-    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.2 },
-  },
-  'feed_layers_premium': {
-    id: 'feed_layers_premium',
-    name: 'Ração Postura Premium Presence',
-    costPerKg: 3.0,
-    requiredLevel: 1,
-    bonus: { mortalityModifier: 0.95, growthModifier: 1.0, eggModifier: 1.4 },
-  },
-  // Medicada
-  'feed_medicada': {
-    id: 'feed_medicada',
-    name: 'Ração Medicada Supra (Alta Sobrevivência)',
-    costPerKg: 3.5,
-    requiredLevel: 1,
-    bonus: { mortalityModifier: 0.3, growthModifier: 0.9, eggModifier: 0.9 },
+    bonus: { mortalityModifier: 1.0, growthModifier: 1.0, eggModifier: 1.0 },
   },
 };
 

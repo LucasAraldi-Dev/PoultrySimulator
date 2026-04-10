@@ -5,7 +5,9 @@ import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_K
   DISCARD_BIRD_PRICE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
+import { api } from '../lib/api';
 
+// Funções utilitárias mantidas para não quebrar a tipagem existente
 const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
   const tasks: Omit<DailyTask, 'startedAt' | 'completed'>[] = [
     {
@@ -131,7 +133,219 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
   };
 };
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
+  isAuthenticated: !!localStorage.getItem('access_token'),
+  setAuth: (access: string, refresh: string) => {
+    localStorage.setItem('access_token', access);
+    localStorage.setItem('refresh_token', refresh);
+    set({ isAuthenticated: true });
+    get().fetchGameState();
+  },
+  logout: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    set({ isAuthenticated: false, company: null });
+  },
+  fetchGameState: async () => {
+    try {
+      const response = await api.get('/game/state/');
+      const player = response.data;
+      
+      // Mapear dados do backend para o formato do Frontend (GameState)
+      set((state) => ({
+        company: { name: player.company_name, color: player.company_color },
+        money: player.money,
+        currentDay: player.current_day,
+        totalProfit: player.total_profit,
+        totalExpenses: player.total_expenses,
+        currentMonthRevenue: player.current_month_revenue,
+        hasFeedMill: player.has_feed_mill,
+        hasIncubator: player.has_incubator,
+        hasSlaughterhouse: player.has_slaughterhouse,
+        
+        products: {
+          eggs: player.products?.eggs || 0,
+          meat: player.products?.meat || 0,
+        },
+        
+        // Conversão dos arrays de barns e inventory
+        // (O backend precisará enviar isso no serializer em detalhes no futuro. Por ora, mapeia o básico)
+        barns: player.barns.map((b: any) => ({
+          id: b.id.toString(),
+          name: b.name,
+          type: b.barn_type,
+          capacity: b.capacity,
+          level: b.level,
+          siloCapacity: b.silo_capacity,
+          siloBalance: b.silo_balance,
+          selectedFeedId: b.selected_feed_id || 'feed_basic',
+          isRented: b.is_rented,
+          sanitaryVoidDays: b.sanitary_void_days,
+          equipment: [], // Não no backend ainda
+          dailyCost: 0,
+          size: 'PEQUENO',
+          batch: b.batch ? {
+            id: b.batch.id.toString(),
+            animalCount: b.batch.animal_count,
+            ageDays: b.batch.age_days,
+            currentWeight: b.batch.weight,
+            mortalityCount: b.batch.mortality_count,
+            activeDisease: null,
+            totalFeedConsumed: 0,
+            vaccineProtectionDays: 0,
+            hygieneLevel: 100,
+          } : null
+        })),
+        
+        inventory: player.inventory.map((i: any) => ({
+          itemId: i.item_id,
+          quantity: i.quantity
+        }))
+      }));
+    } catch (err) {
+      console.error("Erro ao buscar estado do jogo", err);
+      get().logout();
+    }
+  },
+  
+  syncAdvanceDay: async () => {
+    try {
+      const res = await api.post('/game/advance-day/');
+      // Ao avançar o dia, buscamos o estado atualizado do backend e injetamos no store
+      await get().fetchGameState();
+    } catch (err) {
+      console.error("Erro ao avançar dia no backend", err);
+    }
+  },
+
+  // Async Economy Actions (Para Nuvem - Híbrido)
+  buyItemApi: async (itemId, quantity, totalCost) => {
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/buy-item/', { item_id: itemId, quantity, total_cost: totalCost });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro na compra de item", err);
+        alert("Saldo insuficiente ou erro de comunicação com o servidor.");
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (state.money >= totalCost) {
+        const newInv = [...state.inventory];
+        const existing = newInv.findIndex(i => i.itemId === itemId);
+        if (existing >= 0) newInv[existing].quantity += quantity;
+        else newInv.push({ itemId, quantity });
+        
+        set({ money: state.money - totalCost, totalExpenses: state.totalExpenses + totalCost, inventory: newInv });
+      }
+    }
+  },
+
+  sellProductsApi: async (productType, quantity, pricePerUnit) => {
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/sell-products/', { product_type: productType, quantity, price_per_unit: pricePerUnit });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro na venda de produtos", err);
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (productType === 'eggs' && state.products.eggs >= quantity) {
+        const revenue = quantity * pricePerUnit;
+        set({ 
+          money: state.money + revenue, 
+          totalProfit: state.totalProfit + revenue,
+          products: { ...state.products, eggs: state.products.eggs - quantity }
+        });
+      } else if (productType === 'meat' && state.products.meat >= quantity) {
+        const revenue = quantity * pricePerUnit;
+        set({ 
+          money: state.money + revenue, 
+          totalProfit: state.totalProfit + revenue,
+          products: { ...state.products, meat: state.products.meat - quantity }
+        });
+      }
+    }
+  },
+
+  buyBarnApi: async (name, type, capacity, cost) => {
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/buy-barn/', { name, type, capacity, cost });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro ao construir galpão", err);
+        alert("Erro ao construir galpão.");
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (state.money >= cost) {
+        const newBarn: Barn = {
+          id: `barn_${Date.now()}`,
+          name,
+          type,
+          size: capacity > 10000 ? 'GRANDE' : capacity > 5000 ? 'MEDIO' : 'PEQUENO',
+          level: 1,
+          capacity,
+          equipment: [],
+          dailyCost: type === 'POSTURA' ? 10 : 15,
+          isRented: false,
+          sanitaryVoidDays: 0,
+          siloBalance: 0,
+          siloCapacity: 5000,
+          batch: null,
+          selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
+        };
+        set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: [...state.barns, newBarn] });
+      }
+    }
+  },
+
+  buyBatchApi: async (barnId, animalCount, cost) => {
+    const isAuth = get().isAuthenticated;
+    if (isAuth) {
+      try {
+        await api.post('/economy/buy-batch/', { barn_id: barnId, animal_count: animalCount, cost });
+        await get().fetchGameState();
+      } catch (err) {
+        console.error("Erro ao alojar lote", err);
+        alert("Erro ao alojar lote.");
+      }
+    } else {
+      // Offline fallback
+      const state = get();
+      if (state.money >= cost) {
+        const newBarns = state.barns.map(b => {
+          if (b.id === barnId && !b.batch) {
+            return {
+              ...b,
+              batch: {
+                id: `batch_${Date.now()}`,
+                animalCount,
+                ageDays: 1,
+                currentWeight: b.type === 'POSTURA' ? 0.05 : 0.05,
+                totalFeedConsumed: 0,
+                mortalityCount: 0,
+                activeDisease: null,
+                vaccineProtectionDays: 0,
+                hygieneLevel: 100,
+              }
+            };
+          }
+          return b;
+        });
+        set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: newBarns });
+      }
+    }
+  },
+
   company: null,
   region: null,
   money: 0,

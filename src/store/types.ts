@@ -193,6 +193,13 @@ export interface Employee {
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
 
 export interface GameState {
+  // Auth state
+  isAuthenticated: boolean;
+  setAuth: (access: string, refresh: string) => void;
+  logout: () => void;
+  fetchGameState: () => Promise<void>;
+  syncAdvanceDay: () => Promise<void>;
+
   // Player Data
   company: Company | null;
   region: Region | null;
@@ -214,6 +221,12 @@ export interface GameState {
   // Research
   unlockedResearches: string[];
   unlockResearch: (researchId: string) => void;
+  
+  // Async Economy Actions
+  buyItemApi: (itemId: string, quantity: number, totalCost: number) => Promise<void>;
+  sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;
+  buyBarnApi: (name: string, type: 'POSTURA' | 'CORTE', capacity: number, cost: number) => Promise<void>;
+  buyBatchApi: (barnId: string, animalCount: number, cost: number) => Promise<void>;
   
   // Bank Loan
   bankLoan: number;

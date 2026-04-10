@@ -8,9 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MarketPage() {
   const money = useGameStore(state => state.money);
-  const buyFeed = useGameStore(state => state.buyFeed);
-  const buyChicks = useGameStore(state => state.buyChicks);
-  const sellEggs = useGameStore(state => state.sellEggs);
+  const sellProductsApi = useGameStore(state => state.sellProductsApi);
+  const buyItemApi = useGameStore(state => state.buyItemApi);
+  const buyBatchApi = useGameStore(state => state.buyBatchApi);
   
   const barns = useGameStore(state => state.barns);
   const products = useGameStore(state => state.products);
@@ -39,7 +39,7 @@ export default function MarketPage() {
     const pref = deliveryPrefs[feedId] || { scheduledInDays: 0, useOwnTruck: false };
 
     const totalCost = kg * currentCost;
-    buyFeed(feedId, kg, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    buyItemApi(feedId, kg, totalCost, pref.scheduledInDays, pref.useOwnTruck);
     setFeedAmounts({ ...feedAmounts, [feedId]: 100 });
   };
 
@@ -52,14 +52,14 @@ export default function MarketPage() {
     const pref = deliveryPrefs[matId] || { scheduledInDays: 0, useOwnTruck: false };
 
     const totalCost = qty * currentCost;
-    buyFeed(matId, qty, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    buyItemApi(matId, qty, totalCost, pref.scheduledInDays, pref.useOwnTruck);
     setFeedAmounts({ ...feedAmounts, [matId]: 100 });
   };
 
   const handleBuyFlock = (barnId: string, type: BarnType, capacity: number, isRented: boolean) => {
     // Se for integração (isRented = true), não tem custo de alojamento do pintinho (integradora fornece)
     const cost = isRented ? 0 : (type === 'POSTURA' ? capacity * LAYER_COST : capacity * CHICK_COST);
-    buyChicks(barnId, capacity, cost);
+    buyBatchApi(barnId, capacity, cost);
   };
 
   return (
@@ -72,7 +72,7 @@ export default function MarketPage() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col justify-between group">
-            <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=crate%20full%20of%20fresh%20farm%20eggs%2C%20realistic%20photography&image_size=landscape_16_9')` }}>
+            <div className="h-32 bg-zinc-800 relative">
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-3 left-4 flex items-center gap-3">
                 <div className="p-2 bg-orange-500 text-white rounded-lg shadow-lg">
@@ -86,8 +86,8 @@ export default function MarketPage() {
                 <p className="text-zinc-600 font-medium">Você possui <strong className="text-zinc-800">{products.eggs.toLocaleString()}</strong> ovos.</p>
                 <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.egg.toFixed(2)} / un</p>
               </div>
-              <button 
-                onClick={() => sellEggs(products.eggs, marketPrices.egg)}
+              <button
+                onClick={() => sellProductsApi('eggs', products.eggs, marketPrices.egg)}
                 disabled={products.eggs === 0}
                 className="w-full px-6 py-3 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-lg"
                 style={{ backgroundColor: company?.color || '#10b981' }}
@@ -99,7 +99,7 @@ export default function MarketPage() {
 
           {/* Venda de Carne Processada */}
           <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden flex flex-col justify-between group">
-            <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=packaged%20fresh%20chicken%20meat%20in%20supermarket%20display%2C%20realistic&image_size=landscape_16_9')` }}>
+            <div className="h-32 bg-zinc-800 relative">
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-3 left-4 flex items-center gap-3">
                 <div className="p-2 bg-red-500 text-white rounded-lg shadow-lg">
@@ -115,20 +115,11 @@ export default function MarketPage() {
                 </p>
                 <p className="text-sm text-emerald-600 font-bold mt-1">Preço de mercado: R$ {marketPrices.processedMeat.toFixed(2)} / kg</p>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
                   if (qty > 0) {
-                    useGameStore.setState(state => {
-                      const newInv = state.inventory.filter(i => i.itemId !== 'processed_meat');
-                      const revenue = qty * state.marketPrices.processedMeat;
-                      return {
-                        inventory: newInv,
-                        money: state.money + revenue,
-                        totalProfit: state.totalProfit + revenue,
-                        currentMonthRevenue: state.currentMonthRevenue + revenue
-                      };
-                    });
+                    sellProductsApi('meat', qty, marketPrices.processedMeat);
                   }
                 }}
                 disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}
@@ -156,9 +147,6 @@ export default function MarketPage() {
                   const canAfford = money >= totalCost;
                   const isInSanitaryVoid = barn.sanitaryVoidDays > 0;
                   const isDisabled = !canAfford || isInSanitaryVoid;
-                  const bgImage = barn.type === 'POSTURA' 
-                    ? "url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20young%20laying%20hens%20in%20a%20farm%2C%20realistic&image_size=landscape_16_9')"
-                    : "url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=cute%20yellow%20broiler%20chicks%20in%20a%20farm%2C%20realistic&image_size=landscape_16_9')";
 
                   return (
                     <motion.div 
@@ -168,7 +156,7 @@ export default function MarketPage() {
                       exit={{ opacity: 0, height: 0 }}
                       className="flex flex-col md:flex-row relative"
                     >
-                      <div className="md:w-48 h-32 md:h-auto bg-cover bg-center shrink-0" style={{ backgroundImage: bgImage }}>
+                      <div className="md:w-48 h-32 md:h-auto bg-zinc-800 shrink-0 relative">
                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white hidden md:block" />
                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent md:hidden" />
                       </div>

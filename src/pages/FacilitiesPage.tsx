@@ -20,6 +20,7 @@ export default function FacilitiesPage() {
   const level = useGameStore(state => state.level);
   const barns = useGameStore(state => state.barns);
   const buyBarn = useGameStore(state => state.buyBarn);
+  const buyBarnApi = useGameStore(state => state.buyBarnApi);
   const upgradeBarn = useGameStore(state => state.upgradeBarn);
   const buyEquipment = useGameStore(state => state.buyEquipment);
   const hasFeedMill = useGameStore(state => state.hasFeedMill);
@@ -83,23 +84,7 @@ export default function FacilitiesPage() {
   const handleBuyBarnModel = (model: BarnModel, type: 'POSTURA' | 'CORTE') => {
     const cost = model.baseCost * landMod;
     if (money >= cost) {
-      const newBarn: Barn = {
-        id: `barn_${Date.now()}`,
-        name: `${model.name} (${type.charAt(0) + type.slice(1).toLowerCase()} ${barns.length + 1})`,
-        type,
-        size: model.size,
-        level: 1,
-        capacity: model.baseCapacity,
-        equipment: [],
-        dailyCost: model.baseDailyCost * landMod,
-        isRented: false,
-        sanitaryVoidDays: 0,
-        batch: null,
-        selectedFeedId: 'feed_basic',
-        siloBalance: 0,
-        siloCapacity: model.size === 'PEQUENO' ? 5000 : model.size === 'MEDIO' ? 10000 : 20000,
-      };
-      buyBarn(newBarn, cost);
+      buyBarnApi(model.name, type, model.baseCapacity, cost);
     }
   };
 
@@ -147,7 +132,7 @@ export default function FacilitiesPage() {
 
                 return (
                   <div key={model.id} className={`p-0 overflow-hidden border rounded-xl relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200 shadow-sm hover:shadow-md transition-shadow'}`}>
-                    <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=modern%20poultry%20layer%20barn%20interior%20with%20cages%20or%20aviary%20system%2C%20realistic&image_size=landscape_16_9')` }}>
+                    <div className="h-32 bg-zinc-800 relative">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                       <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
                         <h4 className="font-bold text-white text-lg">{model.name}</h4>
@@ -209,7 +194,7 @@ export default function FacilitiesPage() {
 
                 return (
                   <div key={model.id} className={`p-0 overflow-hidden border rounded-xl relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200 shadow-sm hover:shadow-md transition-shadow'}`}>
-                    <div className="h-32 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=modern%20broiler%20poultry%20barn%20interior%20with%20chickens%2C%20realistic&image_size=landscape_16_9')` }}>
+                    <div className="h-32 bg-zinc-800 relative">
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                       <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
                         <h4 className="font-bold text-white text-lg">{model.name}</h4>
@@ -465,7 +450,7 @@ export default function FacilitiesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Fábrica de Ração */}
           <div className={`bg-white p-0 overflow-hidden rounded-xl border ${hasFeedMill ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-zinc-200'}`}>
-            <div className="h-40 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=isometric%20industrial%20feed%20mill%20building%20for%20a%20farm%20game%2C%20realistic%20texture&image_size=landscape_16_9')` }}>
+            <div className="h-40 bg-zinc-800 relative">
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
                 <div className="flex items-center gap-3">
@@ -569,7 +554,7 @@ export default function FacilitiesPage() {
 
           {/* Abatedouro Próprio */}
           <div className={`bg-white p-0 overflow-hidden rounded-xl border ${hasSlaughterhouse ? 'border-blue-300 ring-2 ring-blue-100' : 'border-zinc-200'}`}>
-            <div className="h-40 bg-cover bg-center relative" style={{ backgroundImage: `url('https://coreva-normal.trae.ai/api/ide/v1/text_to_image?prompt=isometric%20industrial%20meat%20processing%20plant%20factory%20for%20farm%20game%2C%20realistic&image_size=landscape_16_9')` }}>
+            <div className="h-40 bg-zinc-800 relative">
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
                 <div className="flex items-center gap-3">
