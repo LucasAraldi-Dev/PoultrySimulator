@@ -3,7 +3,8 @@ import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
   ACHIEVEMENTS,
-  DISCARD_BIRD_PRICE
+  DISCARD_BIRD_PRICE,
+  VACCINES_AVAILABLE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
 import { api } from '../lib/api';
@@ -1423,7 +1424,19 @@ export const useGameStore = create<GameState>()(
           if (Math.random() < diseaseChance * (currentWeather === 'RAIN' ? 1.5 : 1)) {
             const diseaseKeys = Object.keys(DISEASES);
             const randomDisease = DISEASES[diseaseKeys[Math.floor(Math.random() * diseaseKeys.length)]];
-            newBatch.activeDisease = { ...randomDisease, daysActive: 0 };
+            
+            // Verifica se está protegido por vacina
+            let isProtected = false;
+            if (newBatch.vaccines) {
+              isProtected = newBatch.vaccines.some(vId => {
+                const vac = VACCINES_AVAILABLE[vId];
+                return vac && vac.protectsAgainst.includes(randomDisease.id);
+              });
+            }
+
+            if (!isProtected) {
+              newBatch.activeDisease = { ...randomDisease, daysActive: 0 };
+            }
           }
         } else {
           newBatch.activeDisease.daysActive += 1;

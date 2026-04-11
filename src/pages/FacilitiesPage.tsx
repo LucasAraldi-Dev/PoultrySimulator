@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Warehouse, Plus, Settings, DollarSign, Package, Check, ChevronRight, Droplet, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
 import { BARN_MODELS, EQUIPMENTS } from '../store/constants';
 import { PageTransition } from '../components/PageTransition';
+import { BuyBarnModal } from '../components/BuyBarnModal';
 
 export default function FacilitiesPage() {
   const { 
@@ -12,32 +13,19 @@ export default function FacilitiesPage() {
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<'GALPOES' | 'FABRICAS'>('GALPOES');
+  const [buyingModelId, setBuyingModelId] = useState<string | null>(null);
 
-  const handleBuyBarn = (modelId: string) => {
-    const model = BARN_MODELS[modelId];
-    if (money >= model.baseCost) {
-      buyBarn({
-        id: `barn_${Date.now()}`,
-        name: `${model.name} ${barns.length + 1}`,
-        type: model.id.includes('postura') ? 'POSTURA' : 'CORTE',
-        size: model.size,
-        level: 1,
-        capacity: model.baseCapacity,
-        equipment: [],
-        dailyCost: model.baseDailyCost,
-        isRented: false,
-        sanitaryVoidDays: 0,
-        siloBalance: 0,
-        siloCapacity: 2000,
-        dailyTasks: [],
-        batch: null,
-        selectedFeedId: model.id.includes('postura') ? 'feed_layers_start' : 'feed_broiler_pre',
-      }, model.baseCost);
-    }
+  const handleBuyBarnClick = (modelId: string) => {
+    setBuyingModelId(modelId);
   };
 
   return (
     <PageTransition className="space-y-6 pb-20">
+      <BuyBarnModal 
+        isOpen={buyingModelId !== null} 
+        onClose={() => setBuyingModelId(null)} 
+        modelId={buyingModelId} 
+      />
       <div className="flex flex-col gap-2 mb-6">
         <h1 className="text-2xl font-bold text-zinc-800 flex items-center gap-2">
           <Warehouse size={28} className="text-blue-600" />
@@ -183,8 +171,8 @@ export default function FacilitiesPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleBuyBarn(model.id)}
-                    disabled={money < model.baseCost || level < model.requiredLevel}
+                        onClick={() => handleBuyBarnClick(model.id)}
+                        disabled={money < model.baseCost || level < model.requiredLevel}
                     className={`w-full py-2 rounded-lg font-bold text-sm ${
                       money >= model.baseCost && level >= model.requiredLevel
                         ? 'bg-blue-600 text-white hover:bg-blue-700'

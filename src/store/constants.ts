@@ -326,7 +326,30 @@ export const DISEASES: Record<string, Omit<import('./types').Disease, 'daysActiv
     growthModifier: 0.5,
     eggModifier: 0.1,
     durationDays: 5,
+  },
+  'doenca_gumboro': {
+    id: 'doenca_gumboro',
+    name: 'Doença de Gumboro',
+    mortalityModifier: 4.0, 
+    growthModifier: 0.6,
+    eggModifier: 0.4,
+    durationDays: 10,
+  },
+  'doenca_marek': {
+    id: 'doenca_marek',
+    name: 'Doença de Marek',
+    mortalityModifier: 8.0, 
+    growthModifier: 0.4,
+    eggModifier: 0.2,
+    durationDays: 20,
   }
+};
+
+export const VACCINES_AVAILABLE: Record<string, { id: string; name: string; costPerBird: number; protectsAgainst: string[] }> = {
+  'newcastle': { id: 'newcastle', name: 'Vacina Newcastle', costPerBird: 0.05, protectsAgainst: ['doenca_newcastle'] },
+  'gumboro': { id: 'gumboro', name: 'Vacina Gumboro', costPerBird: 0.04, protectsAgainst: ['doenca_gumboro'] },
+  'marek': { id: 'marek', name: 'Vacina Marek', costPerBird: 0.06, protectsAgainst: ['doenca_marek'] },
+  'bronquite': { id: 'bronquite', name: 'Vacina Bronquite', costPerBird: 0.03, protectsAgainst: ['bronquite_infecciosa'] },
 };
 
 export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {

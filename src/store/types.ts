@@ -61,8 +61,9 @@ export interface Batch {
   totalFeedConsumed: number;
   mortalityCount: number;
   activeDisease: Disease | null; // Doença ativa no lote
-  vaccineProtectionDays: number; // Dias restantes de proteção da vacina
+  vaccineProtectionDays: number; // Dias restantes de proteção da vacina (geral)
   hygieneLevel: number; // Nível de higiene do lote (0-100)
+  vaccines?: string[]; // IDs das vacinas aplicadas no lote
 }
 
 export interface Disease {
