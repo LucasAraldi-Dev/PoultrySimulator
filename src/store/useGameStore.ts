@@ -906,7 +906,11 @@ export const useGameStore = create<GameState>()(
       return state;
     }
 
-    if (state.money >= costToProduce && state.hasFeedMill) {
+    let finalCost = costToProduce;
+    const nut3Bonus = state.researches['nut_3']?.current_bonus || 0;
+    finalCost *= Math.max(0.1, 1 - nut3Bonus);
+
+    if (state.money >= finalCost && state.hasFeedMill) {
       const newInventory = [...state.inventory];
       newInventory[cornIdx].quantity -= cornNeeded;
       newInventory[soyIdx].quantity -= soyNeeded;
@@ -920,8 +924,8 @@ export const useGameStore = create<GameState>()(
       }
       
       return {
-        money: state.money - costToProduce,
-        totalExpenses: state.totalExpenses + costToProduce,
+        money: state.money - finalCost,
+        totalExpenses: state.totalExpenses + finalCost,
         inventory: newInventory,
       };
     }
@@ -966,8 +970,10 @@ export const useGameStore = create<GameState>()(
     const nut1Bonus = state.researches['nut_1']?.current_bonus || 0;
     const inf1Bonus = state.researches['inf_1']?.current_bonus || 0;
     const hea1Bonus = state.researches['hea_1']?.current_bonus || 0;
+      const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
+      const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
 
-    for (let day = 0; day < days; day++) {
+      for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
       
@@ -1360,6 +1366,11 @@ export const useGameStore = create<GameState>()(
         }
         
         eventMortal *= weatherMortality;
+        
+        // Bônus hea_3: Reduz danos de eventos drásticos
+        if (eventMortal > 1) {
+          eventMortal = 1 + ((eventMortal - 1) * Math.max(0, 1 - hea3Bonus));
+        }
 
         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
@@ -1382,11 +1393,14 @@ export const useGameStore = create<GameState>()(
         if (barn.type === 'POSTURA' && newBatch.ageDays >= 120) {
           if (!starved) {
             let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen2Bonus);
-            // Reduz drasticamente a postura se passar da idade máxima
-            if (newBatch.ageDays > 600) {
+            
+            // Reduz drasticamente a postura se passar da idade máxima (expandida por gen_3)
+            const maxAge = 600 + gen3Bonus;
+            
+            if (newBatch.ageDays > maxAge) {
               postureRate *= 0.1; // 90% de queda na postura
-            } else if (newBatch.ageDays > 500) {
-              postureRate *= 0.5; // Começa a cair a partir dos 500 dias
+            } else if (newBatch.ageDays > maxAge - 100) {
+              postureRate *= 0.5; // Começa a cair 100 dias antes do maxAge
             }
             
             const eggsToday = Math.floor(newBatch.animalCount * postureRate);

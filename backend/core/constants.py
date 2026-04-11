@@ -139,6 +139,57 @@ RESEARCH_TREE = {
         'max_level': 5,
         'bonus_base': 0.05, # 5% per level
         'bonus_multiplier': 1.2
+    },
+    'gen_3': {
+        'id': 'gen_3',
+        'name': 'Longevidade Produtiva',
+        'description': 'Poedeiras produzem bem por mais dias antes da queda de postura.',
+        'category': 'GENETICS',
+        'base_cost_money': 40000,
+        'base_cost_xp': 6000,
+        'base_time_days': 12,
+        'base_required_level': 10,
+        'money_multiplier': 2.4,
+        'xp_multiplier': 1.8,
+        'time_multiplier': 1.5,
+        'level_req_increment': 2,
+        'max_level': 5,
+        'bonus_base': 30, # +30 days flat per level
+        'bonus_multiplier': 1.1
+    },
+    'nut_3': {
+        'id': 'nut_3',
+        'name': 'Fábrica Autônoma',
+        'description': 'Aumenta a eficiência (reduz custo de produção) na Fábrica de Ração.',
+        'category': 'NUTRITION',
+        'base_cost_money': 50000,
+        'base_cost_xp': 8000,
+        'base_time_days': 20,
+        'base_required_level': 12,
+        'money_multiplier': 2.5,
+        'xp_multiplier': 2.0,
+        'time_multiplier': 1.5,
+        'level_req_increment': 3,
+        'max_level': 4,
+        'bonus_base': 0.05, # -5% production cost per level
+        'bonus_multiplier': 1.2
+    },
+    'hea_3': {
+        'id': 'hea_3',
+        'name': 'Biosseguridade Extrema',
+        'description': 'Aumenta a resistência a eventos climáticos e sanitários drásticos.',
+        'category': 'HEALTH',
+        'base_cost_money': 45000,
+        'base_cost_xp': 7000,
+        'base_time_days': 18,
+        'base_required_level': 11,
+        'money_multiplier': 2.3,
+        'xp_multiplier': 1.9,
+        'time_multiplier': 1.4,
+        'level_req_increment': 2,
+        'max_level': 5,
+        'bonus_base': 0.10, # 10% damage reduction from events per level
+        'bonus_multiplier': 1.15
     }
 }
 
