@@ -437,6 +437,7 @@ export const useGameStore = create<GameState>()(
   region: null,
   money: 0,
   currentDay: 0, // starts at 0 to prevent running before init
+  currentHour: 6, // Começa as 6:00
   level: 1,
   xp: 0,
   currentWeather: 'SUNNY',
@@ -513,6 +514,7 @@ export const useGameStore = create<GameState>()(
       region,
       money: INITIAL_MONEY,
       currentDay: 1,
+      currentHour: 6, // Começa as 6:00
       level: 1,
       xp: 0,
       bankLoan: 0,
@@ -925,6 +927,47 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
+  assignEmployeeToBarn: (employeeId, barnId) => set((state) => ({
+    employees: state.employees.map(emp => emp.id === employeeId ? { ...emp, assignedBarnId: barnId } : emp)
+  })),
+
+  advanceHour: () => set((state) => {
+    let nextHour = state.currentHour + 1;
+    if (nextHour >= 24) {
+      // Se virou o dia usando horas
+      get().advanceDay();
+      return { currentHour: 0 };
+    }
+
+    // Funcionários (Tratadores) completam tarefas do galpão automaticamente
+    const newBarns = state.barns.map(barn => {
+      // Encontra tratadores designados para esse galpão
+      const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
+      if (assignedKeepers.length === 0) return barn;
+
+      // Cada nível de tratador dá 'X' minutos de capacidade de trabalho por hora
+      // Ex: Nível 1 = 60 min, Nível 2 = 70 min, etc
+      let totalWorkMinutesAvailable = assignedKeepers.reduce((acc, k) => acc + (60 + (k.experienceLevel * 10)), 0);
+
+      const newTasks = barn.dailyTasks.map(task => {
+        if (task.completed) return task;
+        
+        if (totalWorkMinutesAvailable >= task.durationMinutes) {
+          totalWorkMinutesAvailable -= task.durationMinutes;
+          return { ...task, completed: true, startedAt: Date.now() }; // Completa a tarefa
+        }
+        return task;
+      });
+
+      return { ...barn, dailyTasks: newTasks };
+    });
+
+    return {
+      currentHour: nextHour,
+      barns: newBarns
+    };
+  }),
+
   advanceDay: (days = 1) => set((state) => {
     let currentDay = state.currentDay;
     let money = state.money;
@@ -1016,7 +1059,7 @@ export const useGameStore = create<GameState>()(
       if (currentFinancialBuff > 0) currentFinancialBuff -= 1;
 
       // Despesas com funcionários e Buffs
-      let laborCost = state.employees.reduce((acc, emp) => acc + emp.dailySalary, 0);
+      let laborCost = state.employees.reduce((acc, emp) => acc + emp.salary, 0);
       dailyExpenses += laborCost;
       detailedExpenses.labor += laborCost;
 
@@ -1452,7 +1495,8 @@ export const useGameStore = create<GameState>()(
         ...state.products,
         eggs: newEggs
       },
-      barns: newBarns,
+      currentHour: 6,
+      barns: newBarns.map(b => ({ ...b, dailyTasks: generateDailyTasks([b]) })),
       inventory: currentInventory,
       pendingDeliveries,
       currentWeather,

@@ -174,20 +174,21 @@ export interface DailyExpenses {
 export interface DailyTask {
   id: string;
   name: string;
-  durationMinutes: number;
-  startedAt: number | null; // timestamp in ms
-  completed: boolean;
-  effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
-  severity: 'BAIXA' | 'MEDIA' | 'ALTA';
   description: string;
+  durationMinutes: number; // Tempo necessário para concluir
+  startedAt: number | null; // Timestamp de quando começou (para simular progresso)
+  completed: boolean;
+  effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
+  severity: 'BAIXA' | 'MEDIA' | 'ALTA';
 }
 
 export interface Employee {
   id: string;
   name: string;
-  role: 'TRATADOR' | 'MOTORISTA' | 'OPERADOR_FABRICA';
-  experienceLevel: number; // 1 a 5 (cada nível melhora eficiência)
-  dailySalary: number; // Salário diário
+  role: 'VETERINARIO' | 'GERENTE' | 'MOTORISTA' | 'OPERADOR_FABRICA' | 'TRATADOR';
+  salary: number;
+  experienceLevel: number;
+  assignedBarnId?: string | null; // Apenas para TRATADORES
 }
 
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
@@ -209,6 +210,7 @@ export interface GameState {
   region: Region | null;
   money: number;
   currentDay: number;
+  currentHour: number;
   level: number;
   xp: number;
 
