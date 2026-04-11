@@ -13,6 +13,7 @@ import RHPage from './pages/RHPage';
 import { ResearchPage } from './pages/ResearchPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import Home from './pages/Home';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -26,7 +27,7 @@ function AnimatedRoutes() {
 
         {/* Jogo liberado offline, salva localmente */}
         <Route path="/" element={<GameLayout />}>
-          <Route index element={<Navigate to="/painel" />} />
+          <Route index element={<Home />} />
           <Route path="painel" element={<Dashboard />} />
           <Route path="galpoes" element={<BarnsPage />} />
           <Route path="infra" element={<FacilitiesPage />} />
@@ -41,7 +42,7 @@ function AnimatedRoutes() {
 }
 
 function App() {
-  const { isAuthenticated, fetchGameState } = useGameStore();
+  const { isAuthenticated, fetchGameState, syncToServer } = useGameStore();
 
   // Ao iniciar a aplicação, se tiver token, tenta buscar os dados
   // Se falhar, ou não tiver, o jogo usa o estado inicial normal (Offline)
@@ -50,6 +51,27 @@ function App() {
       fetchGameState();
     }
   }, [isAuthenticated, fetchGameState]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log("Conexão restabelecida. Sincronizando com o servidor...");
+      syncToServer();
+    };
+
+    window.addEventListener('online', handleOnline);
+    
+    // Sincronização periódica a cada 30 segundos
+    const syncInterval = setInterval(() => {
+      if (isAuthenticated && navigator.onLine) {
+        syncToServer();
+      }
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      clearInterval(syncInterval);
+    };
+  }, [syncToServer, isAuthenticated]);
 
   return (
     <Router>

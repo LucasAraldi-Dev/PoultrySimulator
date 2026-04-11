@@ -193,12 +193,16 @@ export interface Employee {
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
 
 export interface GameState {
+  hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
+
   // Auth state
   isAuthenticated: boolean;
   setAuth: (access: string, refresh: string) => void;
   logout: () => void;
   fetchGameState: () => Promise<void>;
   syncAdvanceDay: () => Promise<void>;
+  syncToServer: () => Promise<void>;
 
   // Player Data
   company: Company | null;
@@ -223,7 +227,7 @@ export interface GameState {
   unlockResearch: (researchId: string) => void;
   
   // Async Economy Actions
-  buyItemApi: (itemId: string, quantity: number, totalCost: number) => Promise<void>;
+  buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
   sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;
   buyBarnApi: (name: string, type: 'POSTURA' | 'CORTE', capacity: number, cost: number) => Promise<void>;
   buyBatchApi: (barnId: string, animalCount: number, cost: number) => Promise<void>;
