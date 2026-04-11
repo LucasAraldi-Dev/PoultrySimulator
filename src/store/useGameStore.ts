@@ -1892,7 +1892,8 @@ export const useGameStore = create<GameState>()(
     };
   }),
 
-  completeTask: (barnId, taskId) => set((state) => ({
+  completeTask: (barnId, taskId) => set((state) => {
+    return {
       barns: state.barns.map(barn => {
         if (barn.id === barnId) {
           return {
