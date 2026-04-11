@@ -63,6 +63,7 @@ def sync_game_state(request):
         
         # Atualiza campos básicos do Player
         player.money = data.get('money', player.money)
+        player.gold = data.get('gold', player.gold)
         player.xp = data.get('xp', player.xp)
         player.level = data.get('level', player.level)
         player.total_profit = data.get('totalProfit', player.total_profit)

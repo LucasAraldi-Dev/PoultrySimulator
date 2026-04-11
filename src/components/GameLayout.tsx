@@ -18,7 +18,8 @@ import {
   Microscope,
   Sun,
   Moon,
-  Cloud
+  Cloud,
+  Coins
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,22 +36,25 @@ export default function GameLayout() {
   const isAuthenticated = useGameStore(state => state.isAuthenticated);
   const level = useGameStore(state => state.level);
   const xp = useGameStore(state => state.xp);
+  const gold = useGameStore(state => state.gold);
   
-  const dailyTasks = useGameStore(state => state.dailyTasks);
-  const startTask = useGameStore(state => state.startTask);
-  const completeTask = useGameStore(state => state.completeTask);
-
+  const [isAnimatingDay, setIsAnimatingDay] = useState(false);
+  const [showTasksModal, setShowTasksModal] = useState(false);
   const weather = useGameStore(state => state.currentWeather);
   const weatherDaysLeft = useGameStore(state => state.weatherDaysLeft);
   const emergencyLoanAvailable = useGameStore(state => state.emergencyLoanAvailable);
   const takeEmergencyLoan = useGameStore(state => state.takeEmergencyLoan);
   const currentHour = useGameStore(state => state.currentHour);
   const advanceHour = useGameStore(state => state.advanceHour);
+  const accelerateTask = useGameStore(state => state.accelerateTask);
+  const barns = useGameStore(state => state.barns);
+
+  const pendingTasks = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
 
   const getWeatherIcon = () => {
     switch (weather) {
       case 'SUNNY': return <Sun className="text-amber-500" size={24} />;
-      case 'RAIN': return <AlertCircle className="text-blue-500" size={24} />; // Using alert temporarily for rain
+      case 'RAIN': return <AlertCircle className="text-blue-500" size={24} />;
       case 'HEATWAVE': return <Sun className="text-red-500" size={24} />;
       case 'COLD': return <AlertCircle className="text-cyan-500" size={24} />;
       default: return <Sun className="text-amber-500" size={24} />;
@@ -66,10 +70,7 @@ export default function GameLayout() {
       default: return 'Ensolarado';
     }
   };
-
-  const [isAnimatingDay, setIsAnimatingDay] = useState(false);
-  const [showTasksModal, setShowTasksModal] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const currentLevelXp = level === 1 ? 0 : 1000 * Math.pow(level - 1, 2);
   const [moneyChanges, setMoneyChanges] = useState<{id: number, val: number, x: number, y: number}[]>([]);
   const prevMoney = useRef(money);
 
@@ -92,6 +93,8 @@ export default function GameLayout() {
     }
   }, [money]);
 
+  const [now, setNow] = useState(Date.now());
+
   // Force re-render for active timers
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -100,19 +103,18 @@ export default function GameLayout() {
 
   // Update tasks that have completed their timers
   useEffect(() => {
-    dailyTasks.forEach(task => {
-      if (task.startedAt && !task.completed) {
-        const elapsed = now - task.startedAt;
-        const required = task.durationMinutes * 60 * 1000;
-        if (elapsed >= required) {
-          completeTask(task.id);
+    barns.forEach(barn => {
+      barn.dailyTasks.forEach(task => {
+        if (task.startedAt && !task.completed) {
+          const elapsed = now - task.startedAt;
+          const required = task.durationMinutes * 60 * 1000;
+          if (elapsed >= required) {
+            completeTask(barn.id, task.id);
+          }
         }
-      }
+      });
     });
-  }, [now, dailyTasks, completeTask]);
-
-  // Calcula XP necessário para o próximo nível: 1000 * L^2
-  const currentLevelXp = level === 1 ? 0 : 1000 * Math.pow(level - 1, 2);
+  }, [now, barns, completeTask]);
   const nextLevelXp = 1000 * Math.pow(level, 2);
   const xpProgress = ((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
 
@@ -121,11 +123,11 @@ export default function GameLayout() {
     return <Outlet />;
   }
 
-  const pendingTasks = dailyTasks.filter(t => !t.completed).length;
+  const pendingTasksCount = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
 
   const handleAdvanceDay = () => {
-    if (pendingTasks > 0) {
-      const confirmPass = window.confirm(`Atenção: Você tem ${pendingTasks} tarefas não concluídas. Ignorá-las resultará em penalidades na conversão, crescimento e mortalidade do lote! Deseja avançar o dia mesmo assim?`);
+    if (pendingTasksCount > 0) {
+      const confirmPass = window.confirm(`Atenção: Você tem ${pendingTasksCount} tarefas não concluídas. Ignorá-las resultará em penalidades na conversão, crescimento e mortalidade do lote! Deseja avançar o dia mesmo assim?`);
       if (!confirmPass) return;
     }
     
@@ -335,22 +337,12 @@ export default function GameLayout() {
 
               <div className="flex flex-col items-end">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base relative">
-                  <AnimatePresence>
-                    {moneyChanges.map((change) => (
-                      <motion.div
-                        key={change.id}
-                        initial={{ opacity: 1, y: 0, x: change.x, scale: 0.5 }}
-                        animate={{ opacity: 0, y: -50, scale: 1.2 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 1.5, ease: "easeOut" }}
-                        className={`absolute left-0 right-0 text-center pointer-events-none font-black text-lg drop-shadow-md z-50 ${change.val > 0 ? 'text-emerald-600' : 'text-red-600'}`}
-                      >
-                        {change.val > 0 ? '+' : '-'} R$ {Math.abs(change.val).toFixed(2)}
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
                   <Wallet size={18} />
                   R$ {money.toFixed(2)}
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-amber-50 text-amber-600 rounded-lg font-bold border border-amber-100 text-sm md:text-base mt-2" title="Ouro">
+                  <Coins size={18} />
+                  {gold}
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100 text-sm md:text-base mt-2">
                   <Calendar size={18} />
@@ -364,7 +356,7 @@ export default function GameLayout() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-2 pt-4 border-t border-zinc-100">
             <div className="w-full md:w-auto flex-1 flex items-center justify-between md:justify-start gap-4">
               <div className="flex items-center gap-2">
-                <CheckSquare size={20} className={pendingTasks === 0 ? "text-emerald-500" : "text-amber-500"} />
+                <CheckSquare size={20} className={pendingTasksCount === 0 ? "text-emerald-500" : "text-amber-500"} />
                 <span className="text-sm font-bold text-zinc-700">Tarefas Diárias</span>
               </div>
             </div>
@@ -385,13 +377,13 @@ export default function GameLayout() {
                 onClick={handleAdvanceDay}
                 disabled={isAnimatingDay}
                 className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-xl font-bold text-lg md:text-base transition-all shadow-md ${
-                  pendingTasks === 0 && !isAnimatingDay
+                  pendingTasksCount === 0 && !isAnimatingDay
                     ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
                     : 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-none'
                 }`}
               >
                 <Play size={24} className="fill-current" />
-                {pendingTasks > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
+                {pendingTasksCount > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
               </motion.button>
             </div>
           </div>
@@ -470,8 +462,17 @@ export default function GameLayout() {
                       {!task.completed && (
                         <div>
                           {isStarted ? (
-                            <div className="w-full bg-indigo-200 rounded-full h-2 mt-2">
-                              <div className="bg-indigo-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="flex-1 bg-indigo-200 rounded-full h-2">
+                                <div className="bg-indigo-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                              </div>
+                              <button
+                                onClick={() => accelerateTask(barn.id, task.id)}
+                                className="bg-amber-400 hover:bg-amber-500 text-amber-900 px-3 py-1 rounded text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
+                                title="Acelerar instantaneamente (Custo: 10 Ouro)"
+                              >
+                                <Coins size={12} /> Acelerar (10)
+                              </button>
                             </div>
                           ) : (
                             <button 

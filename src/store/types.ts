@@ -210,6 +210,7 @@ export interface GameState {
   company: Company | null;
   region: Region | null;
   money: number;
+  gold: number;
   currentDay: number;
   currentHour: number;
   level: number;
@@ -245,6 +246,7 @@ export interface GameState {
   dailyTasks: DailyTask[];
   startTask: (taskId: string) => void;
   completeTask: (barnId: string, taskId: string) => void;
+  accelerateTask: (barnId: string, taskId: string) => void;
   
   // Market State
   marketPrices: MarketPrices;

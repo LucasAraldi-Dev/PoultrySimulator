@@ -452,6 +452,7 @@ export const useGameStore = create<GameState>()(
   company: null,
   region: null,
   money: 0,
+  gold: 1000,
   currentDay: 0, // starts at 0 to prevent running before init
   currentHour: 6, // Começa as 6:00
   level: 1,
@@ -1789,8 +1790,51 @@ export const useGameStore = create<GameState>()(
     dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
   })),
 
-  completeTask: (barnId, taskId) => set((state) => {
+  accelerateTask: (barnId, taskId) => set((state) => {
+    if (state.gold < 10) {
+      alert("Ouro insuficiente para acelerar a tarefa (Custa 10 Ouro).");
+      return state;
+    }
+    
+    // Desconta o ouro e completa a tarefa chamando o setState modificado (reaproveitando a logica de completude)
     return {
+      gold: state.gold - 10,
+      barns: state.barns.map(barn => {
+        if (barn.id === barnId) {
+          return {
+            ...barn,
+            dailyTasks: barn.dailyTasks.map(task => {
+              if (task.id === taskId) {
+                let resultReport = undefined;
+
+                if (task.id === 'check_feed_silo') {
+                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
+                  resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
+                }
+
+                if (task.id === 'record_weights' && barn.batch) {
+                  const cobbData = getCobb500Data(barn.batch.ageDays);
+                  if (cobbData) {
+                    const currentWeightG = barn.batch.currentWeight * 1000;
+                    const diff = ((currentWeightG / cobbData.weightG) - 1) * 100;
+                    const status = diff > 0 ? 'Acima' : diff < 0 ? 'Abaixo' : 'Na média';
+                    resultReport = `Peso Atual: ${currentWeightG.toFixed(0)}g | Padrão Cobb500 (Dia ${barn.batch.ageDays}): ${cobbData.weightG}g. O lote está ${Math.abs(diff).toFixed(1)}% ${status} do padrão.`;
+                  } else {
+                     resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
+                  }
+                }
+
+                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+              }
+              return task;
+            })
+          };
+        }
+        return barn;
+      })
+    };
+  completeTask: (barnId, taskId) => set((state) => {
       barns: state.barns.map(barn => {
         if (barn.id === barnId) {
           return {
