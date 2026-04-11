@@ -63,10 +63,32 @@ def sync_game_state(request):
         
         # Atualiza campos básicos do Player
         player.money = data.get('money', player.money)
+        player.xp = data.get('xp', player.xp)
+        player.level = data.get('level', player.level)
         player.total_profit = data.get('totalProfit', player.total_profit)
         player.total_expenses = data.get('totalExpenses', player.total_expenses)
         player.current_month_revenue = data.get('currentMonthRevenue', player.current_month_revenue)
-        player.current_day = data.get('currentDay', player.current_day)
+        
+        # Se avançou o dia, processar pesquisa ativa
+        frontend_day = data.get('currentDay', player.current_day)
+        days_passed = frontend_day - player.current_day
+        
+        if days_passed > 0 and player.active_research_id:
+            player.active_research_days_left -= days_passed
+            if player.active_research_days_left <= 0:
+                # Terminou a pesquisa
+                from .models import PlayerResearch
+                pr, created = PlayerResearch.objects.get_or_create(
+                    player=player,
+                    research_id=player.active_research_id,
+                    defaults={'level': 0}
+                )
+                pr.level += 1
+                pr.save()
+                player.active_research_id = None
+                player.active_research_days_left = 0
+                
+        player.current_day = frontend_day
         player.has_feed_mill = data.get('hasFeedMill', player.has_feed_mill)
         player.has_incubator = data.get('hasIncubator', player.has_incubator)
         player.has_slaughterhouse = data.get('hasSlaughterhouse', player.has_slaughterhouse)
@@ -121,5 +143,70 @@ def sync_game_state(request):
                     )
                     
         return Response({"message": "Sincronização concluída com sucesso."}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_researches(request):
+    try:
+        player = request.user.player_profile
+        player_researches = {pr.research_id: pr.level for pr in player.researches.all()}
+        from .constants import get_all_researches
+        return Response(get_all_researches(player_researches))
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_research(request):
+    try:
+        player = request.user.player_profile
+        research_id = request.data.get('research_id')
+        
+        if not research_id:
+            return Response({"error": "research_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if player.active_research_id:
+            return Response({"error": "Já existe uma pesquisa em andamento."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        player_researches = {pr.research_id: pr.level for pr in player.researches.all()}
+        current_level = player_researches.get(research_id, 0)
+        
+        from .constants import calculate_research_cost
+        next_cost = calculate_research_cost(research_id, current_level)
+        
+        if not next_cost:
+            return Response({"error": "Pesquisa não encontrada ou já no nível máximo."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if player.level < next_cost['required_player_level']:
+            return Response({"error": f"Nível de jogador insuficiente. Requer {next_cost['required_player_level']}."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if player.money < next_cost['cost_money']:
+            return Response({"error": "Dinheiro insuficiente."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if player.xp < next_cost['cost_xp']:
+            return Response({"error": "XP insuficiente."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Deduct resources and start research
+        player.money -= next_cost['cost_money']
+        player.xp -= next_cost['cost_xp']
+        player.active_research_id = research_id
+        player.active_research_days_left = next_cost['time_days']
+        player.save()
+        
+        # Return updated state
+        from .constants import get_all_researches
+        return Response({
+            "message": "Pesquisa iniciada.",
+            "player": {
+                "money": player.money,
+                "xp": player.xp,
+                "active_research_id": player.active_research_id,
+                "active_research_days_left": player.active_research_days_left
+            },
+            "researches": get_all_researches(player_researches)
+        }, status=status.HTTP_200_OK)
+        
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
-  RESEARCHES,
   DISCARD_BIRD_PRICE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
@@ -169,6 +168,10 @@ export const useGameStore = create<GameState>()(
       set({
         company: { name: player.company_name, color: player.company_color },
         money: player.money,
+        xp: player.xp || 0,
+        level: player.level || 1,
+        activeResearchId: player.active_research_id || null,
+        activeResearchDaysLeft: player.active_research_days_left || 0,
         currentDay: player.current_day,
         totalProfit: player.total_profit,
         totalExpenses: player.total_expenses,
@@ -240,6 +243,8 @@ export const useGameStore = create<GameState>()(
       // Envia o estado local atual para sobrescrever o servidor
       await api.post('/game/sync/', {
         money: state.money,
+        xp: state.xp,
+        level: state.level,
         totalProfit: state.totalProfit,
         totalExpenses: state.totalExpenses,
         currentMonthRevenue: state.currentMonthRevenue,
@@ -252,12 +257,47 @@ export const useGameStore = create<GameState>()(
         barns: state.barns
       });
       console.log('Sincronização com servidor concluída com sucesso!');
+      
+      // Busca atualizações (como pesquisas que podem ter finalizado)
+      await get().fetchGameState();
+      await get().fetchResearchesApi();
     } catch (err) {
       console.error('Erro ao sincronizar estado com servidor', err);
     }
   },
 
   // Async Economy Actions (Para Nuvem - Híbrido)
+  fetchResearchesApi: async () => {
+    try {
+      if (get().isAuthenticated && navigator.onLine) {
+        const response = await api.get('/game/research/');
+        set({ researches: response.data });
+      }
+    } catch (err) {
+      console.error("Erro ao buscar pesquisas da nuvem", err);
+    }
+  },
+
+  startResearchApi: async (researchId: string) => {
+    try {
+      if (get().isAuthenticated && navigator.onLine) {
+        const response = await api.post('/game/research/start/', { research_id: researchId });
+        set({
+          money: response.data.player.money,
+          xp: response.data.player.xp,
+          activeResearchId: response.data.player.active_research_id,
+          activeResearchDaysLeft: response.data.player.active_research_days_left,
+          researches: response.data.researches
+        });
+        alert(response.data.message);
+      } else {
+        alert("Conecte-se online para realizar pesquisas!");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Erro ao iniciar pesquisa.");
+    }
+  },
+
   buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
     const scheduledDays = Math.max(0, Math.floor(scheduledInDays || 0));
     if (scheduledDays > 0 || useOwnTruck) {
@@ -404,7 +444,9 @@ export const useGameStore = create<GameState>()(
   xp: 0,
   currentWeather: 'SUNNY',
   weatherDaysLeft: 3,
-  unlockedResearches: [],
+  researches: {},
+  activeResearchId: null,
+  activeResearchDaysLeft: 0,
   bankLoan: 0,
   loanInstallment: 0,
   loanInstallmentsRemaining: 0,
@@ -497,7 +539,6 @@ export const useGameStore = create<GameState>()(
         { itemId: 'parts', quantity: 5 }
       ],
       pendingDeliveries: [],
-      unlockedResearches: [],
       ownedMachinery: [],
       employees: [],
       products: { eggs: 0, meat: 0 },
@@ -609,9 +650,11 @@ export const useGameStore = create<GameState>()(
   buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, useOwnTruck = false) => set((state) => {
     let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
     
-    // Buff de Motorista
+    // Buff de Motorista e Pesquisa inf_2
     const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
-    freightCost *= Math.max(0.2, 1 - driverBuff);
+    const inf2Bonus = state.researches['inf_2']?.current_bonus || 0;
+    
+    freightCost *= Math.max(0.2, 1 - driverBuff - inf2Bonus);
 
     // Impacto de evento no frete
     if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
@@ -914,6 +957,16 @@ export const useGameStore = create<GameState>()(
     let emergencyLoanAvailable = state.emergencyLoanAvailable;
     let emergencyLoanActive = state.emergencyLoanActive;
 
+    let newActiveResearchDaysLeft = state.activeResearchDaysLeft;
+    let newActiveResearchId = state.activeResearchId;
+    let finishedResearchLocally = false;
+
+    const gen1Bonus = state.researches['gen_1']?.current_bonus || 0;
+    const gen2Bonus = state.researches['gen_2']?.current_bonus || 0;
+    const nut1Bonus = state.researches['nut_1']?.current_bonus || 0;
+    const inf1Bonus = state.researches['inf_1']?.current_bonus || 0;
+    const hea1Bonus = state.researches['hea_1']?.current_bonus || 0;
+
     for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
@@ -973,6 +1026,9 @@ export const useGameStore = create<GameState>()(
       if (state.hasFeedMill) energyCost += 50;
       if (state.hasIncubator) energyCost += 30;
       if (state.hasSlaughterhouse) energyCost += 100;
+
+      // Aplica bônus de Infraestrutura (inf_1)
+      energyCost *= (1 - inf1Bonus);
 
       let waterCost = state.barns.reduce((acc, barn) => acc + (barn.batch ? barn.batch.animalCount * 0.005 : 0), 0); // R$ 0.005 por ave/dia
       
@@ -1055,6 +1111,14 @@ export const useGameStore = create<GameState>()(
 
       // Sazonalidade e Eventos de Mercado
       const currentMonth = getGameMonth(currentDay);
+      
+      if (newActiveResearchId && newActiveResearchDaysLeft > 0) {
+        newActiveResearchDaysLeft -= 1;
+        if (newActiveResearchDaysLeft <= 0) {
+          finishedResearchLocally = true;
+          newActiveResearchId = null;
+        }
+      }
       let seasonalFeedMod = 1.0;
       let seasonalMeatMod = 1.0;
       let seasonalEggMod = 1.0;
@@ -1070,6 +1134,9 @@ export const useGameStore = create<GameState>()(
       if (currentMonth === 2 || currentMonth === 3) seasonalEggMod = 1.15; 
 
       if (currentEvent?.effectType === 'FEED_SPIKE') seasonalFeedMod *= currentEvent.severity;
+
+      const nut2Bonus = state.researches['nut_2']?.current_bonus || 0;
+      seasonalFeedMod *= (1 - nut2Bonus); // Desconto de pesquisa
 
       // Flutuação de mercado a cada dia
       currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1) * seasonalEggMod;
@@ -1159,7 +1226,8 @@ export const useGameStore = create<GameState>()(
           0.6,
           (newBatch.activeDisease ? 0.9 : 1) *
             (newBatch.hygieneLevel < 40 ? 0.85 : newBatch.hygieneLevel < 70 ? 0.95 : 1) *
-            growthPenalty
+            growthPenalty *
+            (1 - nut1Bonus) // Reduz consumo com pesquisa
         );
         dailyFeedNeeded *= appetiteModifier;
 
@@ -1254,7 +1322,7 @@ export const useGameStore = create<GameState>()(
         if (!newBatch.activeDisease) {
           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
-          diseaseChance *= diseasePenalty * diseaseSpikeMod;
+          diseaseChance *= diseasePenalty * diseaseSpikeMod * (1 - hea1Bonus); // Bônus da pesquisa hea_1
           
           if (newBatch.vaccineProtectionDays > 0) {
             diseaseChance *= 0.1; // 90% menos chance com vacina
@@ -1313,7 +1381,7 @@ export const useGameStore = create<GameState>()(
 
         if (barn.type === 'POSTURA' && newBatch.ageDays >= 120) {
           if (!starved) {
-            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty;
+            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen2Bonus);
             // Reduz drasticamente a postura se passar da idade máxima
             if (newBatch.ageDays > 600) {
               postureRate *= 0.1; // 90% de queda na postura
@@ -1328,7 +1396,7 @@ export const useGameStore = create<GameState>()(
           if (!starved) {
             // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
             // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
-            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty; 
+            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen1Bonus); 
             // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
             // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
             const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
@@ -1383,7 +1451,9 @@ export const useGameStore = create<GameState>()(
       currentWeather,
       weatherDaysLeft,
       emergencyLoanAvailable,
-      emergencyLoanActive
+      emergencyLoanActive,
+      activeResearchId: newActiveResearchId,
+      activeResearchDaysLeft: newActiveResearchDaysLeft,
     };
   }),
 
@@ -1479,23 +1549,10 @@ export const useGameStore = create<GameState>()(
     };
   }),
 
-  unlockResearch: (researchId) => set((state) => {
-    const r = RESEARCHES[researchId];
-    if (!r || state.unlockedResearches.includes(researchId)) return state;
-    if (state.money >= r.costMoney && state.xp >= r.costXP) {
-      return {
-        money: state.money - r.costMoney,
-        xp: state.xp - r.costXP,
-        totalExpenses: state.totalExpenses + r.costMoney,
-        unlockedResearches: [...state.unlockedResearches, researchId]
-      };
-    }
-    return state;
-  }),
-
   vaccinateBatch: (barnId, cost) => set((state) => {
     if (state.money >= cost) {
-      const duration = state.unlockedResearches.includes('hea_2') ? 25 : 15;
+      const hea2Bonus = state.researches['hea_2']?.current_bonus || 0;
+      const duration = 15 + hea2Bonus;
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,

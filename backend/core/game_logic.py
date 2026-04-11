@@ -13,6 +13,20 @@ def advance_day(request):
         # O jogador avançou um dia
         player.current_day += 1
         
+        if player.active_research_id:
+            player.active_research_days_left -= 1
+            if player.active_research_days_left <= 0:
+                from .models import PlayerResearch
+                pr, created = PlayerResearch.objects.get_or_create(
+                    player=player,
+                    research_id=player.active_research_id,
+                    defaults={'level': 0}
+                )
+                pr.level += 1
+                pr.save()
+                player.active_research_id = None
+                player.active_research_days_left = 0
+        
         # --- Lógica de Consumo e Produção ---
         # Constantes (Poderiam vir de um DB de configs)
         CONSUMPTION_RATE_CORTE = 0.12 # Kg por dia
