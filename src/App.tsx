@@ -28,13 +28,12 @@ function AnimatedRoutes() {
         {/* Jogo liberado offline, salva localmente */}
         <Route path="/" element={<GameLayout />}>
           <Route index element={<Home />} />
-          <Route path="painel" element={<Dashboard />} />
-          <Route path="galpoes" element={<BarnsPage />} />
-          <Route path="infra" element={<FacilitiesPage />} />
-          <Route path="mercado" element={<MarketPage />} />
-          <Route path="financas" element={<FinancePage />} />
-          <Route path="pesquisa" element={<ResearchPage />} />
-          <Route path="rh" element={<RHPage />} />
+            <Route path="painel" element={<Dashboard />} />
+            <Route path="infra" element={<FacilitiesPage />} />
+            <Route path="mercado" element={<MarketPage />} />
+            <Route path="financas" element={<FinancePage />} />
+            <Route path="rh" element={<RHPage />} />
+            <Route path="pesquisa" element={<ResearchPage />} />
         </Route>
       </Routes>
     </AnimatePresence>

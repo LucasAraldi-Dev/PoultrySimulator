@@ -1,0 +1,2500 @@
+diff --git a/backend/core/constants.py b/backend/core/constants.py
+new file mode 100644
+index 0000000..2cbf414
+--- /dev/null
++++ b/backend/core/constants.py
+@@ -0,0 +1,242 @@
++import math
++
++# Categorias
++# GENETICS, NUTRITION, INFRASTRUCTURE, HEALTH
++
++RESEARCH_TREE = {
++    'gen_1': {
++        'id': 'gen_1',
++        'name': 'Genética Avançada I',
++        'description': 'Aves de corte crescem mais rápido.',
++        'category': 'GENETICS',
++        'base_cost_money': 5000,
++        'base_cost_xp': 1000,
++        'base_time_days': 2,
++        'base_required_level': 1,
++        'money_multiplier': 1.8,
++        'xp_multiplier': 1.5,
++        'time_multiplier': 1.2,
++        'level_req_increment': 2,
++        'max_level': 10,
++        'bonus_base': 0.05, # 5% per level
++        'bonus_multiplier': 1.1 # slightly exponential bonus
++    },
++    'gen_2': {
++        'id': 'gen_2',
++        'name': 'Seleção Postura I',
++        'description': 'Galinhas botam mais ovos.',
++        'category': 'GENETICS',
++        'base_cost_money': 8000,
++        'base_cost_xp': 1500,
++        'base_time_days': 3,
++        'base_required_level': 2,
++        'money_multiplier': 1.8,
++        'xp_multiplier': 1.5,
++        'time_multiplier': 1.2,
++        'level_req_increment': 2,
++        'max_level': 10,
++        'bonus_base': 0.05,
++        'bonus_multiplier': 1.1
++    },
++    'nut_1': {
++        'id': 'nut_1',
++        'name': 'Nutrição de Precisão',
++        'description': 'Reduz o consumo de ração das aves.',
++        'category': 'NUTRITION',
++        'base_cost_money': 10000,
++        'base_cost_xp': 2000,
++        'base_time_days': 4,
++        'base_required_level': 3,
++        'money_multiplier': 2.0,
++        'xp_multiplier': 1.6,
++        'time_multiplier': 1.3,
++        'level_req_increment': 3,
++        'max_level': 5,
++        'bonus_base': 0.05,
++        'bonus_multiplier': 1.15
++    },
++    'inf_1': {
++        'id': 'inf_1',
++        'name': 'Isolamento Térmico',
++        'description': 'Reduz o custo diário de manutenção (Gás/Energia).',
++        'category': 'INFRASTRUCTURE',
++        'base_cost_money': 15000,
++        'base_cost_xp': 2500,
++        'base_time_days': 5,
++        'base_required_level': 4,
++        'money_multiplier': 2.0,
++        'xp_multiplier': 1.6,
++        'time_multiplier': 1.3,
++        'level_req_increment': 3,
++        'max_level': 5,
++        'bonus_base': 0.10,
++        'bonus_multiplier': 1.05
++    },
++    'hea_1': {
++        'id': 'hea_1',
++        'name': 'Imunologia Base',
++        'description': 'Reduz a chance base de doenças.',
++        'category': 'HEALTH',
++        'base_cost_money': 12000,
++        'base_cost_xp': 2200,
++        'base_time_days': 4,
++        'base_required_level': 3,
++        'money_multiplier': 1.9,
++        'xp_multiplier': 1.5,
++        'time_multiplier': 1.25,
++        'level_req_increment': 2,
++        'max_level': 8,
++        'bonus_base': 0.10,
++        'bonus_multiplier': 1.1
++    },
++    'hea_2': {
++        'id': 'hea_2',
++        'name': 'Super Vacinas',
++        'description': 'A vacina manual dura mais dias.',
++        'category': 'HEALTH',
++        'base_cost_money': 20000,
++        'base_cost_xp': 3500,
++        'base_time_days': 7,
++        'base_required_level': 5,
++        'money_multiplier': 2.2,
++        'xp_multiplier': 1.8,
++        'time_multiplier': 1.4,
++        'level_req_increment': 4,
++        'max_level': 5,
++        'bonus_base': 5, # flat +5 days per level
++        'bonus_multiplier': 1.2
++    },
++    'nut_2': {
++        'id': 'nut_2',
++        'name': 'Silos de Alta Densidade',
++        'description': 'Reduz o custo da ração na compra (Desconto por Volume virtual).',
++        'category': 'NUTRITION',
++        'base_cost_money': 25000,
++        'base_cost_xp': 4000,
++        'base_time_days': 10,
++        'base_required_level': 6,
++        'money_multiplier': 2.5,
++        'xp_multiplier': 2.0,
++        'time_multiplier': 1.5,
++        'level_req_increment': 3,
++        'max_level': 5,
++        'bonus_base': 0.02, # 2% discount per level
++        'bonus_multiplier': 1.1
++    },
++    'inf_2': {
++        'id': 'inf_2',
++        'name': 'Logística Otimizada',
++        'description': 'Reduz o custo do frete de todos os itens e rações.',
++        'category': 'INFRASTRUCTURE',
++        'base_cost_money': 30000,
++        'base_cost_xp': 5000,
++        'base_time_days': 15,
++        'base_required_level': 8,
++        'money_multiplier': 2.3,
++        'xp_multiplier': 1.9,
++        'time_multiplier': 1.4,
++        'level_req_increment': 2,
++        'max_level': 5,
++        'bonus_base': 0.05, # 5% per level
++        'bonus_multiplier': 1.2
++    },
++    'gen_3': {
++        'id': 'gen_3',
++        'name': 'Longevidade Produtiva',
++        'description': 'Poedeiras produzem bem por mais dias antes da queda de postura.',
++        'category': 'GENETICS',
++        'base_cost_money': 40000,
++        'base_cost_xp': 6000,
++        'base_time_days': 12,
++        'base_required_level': 10,
++        'money_multiplier': 2.4,
++        'xp_multiplier': 1.8,
++        'time_multiplier': 1.5,
++        'level_req_increment': 2,
++        'max_level': 5,
++        'bonus_base': 30, # +30 days flat per level
++        'bonus_multiplier': 1.1
++    },
++    'nut_3': {
++        'id': 'nut_3',
++        'name': 'Fábrica Autônoma',
++        'description': 'Aumenta a eficiência (reduz custo de produção) na Fábrica de Ração.',
++        'category': 'NUTRITION',
++        'base_cost_money': 50000,
++        'base_cost_xp': 8000,
++        'base_time_days': 20,
++        'base_required_level': 12,
++        'money_multiplier': 2.5,
++        'xp_multiplier': 2.0,
++        'time_multiplier': 1.5,
++        'level_req_increment': 3,
++        'max_level': 4,
++        'bonus_base': 0.05, # -5% production cost per level
++        'bonus_multiplier': 1.2
++    },
++    'hea_3': {
++        'id': 'hea_3',
++        'name': 'Biosseguridade Extrema',
++        'description': 'Aumenta a resistência a eventos climáticos e sanitários drásticos.',
++        'category': 'HEALTH',
++        'base_cost_money': 45000,
++        'base_cost_xp': 7000,
++        'base_time_days': 18,
++        'base_required_level': 11,
++        'money_multiplier': 2.3,
++        'xp_multiplier': 1.9,
++        'time_multiplier': 1.4,
++        'level_req_increment': 2,
++        'max_level': 5,
++        'bonus_base': 0.10, # 10% damage reduction from events per level
++        'bonus_multiplier': 1.15
++    }
++}
++
++def calculate_research_cost(research_id, current_level):
++    res = RESEARCH_TREE.get(research_id)
++    if not res:
++        return None
++    
++    if current_level >= res['max_level']:
++        return None # Max level reached
++        
++    cost_money = res['base_cost_money'] * (res['money_multiplier'] ** current_level)
++    cost_xp = res['base_cost_xp'] * (res['xp_multiplier'] ** current_level)
++    time_days = math.ceil(res['base_time_days'] * (res['time_multiplier'] ** current_level))
++    req_level = res['base_required_level'] + (res['level_req_increment'] * current_level)
++    
++    # Calculate next bonus
++    next_level = current_level + 1
++    next_bonus = res['bonus_base'] * (res['bonus_multiplier'] ** (next_level - 1))
++    
++    return {
++        'cost_money': round(cost_money, 2),
++        'cost_xp': round(cost_xp, 2),
++        'time_days': int(time_days),
++        'required_player_level': int(req_level),
++        'next_bonus': round(next_bonus, 4)
++    }
++
++def get_all_researches(player_researches):
++    # player_researches is a dict of { research_id: level }
++    result = {}
++    for r_id, r_data in RESEARCH_TREE.items():
++        current_level = player_researches.get(r_id, 0)
++        current_bonus = 0
++        if current_level > 0:
++            current_bonus = r_data['bonus_base'] * (r_data['bonus_multiplier'] ** (current_level - 1))
++            
++        next_cost = calculate_research_cost(r_id, current_level)
++        
++        result[r_id] = {
++            'id': r_id,
++            'name': r_data['name'],
++            'description': r_data['description'],
++            'category': r_data['category'],
++            'max_level': r_data['max_level'],
++            'current_level': current_level,
++            'current_bonus': round(current_bonus, 4),
++            'next_level_info': next_cost
++        }
++    return result
+diff --git a/backend/core/game_logic.py b/backend/core/game_logic.py
+index 767e0fc..6fa0a52 100644
+--- a/backend/core/game_logic.py
++++ b/backend/core/game_logic.py
+@@ -13,6 +13,20 @@ def advance_day(request):
+         # O jogador avançou um dia
+         player.current_day += 1
+         
++        if player.active_research_id:
++            player.active_research_days_left -= 1
++            if player.active_research_days_left <= 0:
++                from .models import PlayerResearch
++                pr, created = PlayerResearch.objects.get_or_create(
++                    player=player,
++                    research_id=player.active_research_id,
++                    defaults={'level': 0}
++                )
++                pr.level += 1
++                pr.save()
++                player.active_research_id = None
++                player.active_research_days_left = 0
++        
+         # --- Lógica de Consumo e Produção ---
+         # Constantes (Poderiam vir de um DB de configs)
+         CONSUMPTION_RATE_CORTE = 0.12 # Kg por dia
+diff --git a/backend/core/migrations/0002_player_active_research_days_left_and_more.py b/backend/core/migrations/0002_player_active_research_days_left_and_more.py
+new file mode 100644
+index 0000000..8720c97
+--- /dev/null
++++ b/backend/core/migrations/0002_player_active_research_days_left_and_more.py
+@@ -0,0 +1,61 @@
++# Generated by Django 6.0.4 on 2026-04-11 01:39
++
++import django.db.models.deletion
++from django.db import migrations, models
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ("core", "0001_initial"),
++    ]
++
++    operations = [
++        migrations.AddField(
++            model_name="player",
++            name="active_research_days_left",
++            field=models.IntegerField(default=0),
++        ),
++        migrations.AddField(
++            model_name="player",
++            name="active_research_id",
++            field=models.CharField(blank=True, max_length=50, null=True),
++        ),
++        migrations.AddField(
++            model_name="player",
++            name="level",
++            field=models.IntegerField(default=1),
++        ),
++        migrations.AddField(
++            model_name="player",
++            name="xp",
++            field=models.FloatField(default=0.0),
++        ),
++        migrations.CreateModel(
++            name="PlayerResearch",
++            fields=[
++                (
++                    "id",
++                    models.BigAutoField(
++                        auto_created=True,
++                        primary_key=True,
++                        serialize=False,
++                        verbose_name="ID",
++                    ),
++                ),
++                ("research_id", models.CharField(max_length=50)),
++                ("level", models.IntegerField(default=0)),
++                (
++                    "player",
++                    models.ForeignKey(
++                        on_delete=django.db.models.deletion.CASCADE,
++                        related_name="researches",
++                        to="core.player",
++                    ),
++                ),
++            ],
++            options={
++                "unique_together": {("player", "research_id")},
++            },
++        ),
++    ]
+diff --git a/backend/core/models.py b/backend/core/models.py
+index 04e8798..1ca9195 100644
+--- a/backend/core/models.py
++++ b/backend/core/models.py
+@@ -5,7 +5,8 @@ class Player(models.Model):
+     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='player_profile')
+     company_name = models.CharField(max_length=100)
+     company_color = models.CharField(max_length=20, default='#10b981')
+-    money = models.FloatField(default=10000.0)
++    money = models.FloatField(default=150000.0)
++    gold = models.IntegerField(default=1000)
+     total_profit = models.FloatField(default=0.0)
+     total_expenses = models.FloatField(default=0.0)
+     current_month_revenue = models.FloatField(default=0.0)
+@@ -17,6 +18,14 @@ class Player(models.Model):
+     
+     # Passagem de Tempo
+     current_day = models.IntegerField(default=1)
++    
++    # Nível e Experiência
++    level = models.IntegerField(default=1)
++    xp = models.FloatField(default=0.0)
++    
++    # Pesquisa Ativa
++    active_research_id = models.CharField(max_length=50, null=True, blank=True)
++    active_research_days_left = models.IntegerField(default=0)
+ 
+     def __str__(self):
+         return f"{self.user.username} - {self.company_name}"
+@@ -40,7 +49,7 @@ class Barn(models.Model):
+     capacity = models.IntegerField()
+     level = models.IntegerField(default=1)
+     
+-    silo_capacity = models.IntegerField(default=5000)
++    silo_capacity = models.IntegerField(default=2000)
+     silo_balance = models.FloatField(default=0.0)
+     selected_feed_id = models.CharField(max_length=50, null=True, blank=True)
+     
+@@ -78,3 +87,15 @@ class Products(models.Model):
+ 
+     def __str__(self):
+         return f"Produtos de {self.player.company_name}"
++
++class PlayerResearch(models.Model):
++    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='researches')
++    research_id = models.CharField(max_length=50)
++    level = models.IntegerField(default=0)
++
++    class Meta:
++        unique_together = ('player', 'research_id')
++
++    def __str__(self):
++        return f"{self.player.company_name} - {self.research_id} Lvl {self.level}"
++
+diff --git a/backend/core/serializers.py b/backend/core/serializers.py
+index 16ce14b..430f13b 100644
+--- a/backend/core/serializers.py
++++ b/backend/core/serializers.py
+@@ -1,6 +1,6 @@
+ from rest_framework import serializers
+ from django.contrib.auth.models import User
+-from .models import Player, Barn, Batch, InventoryItem, Products
++from .models import Player, Barn, Batch, InventoryItem, Products, PlayerResearch
+ 
+ class UserSerializer(serializers.ModelSerializer):
+     class Meta:
+@@ -34,11 +34,17 @@ class ProductsSerializer(serializers.ModelSerializer):
+         model = Products
+         fields = '__all__'
+ 
++class PlayerResearchSerializer(serializers.ModelSerializer):
++    class Meta:
++        model = PlayerResearch
++        fields = ['research_id', 'level']
++
+ class PlayerSerializer(serializers.ModelSerializer):
+     user = UserSerializer(read_only=True)
+     barns = BarnSerializer(many=True, read_only=True)
+     inventory = InventoryItemSerializer(many=True, read_only=True)
+     products = ProductsSerializer(read_only=True)
++    researches = PlayerResearchSerializer(many=True, read_only=True)
+ 
+     class Meta:
+         model = Player
+diff --git a/backend/core/urls.py b/backend/core/urls.py
+index 6cf98c4..bde751f 100644
+--- a/backend/core/urls.py
++++ b/backend/core/urls.py
+@@ -1,5 +1,5 @@
+ from django.urls import path
+-from .views import register, get_game_state, sync_game_state
++from .views import register, get_game_state, sync_game_state, start_research, get_researches
+ from .game_logic import advance_day
+ from .economy import buy_item, sell_products, buy_barn, buy_batch
+ from rest_framework_simplejwt.views import (
+@@ -15,6 +15,8 @@ urlpatterns = [
+     path('game/state/', get_game_state, name='get_game_state'),
+     path('game/sync/', sync_game_state, name='sync_game_state'),
+     path('game/advance-day/', advance_day, name='advance_day'),
++    path('game/research/start/', start_research, name='start_research'),
++    path('game/research/', get_researches, name='get_researches'),
+     
+     path('economy/buy-item/', buy_item, name='buy_item'),
+     path('economy/sell-products/', sell_products, name='sell_products'),
+diff --git a/backend/core/views.py b/backend/core/views.py
+index faf09ef..e33d8d4 100644
+--- a/backend/core/views.py
++++ b/backend/core/views.py
+@@ -63,10 +63,33 @@ def sync_game_state(request):
+         
+         # Atualiza campos básicos do Player
+         player.money = data.get('money', player.money)
++        player.gold = data.get('gold', player.gold)
++        player.xp = data.get('xp', player.xp)
++        player.level = data.get('level', player.level)
+         player.total_profit = data.get('totalProfit', player.total_profit)
+         player.total_expenses = data.get('totalExpenses', player.total_expenses)
+         player.current_month_revenue = data.get('currentMonthRevenue', player.current_month_revenue)
+-        player.current_day = data.get('currentDay', player.current_day)
++        
++        # Se avançou o dia, processar pesquisa ativa
++        frontend_day = data.get('currentDay', player.current_day)
++        days_passed = frontend_day - player.current_day
++        
++        if days_passed > 0 and player.active_research_id:
++            player.active_research_days_left -= days_passed
++            if player.active_research_days_left <= 0:
++                # Terminou a pesquisa
++                from .models import PlayerResearch
++                pr, created = PlayerResearch.objects.get_or_create(
++                    player=player,
++                    research_id=player.active_research_id,
++                    defaults={'level': 0}
++                )
++                pr.level += 1
++                pr.save()
++                player.active_research_id = None
++                player.active_research_days_left = 0
++                
++        player.current_day = frontend_day
+         player.has_feed_mill = data.get('hasFeedMill', player.has_feed_mill)
+         player.has_incubator = data.get('hasIncubator', player.has_incubator)
+         player.has_slaughterhouse = data.get('hasSlaughterhouse', player.has_slaughterhouse)
+@@ -102,7 +125,7 @@ def sync_game_state(request):
+                     barn_type=b_data.get('type', 'POSTURA'),
+                     capacity=b_data.get('capacity', 1000),
+                     level=b_data.get('level', 1),
+-                    silo_capacity=b_data.get('siloCapacity', 5000),
++                    silo_capacity=b_data.get('siloCapacity', 2000),
+                     silo_balance=b_data.get('siloBalance', 0),
+                     selected_feed_id=b_data.get('selectedFeedId', 'feed_basic'),
+                     is_rented=b_data.get('isRented', False),
+@@ -123,3 +146,68 @@ def sync_game_state(request):
+         return Response({"message": "Sincronização concluída com sucesso."}, status=status.HTTP_200_OK)
+     except Exception as e:
+         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
++
++@api_view(['GET'])
++@permission_classes([IsAuthenticated])
++def get_researches(request):
++    try:
++        player = request.user.player_profile
++        player_researches = {pr.research_id: pr.level for pr in player.researches.all()}
++        from .constants import get_all_researches
++        return Response(get_all_researches(player_researches))
++    except Exception as e:
++        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
++
++@api_view(['POST'])
++@permission_classes([IsAuthenticated])
++def start_research(request):
++    try:
++        player = request.user.player_profile
++        research_id = request.data.get('research_id')
++        
++        if not research_id:
++            return Response({"error": "research_id is required"}, status=status.HTTP_400_BAD_REQUEST)
++            
++        if player.active_research_id:
++            return Response({"error": "Já existe uma pesquisa em andamento."}, status=status.HTTP_400_BAD_REQUEST)
++            
++        player_researches = {pr.research_id: pr.level for pr in player.researches.all()}
++        current_level = player_researches.get(research_id, 0)
++        
++        from .constants import calculate_research_cost
++        next_cost = calculate_research_cost(research_id, current_level)
++        
++        if not next_cost:
++            return Response({"error": "Pesquisa não encontrada ou já no nível máximo."}, status=status.HTTP_400_BAD_REQUEST)
++            
++        if player.level < next_cost['required_player_level']:
++            return Response({"error": f"Nível de jogador insuficiente. Requer {next_cost['required_player_level']}."}, status=status.HTTP_400_BAD_REQUEST)
++            
++        if player.money < next_cost['cost_money']:
++            return Response({"error": "Dinheiro insuficiente."}, status=status.HTTP_400_BAD_REQUEST)
++            
++        if player.xp < next_cost['cost_xp']:
++            return Response({"error": "XP insuficiente."}, status=status.HTTP_400_BAD_REQUEST)
++            
++        # Deduct resources and start research
++        player.money -= next_cost['cost_money']
++        player.xp -= next_cost['cost_xp']
++        player.active_research_id = research_id
++        player.active_research_days_left = next_cost['time_days']
++        player.save()
++        
++        # Return updated state
++        from .constants import get_all_researches
++        return Response({
++            "message": "Pesquisa iniciada.",
++            "player": {
++                "money": player.money,
++                "xp": player.xp,
++                "active_research_id": player.active_research_id,
++                "active_research_days_left": player.active_research_days_left
++            },
++            "researches": get_all_researches(player_researches)
++        }, status=status.HTTP_200_OK)
++        
++    except Exception as e:
++        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+diff --git a/src/App.tsx b/src/App.tsx
+index f9ebdfe..788b7a9 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -28,13 +28,12 @@ function AnimatedRoutes() {
+         {/* Jogo liberado offline, salva localmente */}
+         <Route path="/" element={<GameLayout />}>
+           <Route index element={<Home />} />
+-          <Route path="painel" element={<Dashboard />} />
+-          <Route path="galpoes" element={<BarnsPage />} />
+-          <Route path="infra" element={<FacilitiesPage />} />
+-          <Route path="mercado" element={<MarketPage />} />
+-          <Route path="financas" element={<FinancePage />} />
+-          <Route path="pesquisa" element={<ResearchPage />} />
+-          <Route path="rh" element={<RHPage />} />
++            <Route path="painel" element={<Dashboard />} />
++            <Route path="infra" element={<FacilitiesPage />} />
++            <Route path="mercado" element={<MarketPage />} />
++            <Route path="financas" element={<FinancePage />} />
++            <Route path="rh" element={<RHPage />} />
++            <Route path="pesquisa" element={<ResearchPage />} />
+         </Route>
+       </Routes>
+     </AnimatePresence>
+diff --git a/src/components/GameLayout.tsx b/src/components/GameLayout.tsx
+index 8e04d20..871ab68 100644
+--- a/src/components/GameLayout.tsx
++++ b/src/components/GameLayout.tsx
+@@ -18,7 +18,8 @@ import {
+   Microscope,
+   Sun,
+   Moon,
+-  Cloud
++  Cloud,
++  Coins
+ } from 'lucide-react';
+ import { useState, useEffect, useRef } from 'react';
+ import { motion, AnimatePresence } from 'framer-motion';
+@@ -35,20 +36,25 @@ export default function GameLayout() {
+   const isAuthenticated = useGameStore(state => state.isAuthenticated);
+   const level = useGameStore(state => state.level);
+   const xp = useGameStore(state => state.xp);
++  const gold = useGameStore(state => state.gold);
+   
+-  const dailyTasks = useGameStore(state => state.dailyTasks);
+-  const startTask = useGameStore(state => state.startTask);
+-  const completeTask = useGameStore(state => state.completeTask);
+-
++  const [isAnimatingDay, setIsAnimatingDay] = useState(false);
++  const [showTasksModal, setShowTasksModal] = useState(false);
+   const weather = useGameStore(state => state.currentWeather);
+   const weatherDaysLeft = useGameStore(state => state.weatherDaysLeft);
+   const emergencyLoanAvailable = useGameStore(state => state.emergencyLoanAvailable);
+   const takeEmergencyLoan = useGameStore(state => state.takeEmergencyLoan);
++  const currentHour = useGameStore(state => state.currentHour);
++  const advanceHour = useGameStore(state => state.advanceHour);
++  const accelerateTask = useGameStore(state => state.accelerateTask);
++  const barns = useGameStore(state => state.barns);
++
++  const pendingTasks = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
+ 
+   const getWeatherIcon = () => {
+     switch (weather) {
+       case 'SUNNY': return <Sun className="text-amber-500" size={24} />;
+-      case 'RAIN': return <AlertCircle className="text-blue-500" size={24} />; // Using alert temporarily for rain
++      case 'RAIN': return <AlertCircle className="text-blue-500" size={24} />;
+       case 'HEATWAVE': return <Sun className="text-red-500" size={24} />;
+       case 'COLD': return <AlertCircle className="text-cyan-500" size={24} />;
+       default: return <Sun className="text-amber-500" size={24} />;
+@@ -64,10 +70,7 @@ export default function GameLayout() {
+       default: return 'Ensolarado';
+     }
+   };
+-
+-  const [isAnimatingDay, setIsAnimatingDay] = useState(false);
+-  const [showTasksModal, setShowTasksModal] = useState(false);
+-  const [now, setNow] = useState(Date.now());
++  const currentLevelXp = level === 1 ? 0 : 1000 * Math.pow(level - 1, 2);
+   const [moneyChanges, setMoneyChanges] = useState<{id: number, val: number, x: number, y: number}[]>([]);
+   const prevMoney = useRef(money);
+ 
+@@ -90,6 +93,8 @@ export default function GameLayout() {
+     }
+   }, [money]);
+ 
++  const [now, setNow] = useState(Date.now());
++
+   // Force re-render for active timers
+   useEffect(() => {
+     const interval = setInterval(() => setNow(Date.now()), 1000);
+@@ -98,19 +103,18 @@ export default function GameLayout() {
+ 
+   // Update tasks that have completed their timers
+   useEffect(() => {
+-    dailyTasks.forEach(task => {
+-      if (task.startedAt && !task.completed) {
+-        const elapsed = now - task.startedAt;
+-        const required = task.durationMinutes * 60 * 1000;
+-        if (elapsed >= required) {
+-          completeTask(task.id);
++    barns.forEach(barn => {
++      barn.dailyTasks.forEach(task => {
++        if (task.startedAt && !task.completed) {
++          const elapsed = now - task.startedAt;
++          const required = task.durationMinutes * 60 * 1000;
++          if (elapsed >= required) {
++            completeTask(barn.id, task.id);
++          }
+         }
+-      }
++      });
+     });
+-  }, [now, dailyTasks, completeTask]);
+-
+-  // Calcula XP necessário para o próximo nível: 1000 * L^2
+-  const currentLevelXp = level === 1 ? 0 : 1000 * Math.pow(level - 1, 2);
++  }, [now, barns, completeTask]);
+   const nextLevelXp = 1000 * Math.pow(level, 2);
+   const xpProgress = ((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
+ 
+@@ -119,11 +123,11 @@ export default function GameLayout() {
+     return <Outlet />;
+   }
+ 
+-  const pendingTasks = dailyTasks.filter(t => !t.completed).length;
++  const pendingTasksCount = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
+ 
+   const handleAdvanceDay = () => {
+-    if (pendingTasks > 0) {
+-      const confirmPass = window.confirm(`Atenção: Você tem ${pendingTasks} tarefas não concluídas. Ignorá-las resultará em penalidades na conversão, crescimento e mortalidade do lote! Deseja avançar o dia mesmo assim?`);
++    if (pendingTasksCount > 0) {
++      const confirmPass = window.confirm(`Atenção: Você tem ${pendingTasksCount} tarefas não concluídas. Ignorá-las resultará em penalidades na conversão, crescimento e mortalidade do lote! Deseja avançar o dia mesmo assim?`);
+       if (!confirmPass) return;
+     }
+     
+@@ -142,12 +146,11 @@ export default function GameLayout() {
+ 
+   const navItems = [
+     { to: '/painel', icon: LayoutDashboard, label: 'Painel' },
+-    { to: '/galpoes', icon: Home, label: 'Galpões' },
++    { to: '/infra', icon: Home, label: 'Infraestrutura' },
+     { to: '/mercado', icon: ShoppingCart, label: 'Mercado' },
+-    { to: '/fabricas', icon: Settings, label: 'Fábricas' },
+     { to: '/rh', icon: Users, label: 'RH/Consultoria' },
+     { to: '/financas', icon: DollarSign, label: 'Finanças' },
+-    { to: '/research', icon: Microscope, label: 'Pesquisas' },
++    { to: '/pesquisa', icon: Microscope, label: 'Pesquisa' },
+   ];
+ 
+   return (
+@@ -334,63 +337,55 @@ export default function GameLayout() {
+ 
+               <div className="flex flex-col items-end">
+                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base relative">
+-                  <AnimatePresence>
+-                    {moneyChanges.map((change) => (
+-                      <motion.div
+-                        key={change.id}
+-                        initial={{ opacity: 1, y: 0, x: change.x, scale: 0.5 }}
+-                        animate={{ opacity: 0, y: -50, scale: 1.2 }}
+-                        exit={{ opacity: 0 }}
+-                        transition={{ duration: 1.5, ease: "easeOut" }}
+-                        className={`absolute left-0 right-0 text-center pointer-events-none font-black text-lg drop-shadow-md z-50 ${change.val > 0 ? 'text-emerald-600' : 'text-red-600'}`}
+-                      >
+-                        {change.val > 0 ? '+' : '-'} R$ {Math.abs(change.val).toFixed(2)}
+-                      </motion.div>
+-                    ))}
+-                  </AnimatePresence>
+                   <Wallet size={18} />
+                   R$ {money.toFixed(2)}
+                 </div>
++                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-amber-50 text-amber-600 rounded-lg font-bold border border-amber-100 text-sm md:text-base mt-2" title="Ouro">
++                  <Coins size={18} />
++                  {gold}
++                </div>
+                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100 text-sm md:text-base mt-2">
+                   <Calendar size={18} />
+-                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">(Dia {currentDay})</span>
++                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">({currentHour.toString().padStart(2, '0')}:00)</span>
+                 </div>
+               </div>
+             </div>
+           </div>
+           
+-          {/* Tarefas e Botão de Passar Dia */}
++          {/* Tarefas e Botões de Tempo */}
+           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-2 pt-4 border-t border-zinc-100">
+             <div className="w-full md:w-auto flex-1 flex items-center justify-between md:justify-start gap-4">
+               <div className="flex items-center gap-2">
+-                <CheckSquare size={20} className={pendingTasks === 0 ? "text-emerald-500" : "text-amber-500"} />
++                <CheckSquare size={20} className={pendingTasksCount === 0 ? "text-emerald-500" : "text-amber-500"} />
+                 <span className="text-sm font-bold text-zinc-700">Tarefas Diárias</span>
+               </div>
+-              <button 
+-                onClick={() => setShowTasksModal(true)}
+-                className={`px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-colors border shadow-sm ${
+-                  pendingTasks === 0 
+-                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+-                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200'
++            </div>
++
++            <div className="flex gap-2 w-full md:w-auto">
++              <motion.button
++                whileTap={{ scale: 0.95 }}
++                onClick={() => advanceHour()}
++                disabled={isAnimatingDay}
++                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-all shadow-sm bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
++              >
++                <Clock size={18} />
++                Avançar 1h
++              </motion.button>
++
++              <motion.button
++                whileTap={{ scale: 0.95 }}
++                onClick={handleAdvanceDay}
++                disabled={isAnimatingDay}
++                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-xl font-bold text-lg md:text-base transition-all shadow-md ${
++                  pendingTasksCount === 0 && !isAnimatingDay
++                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
++                    : 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-none'
+                 }`}
+               >
+-                {pendingTasks === 0 ? 'Tudo Certo! ✓' : `${pendingTasks} Pendente(s)`}
+-              </button>
++                <Play size={24} className="fill-current" />
++                {pendingTasksCount > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
++              </motion.button>
+             </div>
+-
+-            <motion.button
+-              whileTap={{ scale: 0.95 }}
+-              onClick={handleAdvanceDay}
+-              disabled={isAnimatingDay}
+-              className={`w-full md:w-auto flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-xl font-bold text-lg md:text-base transition-all shadow-md ${
+-                pendingTasks === 0 && !isAnimatingDay
+-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
+-                  : 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-none'
+-              }`}
+-            >
+-              <Play size={24} className="fill-current" />
+-              {pendingTasks > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
+-            </motion.button>
+           </div>
+         </header>
+ 
+@@ -467,8 +462,17 @@ export default function GameLayout() {
+                       {!task.completed && (
+                         <div>
+                           {isStarted ? (
+-                            <div className="w-full bg-indigo-200 rounded-full h-2 mt-2">
+-                              <div className="bg-indigo-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
++                            <div className="flex items-center gap-2 mt-2">
++                              <div className="flex-1 bg-indigo-200 rounded-full h-2">
++                                <div className="bg-indigo-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
++                              </div>
++                              <button
++                                onClick={() => accelerateTask(barn.id, task.id)}
++                                className="bg-amber-400 hover:bg-amber-500 text-amber-900 px-3 py-1 rounded text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
++                                title="Acelerar instantaneamente (Custo: 10 Ouro)"
++                              >
++                                <Coins size={12} /> Acelerar (10)
++                              </button>
+                             </div>
+                           ) : (
+                             <button 
+diff --git a/src/pages/FacilitiesPage.tsx b/src/pages/FacilitiesPage.tsx
+index 380b25d..0f2f311 100644
+--- a/src/pages/FacilitiesPage.tsx
++++ b/src/pages/FacilitiesPage.tsx
+@@ -1,603 +1,245 @@
+-import { useState } from 'react';
++import React, { useState } from 'react';
+ import { useGameStore } from '../store/useGameStore';
+-import { Barn, BarnModel, BarnSize } from '../store/types';
+-import { Home, Hammer, Tractor, Factory, Zap, CheckCircle2, Truck, Power, Lock, ArrowUpCircle, TrendingUp } from 'lucide-react';
+-import { EQUIPMENTS, FEEDS, MACHINERY_CATALOG, BARN_MODELS } from '../store/constants';
++import { motion } from 'framer-motion';
++import { Warehouse, Plus, Settings, DollarSign, Package, Check, ChevronRight, Droplet, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
++import { BARN_MODELS, EQUIPMENTS } from '../store/constants';
+ import { PageTransition } from '../components/PageTransition';
+-import { Tooltip } from '../components/Tooltip';
+-import { motion, AnimatePresence } from 'framer-motion';
+-
+-const BARN_RENT_PRICES = {
+-  POSTURA: 500, // Por dia
+-  CORTE: 600,   // Por dia
+-};
+-
+-const FEED_MILL_PRICE = 50000;
+-const SLAUGHTERHOUSE_PRICE = 120000;
+ 
+ export default function FacilitiesPage() {
+-  const money = useGameStore(state => state.money);
+-  const level = useGameStore(state => state.level);
+-  const barns = useGameStore(state => state.barns);
+-  const buyBarn = useGameStore(state => state.buyBarn);
+-  const buyBarnApi = useGameStore(state => state.buyBarnApi);
+-  const upgradeBarn = useGameStore(state => state.upgradeBarn);
+-  const buyEquipment = useGameStore(state => state.buyEquipment);
+-  const hasFeedMill = useGameStore(state => state.hasFeedMill);
+-  const buildFeedMill = useGameStore(state => state.buildFeedMill);
+-  const produceFeed = useGameStore(state => state.produceFeed);
+-  const ownedMachinery = useGameStore(state => state.ownedMachinery);
+-  const buyMachinery = useGameStore(state => state.buyMachinery);
+-  const region = useGameStore(state => state.region);
+-  
+-  const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
+-  const buildSlaughterhouse = useGameStore(state => state.buildSlaughterhouse);
+-  const company = useGameStore(state => state.company);
+-
+-  const buyFutureContract = useGameStore(state => state.buyFutureContract);
+-  const futureContracts = useGameStore(state => state.futureContracts);
+-  const marketPrices = useGameStore(state => state.marketPrices);
+-  const currentDay = useGameStore(state => state.currentDay);
+-  const employees = useGameStore(state => state.employees);
+-
+-  const [produceAmounts, setProduceAmounts] = useState<Record<string, number>>({
+-    feed_basic: 1000, feed_premium: 1000, feed_layers: 1000, feed_medicada: 1000
+-  });
+-
+-  const landMod = region?.landCostModifier || 1;
+-
+-  const handleProduceFeed = (feedId: string) => {
+-    const feed = FEEDS[feedId];
+-    if (!feed) return;
+-    
+-    // Calcula o custo com base nos contratos futuros de milho, se houver
+-    let costPerKg = feed.costPerKg * (marketPrices?.feedModifier || 1) * 0.7; // 30% mais barato base
+-    let contractUsed = false;
+-    
+-    // Verifica se tem contrato ativo
+-    const activeContract = futureContracts?.find(c => c.expiresAtDay > (currentDay || 1) && c.kg > 0);
+-    if (activeContract) {
+-      costPerKg = activeContract.lockedPricePerKg; // Usa o preço travado (geralmente bem menor)
+-      contractUsed = true;
+-    }
+-
+-    const factoryBuff = employees?.filter(e => e.role === 'OPERADOR_FABRICA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0) || 0;
+-    costPerKg *= Math.max(0.5, 1 - factoryBuff);
+-
+-    const costToProduce = 1000 * costPerKg; // Lote de 1 tonelada
+-    
+-    if (money >= costToProduce) {
+-      produceFeed(feedId, 1000, costToProduce);
+-      // Aqui precisaríamos decrementar o kg do contrato, mas vamos simplificar: o contrato trava o preço por tempo, não quantidade, ou a gente ignora o decréscimo.
+-      // O correto seria um update, mas para não complicar a store, vamos considerar que o contrato garante "abastecimento contínuo àquele preço" até expirar.
+-    } else {
+-      alert("Dinheiro insuficiente!");
+-    }
+-  };
+-
+-  const handleBuyContract = () => {
+-    const price = 1.0; // R$ 1.00 por kg (Muito mais barato que a média)
+-    const cost = 10000; // Custa 10k adiantado
+-    buyFutureContract?.(10000, price, 30, cost); // 30 dias de duração
+-  };
+-
+-  const handleBuyBarnModel = (model: BarnModel, type: 'POSTURA' | 'CORTE') => {
+-    const cost = model.baseCost * landMod;
+-    if (money >= cost) {
+-      buyBarnApi(model.name, type, model.baseCapacity, cost);
+-    }
+-  };
+-
+-  const handleRentBarn = (type: 'POSTURA' | 'CORTE') => {
+-    const dailyCost = BARN_RENT_PRICES[type];
+-    const initialDeposit = dailyCost * 7; // Paga 1 semana adiantada
+-    if (money >= initialDeposit) {
+-      const newBarn: Barn = {
+-        id: `barn_rented_${Date.now()}`,
+-        name: `Integração de ${type.charAt(0) + type.slice(1).toLowerCase()} ${barns.length + 1}`,
+-        type,
+-        size: 'MEDIO',
++  const { 
++    money, level, barns, inventory, hasFeedMill, hasIncubator, hasSlaughterhouse,
++    buildFeedMill, buildSlaughterhouse, buyBarn, upgradeBarn, upgradeSilo, buyEquipment
++  } = useGameStore();
++
++  const [activeTab, setActiveTab] = useState<'GALPOES' | 'FABRICAS'>('GALPOES');
++
++  const handleBuyBarn = (modelId: string) => {
++    const model = BARN_MODELS[modelId];
++    if (money >= model.baseCost) {
++      buyBarn({
++        id: `barn_${Date.now()}`,
++        name: `${model.name} ${barns.length + 1}`,
++        type: model.id.includes('postura') ? 'POSTURA' : 'CORTE',
++        size: model.size,
+         level: 1,
+-        capacity: type === 'POSTURA' ? 3000 : 6000,
++        capacity: model.baseCapacity,
+         equipment: [],
+-        dailyCost: (type === 'POSTURA' ? 25 : 35) + dailyCost,
+-        isRented: true,
++        dailyCost: model.baseDailyCost,
++        isRented: false,
+         sanitaryVoidDays: 0,
+-        batch: null,
+-        selectedFeedId: 'feed_basic',
+         siloBalance: 0,
+-        siloCapacity: 10000,
+-      };
+-      buyBarn(newBarn, initialDeposit);
++        siloCapacity: 2000,
++        batch: null,
++        selectedFeedId: model.id.includes('postura') ? 'feed_layers_start' : 'feed_broiler_pre',
++      }, model.baseCost);
+     }
+   };
+ 
+   return (
+-    <PageTransition className="space-y-8">
+-      {/* Construir Galpões */}
+-      <section>
+-        <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+-          <Home size={24} className="text-blue-600" />
+-          Expansão de Galpões
+-        </h2>
+-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+-          {/* Postura */}
+-          <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
+-            <h3 className="text-lg font-bold text-zinc-800 mb-4 border-b border-zinc-100 pb-2">Novos Galpões de Postura</h3>
+-            <div className="space-y-4 mb-6">
+-              {Object.values(BARN_MODELS).filter(m => m.id.includes('postura')).map(model => {
+-                const cost = model.baseCost * landMod;
+-                const canAfford = money >= cost;
+-                const isLocked = level < model.requiredLevel;
++    <PageTransition className="space-y-6 pb-20">
++      <div className="flex flex-col gap-2 mb-6">
++        <h1 className="text-2xl font-bold text-zinc-800 flex items-center gap-2">
++          <Warehouse size={28} className="text-blue-600" />
++          Infraestrutura
++        </h1>
++        <p className="text-zinc-600">
++          Gerencie, construa e aprimore Galpões, Silos e Fábricas para expandir seu império.
++        </p>
++      </div>
++
++      <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg">
++        <button
++          onClick={() => setActiveTab('GALPOES')}
++          className={`flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors ${
++            activeTab === 'GALPOES' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
++          }`}
++        >
++          Galpões & Silos
++        </button>
++        <button
++          onClick={() => setActiveTab('FABRICAS')}
++          className={`flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors ${
++            activeTab === 'FABRICAS' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
++          }`}
++        >
++          Complexo Industrial
++        </button>
++      </div>
++
++      {activeTab === 'GALPOES' && (
++        <div className="space-y-8">
++          {/* Lista de Galpões Atuais e Upgrades */}
++          <div>
++            <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
++              <Settings size={20} /> Seus Galpões
++            </h2>
++            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
++              {barns.map(barn => {
++                const siloUpgradeCost = barn.siloCapacity * 2; // R$ 2 por kg extra
++                const barnUpgradeCost = barn.capacity * 10;
+ 
+                 return (
+-                  <div key={model.id} className={`p-0 overflow-hidden border rounded-xl relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200 shadow-sm hover:shadow-md transition-shadow'}`}>
+-                    <div className="h-32 bg-zinc-800 relative">
+-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+-                      <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+-                        <h4 className="font-bold text-white text-lg">{model.name}</h4>
+-                        <span className="text-xs font-bold bg-white/20 backdrop-blur-md text-white px-2 py-1 rounded">
+-                          {model.baseCapacity.toLocaleString()} aves
+-                        </span>
++                  <div key={barn.id} className="bg-white border rounded-xl p-4 shadow-sm">
++                    <div className="flex justify-between items-start mb-4">
++                      <div>
++                        <h3 className="font-bold text-lg text-zinc-800">{barn.name}</h3>
++                        <p className="text-sm text-zinc-500">Lvl {barn.level} • {barn.type} • Cap: {barn.capacity} aves</p>
+                       </div>
++                      <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
++                        {barn.size}
++                      </span>
+                     </div>
+-                    {isLocked && (
+-                      <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[2px] flex items-center justify-center z-10">
+-                        <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
+-                          <Lock size={12} /> Nível {model.requiredLevel}
+-                        </div>
+-                      </div>
+-                    )}
+-                    <div className="p-4">
+-                      <p className="text-sm text-zinc-600 mb-3 h-10">{model.description}</p>
+-                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
+-                        <span className="text-xs text-red-500 font-bold">Custo: R$ {(model.baseDailyCost * landMod).toFixed(2)}/dia</span>
++
++                    <div className="grid grid-cols-2 gap-4 mb-4">
++                      {/* Upgrade Galpão */}
++                      <div className="bg-zinc-50 border rounded-lg p-3">
++                        <p className="text-xs font-bold text-zinc-500 mb-2">Estrutura (Lvl {barn.level})</p>
+                         <button
+-                          onClick={() => handleBuyBarnModel(model, 'POSTURA')}
+-                          disabled={!canAfford || isLocked}
+-                          className={`px-4 py-2 rounded-lg text-sm font-bold transition-opacity ${canAfford && !isLocked ? 'text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+-                          style={canAfford && !isLocked ? { backgroundColor: company?.color || '#2563eb' } : {}}
++                          onClick={() => upgradeBarn(barn.id, barnUpgradeCost)}
++                          disabled={money < barnUpgradeCost}
++                          className={`w-full py-2 rounded text-xs font-bold flex items-center justify-center gap-1 ${
++                            money >= barnUpgradeCost ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
++                          }`}
+                         >
+-                          Comprar R$ {cost.toLocaleString()}
++                          <ArrowUpCircle size={14} /> Melhorar (R$ {barnUpgradeCost.toLocaleString()})
+                         </button>
+                       </div>
+-                    </div>
+-                  </div>
+-                );
+-              })}
+-            </div>
+-            <div className="mt-auto pt-4 border-t border-zinc-100">
+-              <button
+-                onClick={() => handleRentBarn('POSTURA')}
+-                disabled={money < BARN_RENT_PRICES.POSTURA * 7}
+-                className="w-full px-6 py-2 bg-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex justify-between transition-colors"
+-                style={{ 
+-                  color: company?.color || '#2563eb', 
+-                  borderColor: company?.color || '#2563eb',
+-                  borderWidth: '1px'
+-                }}
+-              >
+-                <span>Alugar Médio (Integração)</span>
+-                <span>R$ {BARN_RENT_PRICES.POSTURA.toLocaleString()}/dia</span>
+-              </button>
+-            </div>
+-          </div>
+-
+-          {/* Corte */}
+-          <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
+-            <h3 className="text-lg font-bold text-zinc-800 mb-4 border-b border-zinc-100 pb-2">Novos Galpões de Corte</h3>
+-            <div className="space-y-4 mb-6">
+-              {Object.values(BARN_MODELS).filter(m => m.id.includes('corte')).map(model => {
+-                const cost = model.baseCost * landMod;
+-                const canAfford = money >= cost;
+-                const isLocked = level < model.requiredLevel;
+ 
+-                return (
+-                  <div key={model.id} className={`p-0 overflow-hidden border rounded-xl relative ${isLocked ? 'opacity-60 bg-zinc-50' : 'border-zinc-200 shadow-sm hover:shadow-md transition-shadow'}`}>
+-                    <div className="h-32 bg-zinc-800 relative">
+-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+-                      <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
+-                        <h4 className="font-bold text-white text-lg">{model.name}</h4>
+-                        <span className="text-xs font-bold bg-white/20 backdrop-blur-md text-white px-2 py-1 rounded">
+-                          {model.baseCapacity.toLocaleString()} aves
+-                        </span>
+-                      </div>
+-                    </div>
+-                    {isLocked && (
+-                      <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[2px] flex items-center justify-center z-10">
+-                        <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
+-                          <Lock size={12} /> Nível {model.requiredLevel}
+-                        </div>
+-                      </div>
+-                    )}
+-                    <div className="p-4">
+-                      <p className="text-sm text-zinc-600 mb-3 h-10">{model.description}</p>
+-                      <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-100">
+-                        <span className="text-xs text-red-500 font-bold">Custo: R$ {(model.baseDailyCost * landMod).toFixed(2)}/dia</span>
++                      {/* Upgrade Silo */}
++                      <div className="bg-zinc-50 border rounded-lg p-3">
++                        <p className="text-xs font-bold text-zinc-500 mb-2">Silo ({barn.siloCapacity} kg)</p>
+                         <button
+-                          onClick={() => handleBuyBarnModel(model, 'CORTE')}
+-                          disabled={!canAfford || isLocked}
+-                          className={`px-4 py-2 rounded-lg text-sm font-bold transition-opacity ${canAfford && !isLocked ? 'text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+-                          style={canAfford && !isLocked ? { backgroundColor: company?.color || '#2563eb' } : {}}
++                          onClick={() => upgradeSilo(barn.id, siloUpgradeCost)}
++                          disabled={money < siloUpgradeCost}
++                          className={`w-full py-2 rounded text-xs font-bold flex items-center justify-center gap-1 ${
++                            money >= siloUpgradeCost ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
++                          }`}
+                         >
+-                          Comprar R$ {cost.toLocaleString()}
++                          <Package size={14} /> Expandir +2T (R$ {siloUpgradeCost.toLocaleString()})
+                         </button>
+                       </div>
+                     </div>
+-                  </div>
+-                );
+-              })}
+-            </div>
+-            <div className="mt-auto pt-4 border-t border-zinc-100">
+-              <button
+-                onClick={() => handleRentBarn('CORTE')}
+-                disabled={money < BARN_RENT_PRICES.CORTE * 7}
+-                className="w-full px-6 py-2 bg-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex justify-between transition-colors"
+-                style={{ 
+-                  color: company?.color || '#2563eb', 
+-                  borderColor: company?.color || '#2563eb',
+-                  borderWidth: '1px'
+-                }}
+-              >
+-                <span>Alugar Médio (Integração)</span>
+-                <span>R$ {BARN_RENT_PRICES.CORTE.toLocaleString()}/dia</span>
+-              </button>
+-            </div>
+-          </div>
+-          </div>
+-          
+-          {hasFeedMill && (
+-            <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200 mt-6 col-span-1 md:col-span-2">
+-              <h3 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+-                <TrendingUp className="text-amber-500" /> Mercado de Futuros (Matéria-Prima)
+-              </h3>
+-              <p className="text-sm text-zinc-600 mb-4">
+-                Trave o preço da saca de milho pagando adiantado. Isso blinda sua fábrica contra eventos globais e sazonais.
+-              </p>
+-              
+-              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
+-                <div>
+-                  <h4 className="font-bold text-amber-800">Contrato: Safra Futura</h4>
+-                  <p className="text-sm text-amber-700">Preço Fixo: R$ 1.00/kg (Duração: 30 dias)</p>
+-                </div>
+-                <button 
+-                  onClick={handleBuyContract}
+-                  disabled={money < 10000 || futureContracts.some(c => c.expiresAtDay > currentDay)}
+-                  className="w-full md:w-auto px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
+-                >
+-                  {futureContracts.some(c => c.expiresAtDay > currentDay) ? 'Contrato Ativo' : 'Comprar (R$ 10.000)'}
+-                </button>
+-              </div>
+-            </div>
+-          )}
+-        </section>
+ 
+-      {/* Melhorias e Equipamentos */}
+-      <section>
+-        <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+-          <Zap size={24} className="text-amber-500" />
+-          Melhorias de Galpão
+-        </h2>
+-        <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
+-          {barns.length > 0 ? (
+-            <div className="divide-y divide-zinc-200">
+-              {barns.map(barn => (
+-                <div key={barn.id} className="p-6">
+-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+-                    <div>
+-                      <h3 className="text-lg font-bold text-zinc-800 flex items-center gap-2">
+-                        {barn.name}
+-                        <span className="text-xs bg-zinc-800 text-white px-2 py-0.5 rounded-full">Nível {barn.level}</span>
+-                      </h3>
+-                      <p className="text-sm font-medium text-zinc-500 mt-1">
+-                        Tamanho: {barn.size} | Capacidade Atual: {barn.capacity} aves
+-                      </p>
+-                    </div>
+-                    <div className="flex gap-2 w-full sm:w-auto">
+-                      <button
+-                        onClick={() => {
+-                          const upgradeCost = 5000 * barn.level * (barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1);
+-                          upgradeBarn(barn.id, upgradeCost);
+-                        }}
+-                        disabled={money < (5000 * barn.level * (barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1))}
+-                        className="flex-1 sm:flex-none flex items-center justify-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition-colors"
+-                      >
+-                        <ArrowUpCircle size={16} /> Upgrade (R$ {(5000 * barn.level * (barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1)).toLocaleString()})
+-                      </button>
+-                    </div>
+-                  </div>
+-                  
+-                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+-                    {Object.values(EQUIPMENTS).map(eq => {
+-                      const hasEquip = barn.equipment.includes(eq.id);
+-                      const canAfford = money >= eq.cost;
+-                      const isLocked = level < eq.requiredLevel;
+-                      
+-                      const pros = [];
+-                      const cons = [];
+-                      if (eq.effect.capacityIncrease) pros.push(`+${eq.effect.capacityIncrease} Capacidade`);
+-                      if (eq.effect.mortalityReduction) pros.push(`-${eq.effect.mortalityReduction * 100}% Mortalidade`);
+-                      if (eq.effect.growthBonus) pros.push(`+${eq.effect.growthBonus * 100}% Crescimento`);
+-                      if (eq.effect.eggBonus) pros.push(`+${eq.effect.eggBonus * 100}% Postura`);
+-                      if (eq.effect.dailyCostIncrease) cons.push(`+R$ ${eq.effect.dailyCostIncrease}/dia`);
+-                      
+-                      return (
+-                        <div key={eq.id} className={`relative p-4 rounded-lg border flex flex-col justify-between ${hasEquip ? 'bg-emerald-50 border-emerald-200' : 'bg-zinc-50 border-zinc-200'} ${isLocked ? 'opacity-70' : ''}`}>
+-                          {isLocked && (
+-                            <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[1px] flex items-center justify-center rounded-lg z-10">
+-                              <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
+-                                <Lock size={12} /> Nível {eq.requiredLevel}
+-                              </div>
+-                            </div>
+-                          )}
+-                          <div>
+-                            <div className="flex items-start justify-between mb-2">
+-                              <h4 className="font-bold text-zinc-800 text-sm leading-tight pr-2">{eq.name}</h4>
+-                              <Tooltip content={eq.description} pros={pros} cons={cons} />
+-                            </div>
+-                            <div className="flex flex-wrap gap-1 mb-3">
+-                              {pros.map((p, i) => <span key={i} className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">{p}</span>)}
+-                              {cons.map((c, i) => <span key={i} className="text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">{c}</span>)}
+-                            </div>
+-                          </div>
++                    {/* Equipamentos */}
++                    <div className="border-t pt-4">
++                      <p className="text-xs font-bold text-zinc-500 mb-3">Equipamentos Disponíveis</p>
++                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
++                        {Object.values(EQUIPMENTS).map(eq => {
++                          const hasEq = barn.equipment.includes(eq.id);
++                          const canBuy = money >= eq.cost && level >= eq.requiredLevel && !hasEq;
+                           
+-                          {hasEquip ? (
+-                            <div className="flex items-center gap-2 text-sm font-bold text-emerald-600 bg-emerald-100/50 p-2 rounded justify-center mt-auto">
+-                              <CheckCircle2 size={16} /> Instalado
+-                            </div>
+-                          ) : (
++                          return (
+                             <button
++                              key={eq.id}
+                               onClick={() => buyEquipment(barn.id, eq.id, eq.cost)}
+-                              disabled={!canAfford || isLocked}
+-                              className={`w-full py-2 rounded text-sm font-bold transition-opacity mt-auto ${canAfford && !isLocked ? 'bg-amber-500 hover:bg-amber-600 text-white hover:opacity-90' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
++                              disabled={!canBuy}
++                              title={eq.description}
++                              className={`p-2 rounded border text-left text-xs transition-colors ${
++                                hasEq 
++                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
++                                  : canBuy 
++                                  ? 'bg-white border-zinc-200 hover:border-blue-300 text-zinc-700' 
++                                  : 'bg-zinc-50 border-zinc-100 text-zinc-400 cursor-not-allowed'
++                              }`}
+                             >
+-                              Comprar (R$ {eq.cost})
++                              <div className="font-bold truncate">{eq.name}</div>
++                              <div className="flex justify-between items-center mt-1">
++                                {hasEq ? (
++                                  <span className="flex items-center gap-1 text-emerald-600"><Check size={12}/> Instalado</span>
++                                ) : (
++                                  <>
++                                    <span>R$ {eq.cost}</span>
++                                    {level < eq.requiredLevel && <span className="text-red-400">Lvl {eq.requiredLevel}</span>}
++                                  </>
++                                )}
++                              </div>
+                             </button>
+-                          )}
+-                        </div>
+-                      );
+-                    })}
++                          );
++                        })}
++                      </div>
++                    </div>
+                   </div>
+-                </div>
+-              ))}
+-            </div>
+-          ) : (
+-            <div className="p-8 text-center text-zinc-500">
+-              Você precisa construir galpões antes de comprar melhorias.
++                );
++              })}
+             </div>
+-          )}
+-        </div>
+-      </section>
+-
+-      {/* Frota e Maquinário (NOVO) */}
+-      <section>
+-        <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+-          <Truck size={24} className="text-indigo-600" />
+-          Frota e Maquinário Pesado
+-        </h2>
+-        <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden p-6">
+-          <p className="text-zinc-500 text-sm mb-6">
+-            Adquira veículos e equipamentos industriais para melhorar a logística, reduzir custos e proteger sua granja.
+-          </p>
+-          
+-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+-            {Object.values(MACHINERY_CATALOG).map(machine => {
+-              const hasMachinery = ownedMachinery.includes(machine.id);
+-              const canAfford = money >= machine.cost;
+-              const isLocked = level < machine.requiredLevel;
+-              
+-              let Icon = Truck;
+-              if (machine.type === 'TRACTOR') Icon = Tractor;
+-              if (machine.type === 'GENERATOR') Icon = Power;
++          </div>
+ 
+-              return (
+-                <div key={machine.id} className={`relative p-5 rounded-xl border flex flex-col justify-between ${hasMachinery ? 'bg-indigo-50 border-indigo-200' : 'bg-zinc-50 border-zinc-200'} ${isLocked ? 'opacity-70' : ''}`}>
+-                  {isLocked && (
+-                    <div className="absolute inset-0 bg-zinc-100/50 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10">
+-                      <div className="bg-zinc-800 text-white text-sm font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-lg">
+-                        <Lock size={16} /> Desbloqueia no Nível {machine.requiredLevel}
+-                      </div>
+-                    </div>
+-                  )}
++          {/* Construir Novos Galpões */}
++          <div>
++            <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
++              <Plus size={20} /> Construir Novo Galpão
++            </h2>
++            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
++              {Object.values(BARN_MODELS).map(model => (
++                <div key={model.id} className="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+                   <div>
+-                    <div className="flex justify-between items-start mb-3">
+-                      <div className="flex items-center gap-3">
+-                        <div className={`p-2 rounded-lg ${hasMachinery ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-zinc-500 shadow-sm border border-zinc-100'}`}>
+-                          <Icon size={24} />
+-                        </div>
+-                        <div>
+-                          <h3 className="font-bold text-zinc-800">{machine.name}</h3>
+-                          <p className="text-xs font-bold text-zinc-500">{machine.brand}</p>
+-                        </div>
+-                      </div>
+-                      <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full ${machine.tier === 'PREMIUM' ? 'bg-amber-100 text-amber-700' : 'bg-zinc-200 text-zinc-600'}`}>
+-                        {machine.tier}
+-                      </span>
++                    <h3 className="font-bold text-lg text-zinc-800">{model.name}</h3>
++                    <p className="text-xs text-zinc-500 mb-2">{model.description}</p>
++                    <div className="bg-zinc-50 p-2 rounded text-xs text-zinc-600 mb-4">
++                      <p>Capacidade: {model.baseCapacity} aves</p>
++                      <p>Custo Diário: R$ {model.baseDailyCost}</p>
++                      <p>Requer Nível: {model.requiredLevel}</p>
+                     </div>
+-                    
+-                    <p className="text-sm text-zinc-600 mb-4 h-10">
+-                      {machine.description}
+-                    </p>
+                   </div>
+-                  
+-                  {hasMachinery ? (
+-                    <div className="w-full py-2.5 mt-4 bg-indigo-100/50 text-indigo-700 rounded-lg text-sm font-bold flex items-center justify-center gap-2 border border-indigo-100">
+-                      <CheckCircle2 size={18} /> Adquirido e Operacional
+-                    </div>
+-                  ) : (
+-                    <button
+-                      onClick={() => buyMachinery(machine.id, machine.cost)}
+-                      disabled={!canAfford || isLocked}
+-                      className={`w-full py-2.5 mt-4 rounded-lg text-sm font-bold transition-opacity hover:opacity-90 ${canAfford && !isLocked ? 'text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+-                      style={canAfford && !isLocked ? { backgroundColor: company?.color || '#4f46e5' } : {}}
+-                    >
+-                      Comprar (R$ {machine.cost.toLocaleString()})
+-                    </button>
+-                  )}
++                  <button
++                    onClick={() => handleBuyBarn(model.id)}
++                    disabled={money < model.baseCost || level < model.requiredLevel}
++                    className={`w-full py-2 rounded-lg font-bold text-sm ${
++                      money >= model.baseCost && level >= model.requiredLevel
++                        ? 'bg-blue-600 text-white hover:bg-blue-700'
++                        : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
++                    }`}
++                  >
++                    R$ {model.baseCost.toLocaleString()}
++                  </button>
+                 </div>
+-              );
+-            })}
++              ))}
++            </div>
+           </div>
+         </div>
+-      </section>
++      )}
+ 
+-      {/* Projetos Agroindustriais */}
+-      <section>
+-        <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+-          <Hammer size={24} className="text-zinc-500" />
+-          Projetos Agroindustriais
+-        </h2>
++      {activeTab === 'FABRICAS' && (
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+-          {/* Fábrica de Ração */}
+-          <div className={`bg-white p-0 overflow-hidden rounded-xl border ${hasFeedMill ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-zinc-200'}`}>
+-            <div className="h-40 bg-zinc-800 relative">
+-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+-              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+-                <div className="flex items-center gap-3">
+-                  <div className={`p-2 rounded-lg ${hasFeedMill ? 'bg-emerald-500 text-white' : 'bg-white/20 backdrop-blur-md text-white'}`}>
+-                    <Tractor size={24} />
+-                  </div>
+-                  <h3 className="text-xl font-bold text-white">Fábrica de Ração</h3>
+-                </div>
+-                {hasFeedMill && (
+-                  <span className="text-xs font-bold text-emerald-800 bg-emerald-400 px-2 py-1 rounded uppercase tracking-wider shadow-lg">
+-                    Operacional
+-                  </span>
+-                )}
+-              </div>
+-            </div>
++          <div className={`border rounded-xl p-6 relative overflow-hidden ${hasFeedMill ? 'bg-emerald-50 border-emerald-200' : 'bg-white'}`}>
++            <h3 className="text-xl font-bold mb-2">Fábrica de Ração</h3>
++            <p className="text-sm text-zinc-600 mb-4">Produza sua própria ração comprando milho e soja no mercado, reduzindo drasticamente os custos operacionais.</p>
+             
+-            <div className="p-6">
+-              {!hasFeedMill ? (
+-              <>
+-                <p className="text-zinc-500 text-sm mb-6">
+-                  Construa sua própria fábrica para produzir ração comprando os ingredientes a preço de atacado (40% de desconto sobre o preço de mercado).
+-                </p>
+-                <button
+-                  onClick={() => buildFeedMill(FEED_MILL_PRICE)}
+-                  disabled={money < FEED_MILL_PRICE}
+-                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-900 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex justify-between px-4"
+-                >
+-                  <span>Construir Fábrica</span>
+-                  <span>R$ {FEED_MILL_PRICE.toLocaleString()}</span>
+-                </button>
+-              </>
+-            ) : (
+-              <div className="space-y-4">
+-                <p className="text-sm text-emerald-700 font-medium bg-emerald-50 p-2 rounded">
+-                  Custo de produção: 40% menor que no Mercado.
+-                </p>
+-                <div className="space-y-3">
+-                  {Object.values(FEEDS).map(feed => {
+-                    let costToProduce = feed.costPerKg * 0.6; // 40% de desconto
+-                      const activeContract = futureContracts?.find(c => c.expiresAtDay > (currentDay || 1) && c.kg > 0);
+-                      if (activeContract) {
+-                        costToProduce = activeContract.lockedPricePerKg;
+-                      }
+-
+-                      const factoryBuff = employees?.filter(e => e.role === 'OPERADOR_FABRICA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0) || 0;
+-                      costToProduce *= Math.max(0.5, 1 - factoryBuff);
+-                      
+-                      const kgAmount = produceAmounts[feed.id] || 1000;
+-                    const totalCost = kgAmount * costToProduce;
+-                    const canAfford = money >= totalCost;
+-                    
+-                    const factor = kgAmount / 1000;
+-                    const cornNeeded = 600 * factor;
+-                    const soyNeeded = 350 * factor;
+-                    const premixNeeded = 50 * factor;
+-                    
+-                    const cornIdx = useGameStore.getState().inventory.findIndex(i => i.itemId === 'corn');
+-                    const soyIdx = useGameStore.getState().inventory.findIndex(i => i.itemId === 'soy');
+-                    const premixIdx = useGameStore.getState().inventory.findIndex(i => i.itemId === 'premix');
+-                    
+-                    const hasRawMaterials = 
+-                      cornIdx >= 0 && useGameStore.getState().inventory[cornIdx].quantity >= cornNeeded &&
+-                      soyIdx >= 0 && useGameStore.getState().inventory[soyIdx].quantity >= soyNeeded &&
+-                      premixIdx >= 0 && useGameStore.getState().inventory[premixIdx].quantity >= premixNeeded;
+-
+-                    return (
+-                      <div key={feed.id} className="flex flex-col gap-2 p-3 bg-zinc-50 rounded-lg border border-zinc-100">
+-                        <div className="flex justify-between items-center">
+-                          <span className="font-bold text-sm text-zinc-700">{feed.name}</span>
+-                          <span className="text-xs font-medium text-emerald-600">Custo Fixo: R$ {costToProduce.toFixed(2)}/kg</span>
+-                        </div>
+-                        <p className={`text-xs font-bold mb-1 ${hasRawMaterials ? 'text-blue-600' : 'text-red-500'}`}>
+-                          Requer: {cornNeeded.toFixed(0)}kg Milho, {soyNeeded.toFixed(0)}kg Soja, {premixNeeded.toFixed(0)}kg Premix
+-                        </p>
+-                        <div className="flex gap-2">
+-                          <input 
+-                            type="number"
+-                            min="100"
+-                            step="100"
+-                            value={kgAmount}
+-                            onChange={(e) => setProduceAmounts({...produceAmounts, [feed.id]: Number(e.target.value)})}
+-                            className="w-24 p-2 rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm"
+-                          />
+-                          <button
+-                            onClick={() => produceFeed(feed.id, kgAmount, totalCost)}
+-                            disabled={!canAfford || !hasRawMaterials}
+-                            className={`flex-1 py-1 px-2 rounded-md text-sm font-bold ${(canAfford && hasRawMaterials) ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'}`}
+-                            title={!hasRawMaterials ? 'Matéria-prima insuficiente no estoque' : ''}
+-                          >
+-                            Produzir (R$ {totalCost.toFixed(2)})
+-                          </button>
+-                        </div>
+-                      </div>
+-                    );
+-                  })}
+-                </div>
++            {hasFeedMill ? (
++              <div className="text-emerald-700 font-bold flex items-center gap-2">
++                <CheckCircle2 /> Fábrica Operante
+               </div>
++            ) : (
++              <button
++                onClick={() => buildFeedMill(150000)}
++                disabled={money < 150000}
++                className={`w-full py-3 rounded-lg font-bold ${money >= 150000 ? 'bg-blue-600 text-white' : 'bg-zinc-200 text-zinc-400'}`}
++              >
++                Construir (R$ 150.000)
++              </button>
+             )}
+-            </div>
+           </div>
+ 
+-          {/* Abatedouro Próprio */}
+-          <div className={`bg-white p-0 overflow-hidden rounded-xl border ${hasSlaughterhouse ? 'border-blue-300 ring-2 ring-blue-100' : 'border-zinc-200'}`}>
+-            <div className="h-40 bg-zinc-800 relative">
+-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+-              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+-                <div className="flex items-center gap-3">
+-                  <div className={`p-2 rounded-lg ${hasSlaughterhouse ? 'bg-blue-500 text-white' : 'bg-white/20 backdrop-blur-md text-white'}`}>
+-                    <Factory size={24} />
+-                  </div>
+-                  <h3 className="text-xl font-bold text-white">Abatedouro Próprio</h3>
+-                </div>
+-                {hasSlaughterhouse && (
+-                  <span className="text-xs font-bold text-blue-900 bg-blue-400 px-2 py-1 rounded uppercase tracking-wider shadow-lg">
+-                    Operacional
+-                  </span>
+-                )}
+-              </div>
+-            </div>
++          <div className={`border rounded-xl p-6 relative overflow-hidden ${hasSlaughterhouse ? 'bg-emerald-50 border-emerald-200' : 'bg-white'}`}>
++            <h3 className="text-xl font-bold mb-2">Abatedouro Frigorífico</h3>
++            <p className="text-sm text-zinc-600 mb-4">Abata seus próprios frangos e venda carne processada, dobrando a margem de lucro por lote.</p>
+             
+-            <div className="p-6">
+-              {!hasSlaughterhouse ? (
+-              <>
+-                <p className="text-zinc-500 text-sm mb-6">
+-                  Processe seus próprios frangos! Frango abatido e embalado tem um valor agregado quase 2x maior do que o frango vivo vendido a intermediários.
+-                </p>
+-                <button
+-                  onClick={() => buildSlaughterhouse(SLAUGHTERHOUSE_PRICE)}
+-                  disabled={money < SLAUGHTERHOUSE_PRICE}
+-                  className="w-full py-3 bg-zinc-800 hover:bg-zinc-900 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed flex justify-between px-4"
+-                >
+-                  <span>Construir Abatedouro</span>
+-                  <span>R$ {SLAUGHTERHOUSE_PRICE.toLocaleString()}</span>
+-                </button>
+-              </>
+-            ) : (
+-              <div className="space-y-4">
+-                <p className="text-sm text-blue-700 font-medium bg-blue-50 p-3 rounded-lg border border-blue-100">
+-                  <span className="block mb-2 font-bold flex items-center gap-2"><CheckCircle2 size={16} /> Tudo pronto!</span>
+-                  Seus galpões de corte agora vendem frangos abatidos automaticamente com alto valor agregado!
+-                </p>
++            {hasSlaughterhouse ? (
++              <div className="text-emerald-700 font-bold flex items-center gap-2">
++                <CheckCircle2 /> Abatedouro Operante
+               </div>
++            ) : (
++              <button
++                onClick={() => buildSlaughterhouse(300000)}
++                disabled={money < 300000}
++                className={`w-full py-3 rounded-lg font-bold ${money >= 300000 ? 'bg-blue-600 text-white' : 'bg-zinc-200 text-zinc-400'}`}
++              >
++                Construir (R$ 300.000)
++              </button>
+             )}
+-            </div>
+           </div>
+         </div>
+-      </section>
++      )}
+     </PageTransition>
+   );
+ }
+diff --git a/src/pages/ResearchPage.tsx b/src/pages/ResearchPage.tsx
+index 1549db5..8130375 100644
+--- a/src/pages/ResearchPage.tsx
++++ b/src/pages/ResearchPage.tsx
+@@ -1,15 +1,24 @@
+-import React from 'react';
++import React, { useEffect } from 'react';
+ import { motion } from 'framer-motion';
+-import { Microscope, Zap, Cpu, HeartPulse, CheckCircle2, Lock } from 'lucide-react';
++import { Microscope, Zap, Cpu, HeartPulse, CheckCircle2, Lock, Clock, ArrowUpCircle } from 'lucide-react';
+ import { useGameStore } from '../store/useGameStore';
+-import { RESEARCHES } from '../store/constants';
+ import { PageTransition } from '../components/PageTransition';
+ 
+ export function ResearchPage() {
+   const money = useGameStore(state => state.money);
+   const xp = useGameStore(state => state.xp);
+-  const unlockedResearches = useGameStore(state => state.unlockedResearches);
+-  const unlockResearch = useGameStore(state => state.unlockResearch);
++  const playerLevel = useGameStore(state => state.level);
++  
++  const researches = useGameStore(state => state.researches);
++  const activeResearchId = useGameStore(state => state.activeResearchId);
++  const activeResearchDaysLeft = useGameStore(state => state.activeResearchDaysLeft);
++  
++  const fetchResearchesApi = useGameStore(state => state.fetchResearchesApi);
++  const startResearchApi = useGameStore(state => state.startResearchApi);
++
++  useEffect(() => {
++    fetchResearchesApi();
++  }, [fetchResearchesApi]);
+ 
+   const getIcon = (category: string) => {
+     switch (category) {
+@@ -26,14 +35,18 @@ export function ResearchPage() {
+       <div className="flex flex-col gap-2 mb-6">
+         <h1 className="text-2xl font-bold text-zinc-800 flex items-center gap-2">
+           <Microscope size={28} className="text-purple-600" />
+-          Centro de Pesquisa & Desenvolvimento
++          Árvore de Habilidades (P&D)
+         </h1>
+         <p className="text-zinc-600">
+-          Invista Dinheiro e XP para desbloquear bônus permanentes para a sua granja.
++          Invista Dinheiro, XP e tempo para evoluir bônus permanentes. Os bônus crescem exponencialmente, assim como os custos.
+         </p>
+       </div>
+ 
+       <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl flex items-center gap-4 text-purple-800">
++        <div className="bg-white p-3 rounded-lg shadow-sm">
++          <p className="text-xs font-bold text-zinc-500 uppercase">Seu Nível</p>
++          <p className="text-2xl font-black text-blue-600">{playerLevel}</p>
++        </div>
+         <div className="bg-white p-3 rounded-lg shadow-sm">
+           <p className="text-xs font-bold text-zinc-500 uppercase">XP Disponível</p>
+           <p className="text-2xl font-black text-purple-600">{xp.toFixed(0)}</p>
+@@ -42,24 +55,43 @@ export function ResearchPage() {
+           <p className="text-xs font-bold text-zinc-500 uppercase">Dinheiro</p>
+           <p className="text-2xl font-black text-emerald-600">R$ {money.toFixed(2)}</p>
+         </div>
++        {activeResearchId && (
++          <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg shadow-sm flex items-center gap-3 ml-auto">
++            <Clock className="text-orange-500 animate-pulse" />
++            <div>
++              <p className="text-xs font-bold text-orange-600 uppercase">Pesquisando: {researches[activeResearchId]?.name}</p>
++              <p className="text-sm font-bold text-orange-800">{activeResearchDaysLeft} dias restantes</p>
++            </div>
++          </div>
++        )}
+       </div>
+ 
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+-        {Object.values(RESEARCHES).map((research) => {
+-          const isUnlocked = unlockedResearches.includes(research.id);
+-          const canAfford = money >= research.costMoney && xp >= research.costXP;
++        {Object.values(researches || {}).map((research: any) => {
++          const isMaxLevel = research.current_level >= research.max_level;
++          const next = research.next_level_info;
++          
++          const canAfford = !isMaxLevel && 
++            money >= next.cost_money && 
++            xp >= next.cost_xp && 
++            playerLevel >= next.required_player_level &&
++            !activeResearchId;
++
++          const isResearchingThis = activeResearchId === research.id;
+ 
+           return (
+             <motion.div
+               key={research.id}
+-              whileHover={!isUnlocked ? { scale: 1.02 } : {}}
++              whileHover={!isMaxLevel ? { scale: 1.02 } : {}}
+               className={`relative overflow-hidden rounded-xl border p-6 flex flex-col justify-between h-full transition-all duration-300 ${
+-                isUnlocked 
++                isMaxLevel 
+                   ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200' 
++                  : isResearchingThis
++                  ? 'bg-orange-50 border-orange-300'
+                   : 'bg-white border-zinc-200 shadow-sm'
+               }`}
+             >
+-              {isUnlocked && (
++              {isMaxLevel && (
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+               )}
+               
+@@ -68,26 +100,48 @@ export function ResearchPage() {
+                   <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
+                     {getIcon(research.category)}
+                   </div>
+-                  {isUnlocked && (
+-                    <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-200/50 px-2 py-1 rounded-full">
+-                      <CheckCircle2 size={14} /> Ativo
+-                    </span>
+-                  )}
++                  <span className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
++                    Lvl {research.current_level} / {research.max_level}
++                  </span>
+                 </div>
+ 
+                 <h3 className="text-lg font-bold text-zinc-800 mb-2 relative z-10">{research.name}</h3>
+-                <p className="text-sm text-zinc-600 mb-6 relative z-10">{research.description}</p>
++                <p className="text-sm text-zinc-600 mb-4 relative z-10">{research.description}</p>
++                
++                {research.current_level > 0 && (
++                  <div className="mb-4 p-2 bg-blue-50 border border-blue-100 rounded text-sm text-blue-800">
++                    <strong>Bônus Atual:</strong> +{(research.current_bonus * 100).toFixed(1)}%
++                  </div>
++                )}
+               </div>
+ 
+               <div className="mt-auto relative z-10">
+-                {!isUnlocked ? (
++                {isResearchingThis ? (
++                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-orange-200 text-orange-800 border border-orange-300">
++                    <Clock size={18} className="animate-spin" /> Em Andamento...
++                  </div>
++                ) : !isMaxLevel ? (
+                   <div className="flex flex-col gap-3">
++                    <div className="text-xs bg-zinc-50 p-2 rounded border border-zinc-100 flex flex-col gap-1">
++                      <div className="flex justify-between">
++                        <span>Próximo Bônus:</span>
++                        <span className="font-bold text-emerald-600">+{(next.next_bonus * 100).toFixed(1)}%</span>
++                      </div>
++                      <div className="flex justify-between">
++                        <span>Tempo:</span>
++                        <span className="font-bold text-zinc-600">{next.time_days} dias</span>
++                      </div>
++                      <div className="flex justify-between">
++                        <span>Nível Necessário:</span>
++                        <span className={`font-bold ${playerLevel >= next.required_player_level ? 'text-zinc-600' : 'text-red-500'}`}>Lvl {next.required_player_level}</span>
++                      </div>
++                    </div>
+                     <div className="flex justify-between text-sm">
+-                      <span className={`font-bold ${money >= research.costMoney ? 'text-zinc-700' : 'text-red-500'}`}>R$ {research.costMoney.toFixed(0)}</span>
+-                      <span className={`font-bold ${xp >= research.costXP ? 'text-purple-600' : 'text-red-500'}`}>{research.costXP} XP</span>
++                      <span className={`font-bold ${money >= next.cost_money ? 'text-zinc-700' : 'text-red-500'}`}>R$ {next.cost_money.toFixed(0)}</span>
++                      <span className={`font-bold ${xp >= next.cost_xp ? 'text-purple-600' : 'text-red-500'}`}>{next.cost_xp} XP</span>
+                     </div>
+                     <button
+-                      onClick={() => unlockResearch(research.id)}
++                      onClick={() => startResearchApi(research.id)}
+                       disabled={!canAfford}
+                       className={`w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors ${
+                         canAfford 
+@@ -95,12 +149,12 @@ export function ResearchPage() {
+                           : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                       }`}
+                     >
+-                      {canAfford ? 'Pesquisar' : <><Lock size={16} /> Recursos Insuficientes</>}
++                      {canAfford ? <><ArrowUpCircle size={18} /> Evoluir</> : <><Lock size={16} /> Indisponível</>}
+                     </button>
+                   </div>
+                 ) : (
+                   <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-emerald-100 text-emerald-800 border border-emerald-200">
+-                    <CheckCircle2 size={18} /> Tecnologia Dominada
++                    <CheckCircle2 size={18} /> Nível Máximo
+                   </div>
+                 )}
+               </div>
+diff --git a/src/store/constants.ts b/src/store/constants.ts
+index 75bdfcd..1095ac5 100644
+--- a/src/store/constants.ts
++++ b/src/store/constants.ts
+@@ -257,8 +257,8 @@ export const EQUIPMENTS: Record<string, import('./types').Equipment> = {
+     name: 'Comedouro Automático',
+     cost: 1200,
+     requiredLevel: 4,
+-    description: 'Distribui ração automaticamente. Otimiza o espaço, permitindo mais aves no galpão, mas gasta energia.',
+-    effect: { capacityIncrease: 500, dailyCostIncrease: 3 }, 
++    description: 'Distribui ração automaticamente, removendo a necessidade da tarefa diária manual.',
++    effect: { capacityIncrease: 0, dailyCostIncrease: 3 }, 
+   },
+   'eq_bebedouro_nipple': {
+     id: 'eq_bebedouro_nipple',
+@@ -533,23 +533,6 @@ export const MEAT_PRICE_PER_KG = 6.0; // Venda de frango vivo por KG
+ export const MEAT_PROCESSED_PRICE_PER_KG = 10.0; // Venda frango abatido
+ export const LAYER_COST = 18.0; // Price per young layer (franga)
+ 
+-export interface Research {
+-  id: string;
+-  name: string;
+-  description: string;
+-  costMoney: number;
+-  costXP: number;
+-  category: 'GENETICS' | 'NUTRITION' | 'INFRASTRUCTURE' | 'HEALTH';
+-}
+-
+-export const RESEARCHES: Record<string, Research> = {
+-  'gen_1': { id: 'gen_1', name: 'Genética Avançada I', description: 'Aves de corte crescem 5% mais rápido.', costMoney: 5000, costXP: 1000, category: 'GENETICS' },
+-  'gen_2': { id: 'gen_2', name: 'Seleção Postura I', description: 'Galinhas botam 5% mais ovos.', costMoney: 8000, costXP: 1500, category: 'GENETICS' },
+-  'nut_1': { id: 'nut_1', name: 'Nutrição de Precisão', description: 'Reduz o consumo de ração das aves em 5%.', costMoney: 10000, costXP: 2000, category: 'NUTRITION' },
+-  'inf_1': { id: 'inf_1', name: 'Isolamento Térmico', description: 'Reduz o consumo de Gás e Energia em 15%.', costMoney: 15000, costXP: 2500, category: 'INFRASTRUCTURE' },
+-  'hea_1': { id: 'hea_1', name: 'Imunologia Base', description: 'Reduz a chance base de doenças em 20%.', costMoney: 12000, costXP: 2200, category: 'HEALTH' },
+-  'hea_2': { id: 'hea_2', name: 'Super Vacinas', description: 'A vacina manual dura 25 dias em vez de 15.', costMoney: 20000, costXP: 3500, category: 'HEALTH' },
+-};
+ export const MAX_LAYER_AGE_DAYS = 600; // Idade em que as galinhas de postura param de botar bem
+ export const DISCARD_BIRD_PRICE = 3.5; // Valor de venda da galinha de descarte
+ export const SANITARY_VOID_DAYS = 15; // Dias que o galpão deve ficar vazio para desinfecção após a saída de um lote
+diff --git a/src/store/types.ts b/src/store/types.ts
+index d28a5c5..6b83df7 100644
+--- a/src/store/types.ts
++++ b/src/store/types.ts
+@@ -174,20 +174,22 @@ export interface DailyExpenses {
+ export interface DailyTask {
+   id: string;
+   name: string;
+-  durationMinutes: number;
+-  startedAt: number | null; // timestamp in ms
++  description: string;
++  durationMinutes: number; // Tempo necessário para concluir
++  startedAt: number | null; // Timestamp de quando começou (para simular progresso)
+   completed: boolean;
+-  effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
++  effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
+   severity: 'BAIXA' | 'MEDIA' | 'ALTA';
+-  description: string;
++  resultReport?: string; // Relatório com informações geradas após a conclusão da tarefa
+ }
+ 
+ export interface Employee {
+   id: string;
+   name: string;
+-  role: 'TRATADOR' | 'MOTORISTA' | 'OPERADOR_FABRICA';
+-  experienceLevel: number; // 1 a 5 (cada nível melhora eficiência)
+-  dailySalary: number; // Salário diário
++  role: 'VETERINARIO' | 'GERENTE' | 'MOTORISTA' | 'OPERADOR_FABRICA' | 'TRATADOR';
++  salary: number;
++  experienceLevel: number;
++  assignedBarnId?: string | null; // Apenas para TRATADORES
+ }
+ 
+ export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
+@@ -208,7 +210,9 @@ export interface GameState {
+   company: Company | null;
+   region: Region | null;
+   money: number;
++  gold: number;
+   currentDay: number;
++  currentHour: number;
+   level: number;
+   xp: number;
+ 
+@@ -223,8 +227,11 @@ export interface GameState {
+   payEmergencyLoan: () => void;
+ 
+   // Research
+-  unlockedResearches: string[];
+-  unlockResearch: (researchId: string) => void;
++  researches: Record<string, any>;
++  activeResearchId: string | null;
++  activeResearchDaysLeft: number;
++  fetchResearchesApi: () => Promise<void>;
++  startResearchApi: (researchId: string) => Promise<void>;
+   
+   // Async Economy Actions
+   buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
+@@ -238,7 +245,8 @@ export interface GameState {
+   // Tasks
+   dailyTasks: DailyTask[];
+   startTask: (taskId: string) => void;
+-  completeTask: (taskId: string) => void;
++  completeTask: (barnId: string, taskId: string) => void;
++  accelerateTask: (barnId: string, taskId: string) => void;
+   
+   // Market State
+   marketPrices: MarketPrices;
+@@ -276,7 +284,7 @@ export interface GameState {
+ 
+   // Actions
+   buyBarn: (barn: Barn, cost: number) => void;
+-  upgradeBarn: (barnId: string, cost: number) => void;
++  upgradeSilo: (barnId: string, cost: number) => void;
+   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
+   buyMachinery: (machineryId: string, cost: number) => void;
+   buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;
+diff --git a/src/store/useGameStore.ts b/src/store/useGameStore.ts
+index 2c50c40..65b02ab 100644
+--- a/src/store/useGameStore.ts
++++ b/src/store/useGameStore.ts
+@@ -2,7 +2,6 @@ import { create } from 'zustand';
+ import { persist } from 'zustand/middleware';
+ import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+ import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
+-  RESEARCHES,
+   DISCARD_BIRD_PRICE
+ } from './constants';
+ import { getGameMonth } from '../lib/utils';
+@@ -10,7 +9,7 @@ import { api } from '../lib/api';
+ 
+ // Funções utilitárias mantidas para não quebrar a tipagem existente
+ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
+-  const tasks: Omit<DailyTask, 'startedAt' | 'completed'>[] = [
++  const tasks: Omit<DailyTask, 'startedAt' | 'completed' | 'resultReport'>[] = [
+     {
+       id: 'clean_drinkers',
+       name: 'Limpar Bebedouros',
+@@ -29,12 +28,20 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
+     },
+     {
+       id: 'biosecurity',
+-      name: 'Biosseguridade (Pedilúvio/Acesso)',
+-      description: 'Controle de entrada, troca de botas e rotina de higienização.',
++      name: 'Biosseguridade',
++      description: 'Controle de entrada, troca de botas e higienização.',
+       durationMinutes: 5,
+       effectType: 'DISEASE',
+       severity: 'ALTA',
+     },
++    {
++      id: 'check_litter',
++      name: 'Manejo de Cama',
++      description: 'Revolve cama, remove umidade e reduz amônia.',
++      durationMinutes: 4,
++      effectType: 'DISEASE',
++      severity: 'BAIXA',
++    },
+     {
+       id: 'check_feed_silo',
+       name: 'Checar Estoque de Ração',
+@@ -46,21 +53,26 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
+     {
+       id: 'record_weights',
+       name: 'Aferir Peso (Amostragem)',
+-      description: 'Amostragem do lote para detectar desvio de ganho e ajustar manejo.',
++      description: 'Amostragem do lote para comparar com o manual de linhagem.',
+       durationMinutes: 8,
+       effectType: 'GROWTH',
+       severity: 'BAIXA',
+-    },
+-    {
+-      id: 'check_litter',
+-      name: 'Manejo de Cama',
+-      description: 'Revolve cama, remove umidade e reduz amônia.',
+-      durationMinutes: 4,
+-      effectType: 'DISEASE',
+-      severity: 'BAIXA',
+-    },
++    }
+   ];
+ 
++  // Tarefa de Alimentação Manual se algum galpão NÃO TIVER Comedouro Automático
++  const needsManualFeed = barns.some(b => b.batch && !b.equipment.includes('eq_comedouro_auto'));
++  if (needsManualFeed) {
++    tasks.push({
++      id: 'manual_feed',
++      name: 'Alimentar Lote (Manual)',
++      description: 'Distribuir ração nos pratos manualmente. (Compre Comedouro Automático para evitar)',
++      durationMinutes: 15,
++      effectType: 'GROWTH', // Afeta o ganho se não der comida
++      severity: 'ALTA',
++    });
++  }
++
+   const hasMortalityHistory = barns.some(b => b.batch && b.batch.mortalityCount > 0);
+   if (hasMortalityHistory) {
+     tasks.push({
+@@ -91,7 +103,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn
+       isRented: false,
+       sanitaryVoidDays: 0,
+       siloBalance: 0,
+-      siloCapacity: 5000,
++      siloCapacity: 2000,
+       batch: {
+         id: 'batch_1',
+         animalCount: 500,
+@@ -118,7 +130,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn
+     isRented: false,
+     sanitaryVoidDays: 0,
+     siloBalance: 0,
+-    siloCapacity: 10000,
++    siloCapacity: 2000,
+     batch: {
+       id: 'batch_1',
+       animalCount: 1000,
+@@ -169,6 +181,10 @@ export const useGameStore = create<GameState>()(
+       set({
+         company: { name: player.company_name, color: player.company_color },
+         money: player.money,
++        xp: player.xp || 0,
++        level: player.level || 1,
++        activeResearchId: player.active_research_id || null,
++        activeResearchDaysLeft: player.active_research_days_left || 0,
+         currentDay: player.current_day,
+         totalProfit: player.total_profit,
+         totalExpenses: player.total_expenses,
+@@ -240,6 +256,8 @@ export const useGameStore = create<GameState>()(
+       // Envia o estado local atual para sobrescrever o servidor
+       await api.post('/game/sync/', {
+         money: state.money,
++        xp: state.xp,
++        level: state.level,
+         totalProfit: state.totalProfit,
+         totalExpenses: state.totalExpenses,
+         currentMonthRevenue: state.currentMonthRevenue,
+@@ -252,12 +270,47 @@ export const useGameStore = create<GameState>()(
+         barns: state.barns
+       });
+       console.log('Sincronização com servidor concluída com sucesso!');
++      
++      // Busca atualizações (como pesquisas que podem ter finalizado)
++      await get().fetchGameState();
++      await get().fetchResearchesApi();
+     } catch (err) {
+       console.error('Erro ao sincronizar estado com servidor', err);
+     }
+   },
+ 
+   // Async Economy Actions (Para Nuvem - Híbrido)
++  fetchResearchesApi: async () => {
++    try {
++      if (get().isAuthenticated && navigator.onLine) {
++        const response = await api.get('/game/research/');
++        set({ researches: response.data });
++      }
++    } catch (err) {
++      console.error("Erro ao buscar pesquisas da nuvem", err);
++    }
++  },
++
++  startResearchApi: async (researchId: string) => {
++    try {
++      if (get().isAuthenticated && navigator.onLine) {
++        const response = await api.post('/game/research/start/', { research_id: researchId });
++        set({
++          money: response.data.player.money,
++          xp: response.data.player.xp,
++          activeResearchId: response.data.player.active_research_id,
++          activeResearchDaysLeft: response.data.player.active_research_days_left,
++          researches: response.data.researches
++        });
++        alert(response.data.message);
++      } else {
++        alert("Conecte-se online para realizar pesquisas!");
++      }
++    } catch (err: any) {
++      alert(err.response?.data?.error || "Erro ao iniciar pesquisa.");
++    }
++  },
++
+   buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
+     const scheduledDays = Math.max(0, Math.floor(scheduledInDays || 0));
+     if (scheduledDays > 0 || useOwnTruck) {
+@@ -349,7 +402,7 @@ export const useGameStore = create<GameState>()(
+         isRented: false,
+         sanitaryVoidDays: 0,
+         siloBalance: 0,
+-        siloCapacity: 5000,
++        siloCapacity: 2000,
+         batch: null,
+         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
+       };
+@@ -399,12 +452,16 @@ export const useGameStore = create<GameState>()(
+   company: null,
+   region: null,
+   money: 0,
++  gold: 1000,
+   currentDay: 0, // starts at 0 to prevent running before init
++  currentHour: 6, // Começa as 6:00
+   level: 1,
+   xp: 0,
+   currentWeather: 'SUNNY',
+   weatherDaysLeft: 3,
+-  unlockedResearches: [],
++  researches: {},
++  activeResearchId: null,
++  activeResearchDaysLeft: 0,
+   bankLoan: 0,
+   loanInstallment: 0,
+   loanInstallmentsRemaining: 0,
+@@ -474,6 +531,7 @@ export const useGameStore = create<GameState>()(
+       region,
+       money: INITIAL_MONEY,
+       currentDay: 1,
++      currentHour: 6, // Começa as 6:00
+       level: 1,
+       xp: 0,
+       bankLoan: 0,
+@@ -497,7 +555,6 @@ export const useGameStore = create<GameState>()(
+         { itemId: 'parts', quantity: 5 }
+       ],
+       pendingDeliveries: [],
+-      unlockedResearches: [],
+       ownedMachinery: [],
+       employees: [],
+       products: { eggs: 0, meat: 0 },
+@@ -548,21 +605,17 @@ export const useGameStore = create<GameState>()(
+     return state;
+   }),
+ 
+-  upgradeBarn: (barnId, cost) => set((state) => {
++  upgradeSilo: (barnId, cost) => set((state) => {
+     if (state.money >= cost) {
+       return {
+         money: state.money - cost,
+         totalExpenses: state.totalExpenses + cost,
+         barns: state.barns.map(barn => {
+           if (barn.id === barnId) {
+-            const sizeMultiplier = barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1;
+             return {
+               ...barn,
+-              level: barn.level + 1,
+-              // Cada nível aumenta a capacidade base em 10%
+-              capacity: Math.floor(barn.capacity * 1.1),
+-              // Cada nível aumenta um pouco o custo diário
+-              dailyCost: barn.dailyCost + (2 * sizeMultiplier)
++              // Cada nível aumenta a capacidade do silo em 2000kg
++              siloCapacity: barn.siloCapacity + 2000,
+             };
+           }
+           return barn;
+@@ -609,9 +662,11 @@ export const useGameStore = create<GameState>()(
+   buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, useOwnTruck = false) => set((state) => {
+     let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
+     
+-    // Buff de Motorista
++    // Buff de Motorista e Pesquisa inf_2
+     const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
+-    freightCost *= Math.max(0.2, 1 - driverBuff);
++    const inf2Bonus = state.researches['inf_2']?.current_bonus || 0;
++    
++    freightCost *= Math.max(0.2, 1 - driverBuff - inf2Bonus);
+ 
+     // Impacto de evento no frete
+     if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
+@@ -863,7 +918,11 @@ export const useGameStore = create<GameState>()(
+       return state;
+     }
+ 
+-    if (state.money >= costToProduce && state.hasFeedMill) {
++    let finalCost = costToProduce;
++    const nut3Bonus = state.researches['nut_3']?.current_bonus || 0;
++    finalCost *= Math.max(0.1, 1 - nut3Bonus);
++
++    if (state.money >= finalCost && state.hasFeedMill) {
+       const newInventory = [...state.inventory];
+       newInventory[cornIdx].quantity -= cornNeeded;
+       newInventory[soyIdx].quantity -= soyNeeded;
+@@ -877,14 +936,55 @@ export const useGameStore = create<GameState>()(
+       }
+       
+       return {
+-        money: state.money - costToProduce,
+-        totalExpenses: state.totalExpenses + costToProduce,
++        money: state.money - finalCost,
++        totalExpenses: state.totalExpenses + finalCost,
+         inventory: newInventory,
+       };
+     }
+     return state;
+   }),
+ 
++  assignEmployeeToBarn: (employeeId, barnId) => set((state) => ({
++    employees: state.employees.map(emp => emp.id === employeeId ? { ...emp, assignedBarnId: barnId } : emp)
++  })),
++
++  advanceHour: () => set((state) => {
++    let nextHour = state.currentHour + 1;
++    if (nextHour >= 24) {
++      // Se virou o dia usando horas
++      get().advanceDay();
++      return { currentHour: 0 };
++    }
++
++    // Funcionários (Tratadores) completam tarefas do galpão automaticamente
++    const newBarns = state.barns.map(barn => {
++      // Encontra tratadores designados para esse galpão
++      const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
++      if (assignedKeepers.length === 0) return barn;
++
++      // Cada nível de tratador dá 'X' minutos de capacidade de trabalho por hora
++      // Ex: Nível 1 = 60 min, Nível 2 = 70 min, etc
++      let totalWorkMinutesAvailable = assignedKeepers.reduce((acc, k) => acc + (60 + (k.experienceLevel * 10)), 0);
++
++      const newTasks = barn.dailyTasks.map(task => {
++        if (task.completed) return task;
++        
++        if (totalWorkMinutesAvailable >= task.durationMinutes) {
++          totalWorkMinutesAvailable -= task.durationMinutes;
++          return { ...task, completed: true, startedAt: Date.now() }; // Completa a tarefa
++        }
++        return task;
++      });
++
++      return { ...barn, dailyTasks: newTasks };
++    });
++
++    return {
++      currentHour: nextHour,
++      barns: newBarns
++    };
++  }),
++
+   advanceDay: (days = 1) => set((state) => {
+     let currentDay = state.currentDay;
+     let money = state.money;
+@@ -914,7 +1014,19 @@ export const useGameStore = create<GameState>()(
+     let emergencyLoanAvailable = state.emergencyLoanAvailable;
+     let emergencyLoanActive = state.emergencyLoanActive;
+ 
+-    for (let day = 0; day < days; day++) {
++    let newActiveResearchDaysLeft = state.activeResearchDaysLeft;
++    let newActiveResearchId = state.activeResearchId;
++    let finishedResearchLocally = false;
++
++    const gen1Bonus = state.researches['gen_1']?.current_bonus || 0;
++    const gen2Bonus = state.researches['gen_2']?.current_bonus || 0;
++    const nut1Bonus = state.researches['nut_1']?.current_bonus || 0;
++    const inf1Bonus = state.researches['inf_1']?.current_bonus || 0;
++    const hea1Bonus = state.researches['hea_1']?.current_bonus || 0;
++      const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
++      const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
++
++      for (let day = 0; day < days; day++) {
+       currentDay += 1;
+       let dailyExpenses = 0;
+       
+@@ -964,7 +1076,7 @@ export const useGameStore = create<GameState>()(
+       if (currentFinancialBuff > 0) currentFinancialBuff -= 1;
+ 
+       // Despesas com funcionários e Buffs
+-      let laborCost = state.employees.reduce((acc, emp) => acc + emp.dailySalary, 0);
++      let laborCost = state.employees.reduce((acc, emp) => acc + emp.salary, 0);
+       dailyExpenses += laborCost;
+       detailedExpenses.labor += laborCost;
+ 
+@@ -974,6 +1086,9 @@ export const useGameStore = create<GameState>()(
+       if (state.hasIncubator) energyCost += 30;
+       if (state.hasSlaughterhouse) energyCost += 100;
+ 
++      // Aplica bônus de Infraestrutura (inf_1)
++      energyCost *= (1 - inf1Bonus);
++
+       let waterCost = state.barns.reduce((acc, barn) => acc + (barn.batch ? barn.batch.animalCount * 0.005 : 0), 0); // R$ 0.005 por ave/dia
+       
+       let infraCost = energyCost + waterCost;
+@@ -1055,6 +1170,14 @@ export const useGameStore = create<GameState>()(
+ 
+       // Sazonalidade e Eventos de Mercado
+       const currentMonth = getGameMonth(currentDay);
++      
++      if (newActiveResearchId && newActiveResearchDaysLeft > 0) {
++        newActiveResearchDaysLeft -= 1;
++        if (newActiveResearchDaysLeft <= 0) {
++          finishedResearchLocally = true;
++          newActiveResearchId = null;
++        }
++      }
+       let seasonalFeedMod = 1.0;
+       let seasonalMeatMod = 1.0;
+       let seasonalEggMod = 1.0;
+@@ -1071,6 +1194,9 @@ export const useGameStore = create<GameState>()(
+ 
+       if (currentEvent?.effectType === 'FEED_SPIKE') seasonalFeedMod *= currentEvent.severity;
+ 
++      const nut2Bonus = state.researches['nut_2']?.current_bonus || 0;
++      seasonalFeedMod *= (1 - nut2Bonus); // Desconto de pesquisa
++
+       // Flutuação de mercado a cada dia
+       currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1) * seasonalEggMod;
+       currentMarketPrices.meat = MEAT_PRICE_PER_KG * (0.9 + Math.random() * 0.2) * (state.region?.productSaleModifier || 1) * seasonalMeatMod;
+@@ -1159,7 +1285,8 @@ export const useGameStore = create<GameState>()(
+           0.6,
+           (newBatch.activeDisease ? 0.9 : 1) *
+             (newBatch.hygieneLevel < 40 ? 0.85 : newBatch.hygieneLevel < 70 ? 0.95 : 1) *
+-            growthPenalty
++            growthPenalty *
++            (1 - nut1Bonus) // Reduz consumo com pesquisa
+         );
+         dailyFeedNeeded *= appetiteModifier;
+ 
+@@ -1254,7 +1381,7 @@ export const useGameStore = create<GameState>()(
+         if (!newBatch.activeDisease) {
+           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
+           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
+-          diseaseChance *= diseasePenalty * diseaseSpikeMod;
++          diseaseChance *= diseasePenalty * diseaseSpikeMod * (1 - hea1Bonus); // Bônus da pesquisa hea_1
+           
+           if (newBatch.vaccineProtectionDays > 0) {
+             diseaseChance *= 0.1; // 90% menos chance com vacina
+@@ -1292,6 +1419,11 @@ export const useGameStore = create<GameState>()(
+         }
+         
+         eventMortal *= weatherMortality;
++        
++        // Bônus hea_3: Reduz danos de eventos drásticos
++        if (eventMortal > 1) {
++          eventMortal = 1 + ((eventMortal - 1) * Math.max(0, 1 - hea3Bonus));
++        }
+ 
+         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
+         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
+@@ -1313,12 +1445,15 @@ export const useGameStore = create<GameState>()(
+ 
+         if (barn.type === 'POSTURA' && newBatch.ageDays >= 120) {
+           if (!starved) {
+-            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty;
+-            // Reduz drasticamente a postura se passar da idade máxima
+-            if (newBatch.ageDays > 600) {
++            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen2Bonus);
++            
++            // Reduz drasticamente a postura se passar da idade máxima (expandida por gen_3)
++            const maxAge = 600 + gen3Bonus;
++            
++            if (newBatch.ageDays > maxAge) {
+               postureRate *= 0.1; // 90% de queda na postura
+-            } else if (newBatch.ageDays > 500) {
+-              postureRate *= 0.5; // Começa a cair a partir dos 500 dias
++            } else if (newBatch.ageDays > maxAge - 100) {
++              postureRate *= 0.5; // Começa a cair 100 dias antes do maxAge
+             }
+             
+             const eggsToday = Math.floor(newBatch.animalCount * postureRate);
+@@ -1328,7 +1463,7 @@ export const useGameStore = create<GameState>()(
+           if (!starved) {
+             // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
+             // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
+-            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty; 
++            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen1Bonus); 
+             // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
+             // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
+             const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
+@@ -1377,13 +1512,16 @@ export const useGameStore = create<GameState>()(
+         ...state.products,
+         eggs: newEggs
+       },
+-      barns: newBarns,
++      currentHour: 6,
++      barns: newBarns.map(b => ({ ...b, dailyTasks: generateDailyTasks([b]) })),
+       inventory: currentInventory,
+       pendingDeliveries,
+       currentWeather,
+       weatherDaysLeft,
+       emergencyLoanAvailable,
+-      emergencyLoanActive
++      emergencyLoanActive,
++      activeResearchId: newActiveResearchId,
++      activeResearchDaysLeft: newActiveResearchDaysLeft,
+     };
+   }),
+ 
+@@ -1479,23 +1617,10 @@ export const useGameStore = create<GameState>()(
+     };
+   }),
+ 
+-  unlockResearch: (researchId) => set((state) => {
+-    const r = RESEARCHES[researchId];
+-    if (!r || state.unlockedResearches.includes(researchId)) return state;
+-    if (state.money >= r.costMoney && state.xp >= r.costXP) {
+-      return {
+-        money: state.money - r.costMoney,
+-        xp: state.xp - r.costXP,
+-        totalExpenses: state.totalExpenses + r.costMoney,
+-        unlockedResearches: [...state.unlockedResearches, researchId]
+-      };
+-    }
+-    return state;
+-  }),
+-
+   vaccinateBatch: (barnId, cost) => set((state) => {
+     if (state.money >= cost) {
+-      const duration = state.unlockedResearches.includes('hea_2') ? 25 : 15;
++      const hea2Bonus = state.researches['hea_2']?.current_bonus || 0;
++      const duration = 15 + hea2Bonus;
+       return {
+         money: state.money - cost,
+         totalExpenses: state.totalExpenses + cost,
+@@ -1665,9 +1790,87 @@ export const useGameStore = create<GameState>()(
+     dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+   })),
+ 
+-  completeTask: (taskId) => set((state) => ({
+-    dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, completed: true } : t)
+-  })),
++  accelerateTask: (barnId, taskId) => set((state) => {
++    if (state.gold < 10) {
++      alert("Ouro insuficiente para acelerar a tarefa (Custa 10 Ouro).");
++      return state;
++    }
++    
++    // Desconta o ouro e completa a tarefa chamando o setState modificado (reaproveitando a logica de completude)
++    return {
++      gold: state.gold - 10,
++      barns: state.barns.map(barn => {
++        if (barn.id === barnId) {
++          return {
++            ...barn,
++            dailyTasks: barn.dailyTasks.map(task => {
++              if (task.id === taskId) {
++                let resultReport = undefined;
++
++                if (task.id === 'check_feed_silo') {
++                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
++                  const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
++                  resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
++                }
++
++                if (task.id === 'record_weights' && barn.batch) {
++                  const cobbData = getCobb500Data(barn.batch.ageDays);
++                  if (cobbData) {
++                    const currentWeightG = barn.batch.currentWeight * 1000;
++                    const diff = ((currentWeightG / cobbData.weightG) - 1) * 100;
++                    const status = diff > 0 ? 'Acima' : diff < 0 ? 'Abaixo' : 'Na média';
++                    resultReport = `Peso Atual: ${currentWeightG.toFixed(0)}g | Padrão Cobb500 (Dia ${barn.batch.ageDays}): ${cobbData.weightG}g. O lote está ${Math.abs(diff).toFixed(1)}% ${status} do padrão.`;
++                  } else {
++                     resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
++                  }
++                }
++
++                return { ...task, completed: true, startedAt: Date.now(), resultReport };
++              }
++              return task;
++            })
++          };
++        }
++        return barn;
++      })
++    };
++  completeTask: (barnId, taskId) => set((state) => {
++      barns: state.barns.map(barn => {
++        if (barn.id === barnId) {
++          return {
++            ...barn,
++            dailyTasks: barn.dailyTasks.map(task => {
++              if (task.id === taskId) {
++                let resultReport = undefined;
++
++                if (task.id === 'check_feed_silo') {
++                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
++                  const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
++                  resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
++                }
++
++                if (task.id === 'record_weights' && barn.batch) {
++                  const cobbData = getCobb500Data(barn.batch.ageDays);
++                  if (cobbData) {
++                    const currentWeightG = barn.batch.currentWeight * 1000;
++                    const diff = ((currentWeightG / cobbData.weightG) - 1) * 100;
++                    const status = diff > 0 ? 'Acima' : diff < 0 ? 'Abaixo' : 'Na média';
++                    resultReport = `Peso Atual: ${currentWeightG.toFixed(0)}g | Padrão Cobb500 (Dia ${barn.batch.ageDays}): ${cobbData.weightG}g. O lote está ${Math.abs(diff).toFixed(1)}% ${status} do padrão.`;
++                  } else {
++                     resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
++                  }
++                }
++
++                return { ...task, completed: true, startedAt: Date.now(), resultReport };
++              }
++              return task;
++            })
++          };
++        }
++        return barn;
++      })
++    };
++  }),
+     }),
+     {
+       name: 'game-storage', // name of item in the storage (must be unique)

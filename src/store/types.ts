@@ -174,20 +174,22 @@ export interface DailyExpenses {
 export interface DailyTask {
   id: string;
   name: string;
-  durationMinutes: number;
-  startedAt: number | null; // timestamp in ms
-  completed: boolean;
-  effectType: 'MORTALITY' | 'GROWTH' | 'DISEASE';
-  severity: 'BAIXA' | 'MEDIA' | 'ALTA';
   description: string;
+  durationMinutes: number; // Tempo necessário para concluir
+  startedAt: number | null; // Timestamp de quando começou (para simular progresso)
+  completed: boolean;
+  effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
+  severity: 'BAIXA' | 'MEDIA' | 'ALTA';
+  resultReport?: string; // Relatório com informações geradas após a conclusão da tarefa
 }
 
 export interface Employee {
   id: string;
   name: string;
-  role: 'TRATADOR' | 'MOTORISTA' | 'OPERADOR_FABRICA';
-  experienceLevel: number; // 1 a 5 (cada nível melhora eficiência)
-  dailySalary: number; // Salário diário
+  role: 'VETERINARIO' | 'GERENTE' | 'MOTORISTA' | 'OPERADOR_FABRICA' | 'TRATADOR';
+  salary: number;
+  experienceLevel: number;
+  assignedBarnId?: string | null; // Apenas para TRATADORES
 }
 
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
@@ -208,7 +210,9 @@ export interface GameState {
   company: Company | null;
   region: Region | null;
   money: number;
+  gold: number;
   currentDay: number;
+  currentHour: number;
   level: number;
   xp: number;
 
@@ -223,8 +227,11 @@ export interface GameState {
   payEmergencyLoan: () => void;
 
   // Research
-  unlockedResearches: string[];
-  unlockResearch: (researchId: string) => void;
+  researches: Record<string, any>;
+  activeResearchId: string | null;
+  activeResearchDaysLeft: number;
+  fetchResearchesApi: () => Promise<void>;
+  startResearchApi: (researchId: string) => Promise<void>;
   
   // Async Economy Actions
   buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
@@ -238,7 +245,8 @@ export interface GameState {
   // Tasks
   dailyTasks: DailyTask[];
   startTask: (taskId: string) => void;
-  completeTask: (taskId: string) => void;
+  completeTask: (barnId: string, taskId: string) => void;
+  accelerateTask: (barnId: string, taskId: string) => void;
   
   // Market State
   marketPrices: MarketPrices;
@@ -276,7 +284,7 @@ export interface GameState {
 
   // Actions
   buyBarn: (barn: Barn, cost: number) => void;
-  upgradeBarn: (barnId: string, cost: number) => void;
+  upgradeSilo: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
   buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;

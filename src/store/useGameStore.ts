@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
-  RESEARCHES,
   DISCARD_BIRD_PRICE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
@@ -10,7 +9,7 @@ import { api } from '../lib/api';
 
 // Funções utilitárias mantidas para não quebrar a tipagem existente
 const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
-  const tasks: Omit<DailyTask, 'startedAt' | 'completed'>[] = [
+  const tasks: Omit<DailyTask, 'startedAt' | 'completed' | 'resultReport'>[] = [
     {
       id: 'clean_drinkers',
       name: 'Limpar Bebedouros',
@@ -29,11 +28,19 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
     },
     {
       id: 'biosecurity',
-      name: 'Biosseguridade (Pedilúvio/Acesso)',
-      description: 'Controle de entrada, troca de botas e rotina de higienização.',
+      name: 'Biosseguridade',
+      description: 'Controle de entrada, troca de botas e higienização.',
       durationMinutes: 5,
       effectType: 'DISEASE',
       severity: 'ALTA',
+    },
+    {
+      id: 'check_litter',
+      name: 'Manejo de Cama',
+      description: 'Revolve cama, remove umidade e reduz amônia.',
+      durationMinutes: 4,
+      effectType: 'DISEASE',
+      severity: 'BAIXA',
     },
     {
       id: 'check_feed_silo',
@@ -46,20 +53,25 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
     {
       id: 'record_weights',
       name: 'Aferir Peso (Amostragem)',
-      description: 'Amostragem do lote para detectar desvio de ganho e ajustar manejo.',
+      description: 'Amostragem do lote para comparar com o manual de linhagem.',
       durationMinutes: 8,
       effectType: 'GROWTH',
       severity: 'BAIXA',
-    },
-    {
-      id: 'check_litter',
-      name: 'Manejo de Cama',
-      description: 'Revolve cama, remove umidade e reduz amônia.',
-      durationMinutes: 4,
-      effectType: 'DISEASE',
-      severity: 'BAIXA',
-    },
+    }
   ];
+
+  // Tarefa de Alimentação Manual se algum galpão NÃO TIVER Comedouro Automático
+  const needsManualFeed = barns.some(b => b.batch && !b.equipment.includes('eq_comedouro_auto'));
+  if (needsManualFeed) {
+    tasks.push({
+      id: 'manual_feed',
+      name: 'Alimentar Lote (Manual)',
+      description: 'Distribuir ração nos pratos manualmente. (Compre Comedouro Automático para evitar)',
+      durationMinutes: 15,
+      effectType: 'GROWTH', // Afeta o ganho se não der comida
+      severity: 'ALTA',
+    });
+  }
 
   const hasMortalityHistory = barns.some(b => b.batch && b.batch.mortalityCount > 0);
   if (hasMortalityHistory) {
@@ -91,7 +103,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       isRented: false,
       sanitaryVoidDays: 0,
       siloBalance: 0,
-      siloCapacity: 5000,
+      siloCapacity: 2000,
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -118,7 +130,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     isRented: false,
     sanitaryVoidDays: 0,
     siloBalance: 0,
-    siloCapacity: 10000,
+    siloCapacity: 2000,
     batch: {
       id: 'batch_1',
       animalCount: 1000,
@@ -169,6 +181,10 @@ export const useGameStore = create<GameState>()(
       set({
         company: { name: player.company_name, color: player.company_color },
         money: player.money,
+        xp: player.xp || 0,
+        level: player.level || 1,
+        activeResearchId: player.active_research_id || null,
+        activeResearchDaysLeft: player.active_research_days_left || 0,
         currentDay: player.current_day,
         totalProfit: player.total_profit,
         totalExpenses: player.total_expenses,
@@ -240,6 +256,8 @@ export const useGameStore = create<GameState>()(
       // Envia o estado local atual para sobrescrever o servidor
       await api.post('/game/sync/', {
         money: state.money,
+        xp: state.xp,
+        level: state.level,
         totalProfit: state.totalProfit,
         totalExpenses: state.totalExpenses,
         currentMonthRevenue: state.currentMonthRevenue,
@@ -252,12 +270,47 @@ export const useGameStore = create<GameState>()(
         barns: state.barns
       });
       console.log('Sincronização com servidor concluída com sucesso!');
+      
+      // Busca atualizações (como pesquisas que podem ter finalizado)
+      await get().fetchGameState();
+      await get().fetchResearchesApi();
     } catch (err) {
       console.error('Erro ao sincronizar estado com servidor', err);
     }
   },
 
   // Async Economy Actions (Para Nuvem - Híbrido)
+  fetchResearchesApi: async () => {
+    try {
+      if (get().isAuthenticated && navigator.onLine) {
+        const response = await api.get('/game/research/');
+        set({ researches: response.data });
+      }
+    } catch (err) {
+      console.error("Erro ao buscar pesquisas da nuvem", err);
+    }
+  },
+
+  startResearchApi: async (researchId: string) => {
+    try {
+      if (get().isAuthenticated && navigator.onLine) {
+        const response = await api.post('/game/research/start/', { research_id: researchId });
+        set({
+          money: response.data.player.money,
+          xp: response.data.player.xp,
+          activeResearchId: response.data.player.active_research_id,
+          activeResearchDaysLeft: response.data.player.active_research_days_left,
+          researches: response.data.researches
+        });
+        alert(response.data.message);
+      } else {
+        alert("Conecte-se online para realizar pesquisas!");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Erro ao iniciar pesquisa.");
+    }
+  },
+
   buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
     const scheduledDays = Math.max(0, Math.floor(scheduledInDays || 0));
     if (scheduledDays > 0 || useOwnTruck) {
@@ -349,7 +402,7 @@ export const useGameStore = create<GameState>()(
         isRented: false,
         sanitaryVoidDays: 0,
         siloBalance: 0,
-        siloCapacity: 5000,
+        siloCapacity: 2000,
         batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
@@ -399,12 +452,16 @@ export const useGameStore = create<GameState>()(
   company: null,
   region: null,
   money: 0,
+  gold: 1000,
   currentDay: 0, // starts at 0 to prevent running before init
+  currentHour: 6, // Começa as 6:00
   level: 1,
   xp: 0,
   currentWeather: 'SUNNY',
   weatherDaysLeft: 3,
-  unlockedResearches: [],
+  researches: {},
+  activeResearchId: null,
+  activeResearchDaysLeft: 0,
   bankLoan: 0,
   loanInstallment: 0,
   loanInstallmentsRemaining: 0,
@@ -474,6 +531,7 @@ export const useGameStore = create<GameState>()(
       region,
       money: INITIAL_MONEY,
       currentDay: 1,
+      currentHour: 6, // Começa as 6:00
       level: 1,
       xp: 0,
       bankLoan: 0,
@@ -497,7 +555,6 @@ export const useGameStore = create<GameState>()(
         { itemId: 'parts', quantity: 5 }
       ],
       pendingDeliveries: [],
-      unlockedResearches: [],
       ownedMachinery: [],
       employees: [],
       products: { eggs: 0, meat: 0 },
@@ -548,21 +605,17 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  upgradeBarn: (barnId, cost) => set((state) => {
+  upgradeSilo: (barnId, cost) => set((state) => {
     if (state.money >= cost) {
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
         barns: state.barns.map(barn => {
           if (barn.id === barnId) {
-            const sizeMultiplier = barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1;
             return {
               ...barn,
-              level: barn.level + 1,
-              // Cada nível aumenta a capacidade base em 10%
-              capacity: Math.floor(barn.capacity * 1.1),
-              // Cada nível aumenta um pouco o custo diário
-              dailyCost: barn.dailyCost + (2 * sizeMultiplier)
+              // Cada nível aumenta a capacidade do silo em 2000kg
+              siloCapacity: barn.siloCapacity + 2000,
             };
           }
           return barn;
@@ -609,9 +662,11 @@ export const useGameStore = create<GameState>()(
   buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, useOwnTruck = false) => set((state) => {
     let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
     
-    // Buff de Motorista
+    // Buff de Motorista e Pesquisa inf_2
     const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
-    freightCost *= Math.max(0.2, 1 - driverBuff);
+    const inf2Bonus = state.researches['inf_2']?.current_bonus || 0;
+    
+    freightCost *= Math.max(0.2, 1 - driverBuff - inf2Bonus);
 
     // Impacto de evento no frete
     if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
@@ -863,7 +918,11 @@ export const useGameStore = create<GameState>()(
       return state;
     }
 
-    if (state.money >= costToProduce && state.hasFeedMill) {
+    let finalCost = costToProduce;
+    const nut3Bonus = state.researches['nut_3']?.current_bonus || 0;
+    finalCost *= Math.max(0.1, 1 - nut3Bonus);
+
+    if (state.money >= finalCost && state.hasFeedMill) {
       const newInventory = [...state.inventory];
       newInventory[cornIdx].quantity -= cornNeeded;
       newInventory[soyIdx].quantity -= soyNeeded;
@@ -877,12 +936,53 @@ export const useGameStore = create<GameState>()(
       }
       
       return {
-        money: state.money - costToProduce,
-        totalExpenses: state.totalExpenses + costToProduce,
+        money: state.money - finalCost,
+        totalExpenses: state.totalExpenses + finalCost,
         inventory: newInventory,
       };
     }
     return state;
+  }),
+
+  assignEmployeeToBarn: (employeeId, barnId) => set((state) => ({
+    employees: state.employees.map(emp => emp.id === employeeId ? { ...emp, assignedBarnId: barnId } : emp)
+  })),
+
+  advanceHour: () => set((state) => {
+    let nextHour = state.currentHour + 1;
+    if (nextHour >= 24) {
+      // Se virou o dia usando horas
+      get().advanceDay();
+      return { currentHour: 0 };
+    }
+
+    // Funcionários (Tratadores) completam tarefas do galpão automaticamente
+    const newBarns = state.barns.map(barn => {
+      // Encontra tratadores designados para esse galpão
+      const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
+      if (assignedKeepers.length === 0) return barn;
+
+      // Cada nível de tratador dá 'X' minutos de capacidade de trabalho por hora
+      // Ex: Nível 1 = 60 min, Nível 2 = 70 min, etc
+      let totalWorkMinutesAvailable = assignedKeepers.reduce((acc, k) => acc + (60 + (k.experienceLevel * 10)), 0);
+
+      const newTasks = barn.dailyTasks.map(task => {
+        if (task.completed) return task;
+        
+        if (totalWorkMinutesAvailable >= task.durationMinutes) {
+          totalWorkMinutesAvailable -= task.durationMinutes;
+          return { ...task, completed: true, startedAt: Date.now() }; // Completa a tarefa
+        }
+        return task;
+      });
+
+      return { ...barn, dailyTasks: newTasks };
+    });
+
+    return {
+      currentHour: nextHour,
+      barns: newBarns
+    };
   }),
 
   advanceDay: (days = 1) => set((state) => {
@@ -914,7 +1014,19 @@ export const useGameStore = create<GameState>()(
     let emergencyLoanAvailable = state.emergencyLoanAvailable;
     let emergencyLoanActive = state.emergencyLoanActive;
 
-    for (let day = 0; day < days; day++) {
+    let newActiveResearchDaysLeft = state.activeResearchDaysLeft;
+    let newActiveResearchId = state.activeResearchId;
+    let finishedResearchLocally = false;
+
+    const gen1Bonus = state.researches['gen_1']?.current_bonus || 0;
+    const gen2Bonus = state.researches['gen_2']?.current_bonus || 0;
+    const nut1Bonus = state.researches['nut_1']?.current_bonus || 0;
+    const inf1Bonus = state.researches['inf_1']?.current_bonus || 0;
+    const hea1Bonus = state.researches['hea_1']?.current_bonus || 0;
+      const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
+      const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
+
+      for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
       
@@ -964,7 +1076,7 @@ export const useGameStore = create<GameState>()(
       if (currentFinancialBuff > 0) currentFinancialBuff -= 1;
 
       // Despesas com funcionários e Buffs
-      let laborCost = state.employees.reduce((acc, emp) => acc + emp.dailySalary, 0);
+      let laborCost = state.employees.reduce((acc, emp) => acc + emp.salary, 0);
       dailyExpenses += laborCost;
       detailedExpenses.labor += laborCost;
 
@@ -973,6 +1085,9 @@ export const useGameStore = create<GameState>()(
       if (state.hasFeedMill) energyCost += 50;
       if (state.hasIncubator) energyCost += 30;
       if (state.hasSlaughterhouse) energyCost += 100;
+
+      // Aplica bônus de Infraestrutura (inf_1)
+      energyCost *= (1 - inf1Bonus);
 
       let waterCost = state.barns.reduce((acc, barn) => acc + (barn.batch ? barn.batch.animalCount * 0.005 : 0), 0); // R$ 0.005 por ave/dia
       
@@ -1055,6 +1170,14 @@ export const useGameStore = create<GameState>()(
 
       // Sazonalidade e Eventos de Mercado
       const currentMonth = getGameMonth(currentDay);
+      
+      if (newActiveResearchId && newActiveResearchDaysLeft > 0) {
+        newActiveResearchDaysLeft -= 1;
+        if (newActiveResearchDaysLeft <= 0) {
+          finishedResearchLocally = true;
+          newActiveResearchId = null;
+        }
+      }
       let seasonalFeedMod = 1.0;
       let seasonalMeatMod = 1.0;
       let seasonalEggMod = 1.0;
@@ -1070,6 +1193,9 @@ export const useGameStore = create<GameState>()(
       if (currentMonth === 2 || currentMonth === 3) seasonalEggMod = 1.15; 
 
       if (currentEvent?.effectType === 'FEED_SPIKE') seasonalFeedMod *= currentEvent.severity;
+
+      const nut2Bonus = state.researches['nut_2']?.current_bonus || 0;
+      seasonalFeedMod *= (1 - nut2Bonus); // Desconto de pesquisa
 
       // Flutuação de mercado a cada dia
       currentMarketPrices.egg = EGG_PRICE * (0.95 + Math.random() * 0.1) * (state.region?.productSaleModifier || 1) * seasonalEggMod;
@@ -1159,7 +1285,8 @@ export const useGameStore = create<GameState>()(
           0.6,
           (newBatch.activeDisease ? 0.9 : 1) *
             (newBatch.hygieneLevel < 40 ? 0.85 : newBatch.hygieneLevel < 70 ? 0.95 : 1) *
-            growthPenalty
+            growthPenalty *
+            (1 - nut1Bonus) // Reduz consumo com pesquisa
         );
         dailyFeedNeeded *= appetiteModifier;
 
@@ -1254,7 +1381,7 @@ export const useGameStore = create<GameState>()(
         if (!newBatch.activeDisease) {
           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
-          diseaseChance *= diseasePenalty * diseaseSpikeMod;
+          diseaseChance *= diseasePenalty * diseaseSpikeMod * (1 - hea1Bonus); // Bônus da pesquisa hea_1
           
           if (newBatch.vaccineProtectionDays > 0) {
             diseaseChance *= 0.1; // 90% menos chance com vacina
@@ -1292,6 +1419,11 @@ export const useGameStore = create<GameState>()(
         }
         
         eventMortal *= weatherMortality;
+        
+        // Bônus hea_3: Reduz danos de eventos drásticos
+        if (eventMortal > 1) {
+          eventMortal = 1 + ((eventMortal - 1) * Math.max(0, 1 - hea3Bonus));
+        }
 
         const diseaseMortal = newBatch.activeDisease ? newBatch.activeDisease.mortalityModifier : 1;
         const diseaseGrowth = newBatch.activeDisease ? newBatch.activeDisease.growthModifier : 1;
@@ -1313,12 +1445,15 @@ export const useGameStore = create<GameState>()(
 
         if (barn.type === 'POSTURA' && newBatch.ageDays >= 120) {
           if (!starved) {
-            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty;
-            // Reduz drasticamente a postura se passar da idade máxima
-            if (newBatch.ageDays > 600) {
+            let postureRate = 0.8 * feedData.bonus.eggModifier * diseaseEgg * (1 + equipmentEggBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen2Bonus);
+            
+            // Reduz drasticamente a postura se passar da idade máxima (expandida por gen_3)
+            const maxAge = 600 + gen3Bonus;
+            
+            if (newBatch.ageDays > maxAge) {
               postureRate *= 0.1; // 90% de queda na postura
-            } else if (newBatch.ageDays > 500) {
-              postureRate *= 0.5; // Começa a cair a partir dos 500 dias
+            } else if (newBatch.ageDays > maxAge - 100) {
+              postureRate *= 0.5; // Começa a cair 100 dias antes do maxAge
             }
             
             const eggsToday = Math.floor(newBatch.animalCount * postureRate);
@@ -1328,7 +1463,7 @@ export const useGameStore = create<GameState>()(
           if (!starved) {
             // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
             // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
-            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty; 
+            const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen1Bonus); 
             // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
             // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
             const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
@@ -1377,13 +1512,16 @@ export const useGameStore = create<GameState>()(
         ...state.products,
         eggs: newEggs
       },
-      barns: newBarns,
+      currentHour: 6,
+      barns: newBarns.map(b => ({ ...b, dailyTasks: generateDailyTasks([b]) })),
       inventory: currentInventory,
       pendingDeliveries,
       currentWeather,
       weatherDaysLeft,
       emergencyLoanAvailable,
-      emergencyLoanActive
+      emergencyLoanActive,
+      activeResearchId: newActiveResearchId,
+      activeResearchDaysLeft: newActiveResearchDaysLeft,
     };
   }),
 
@@ -1479,23 +1617,10 @@ export const useGameStore = create<GameState>()(
     };
   }),
 
-  unlockResearch: (researchId) => set((state) => {
-    const r = RESEARCHES[researchId];
-    if (!r || state.unlockedResearches.includes(researchId)) return state;
-    if (state.money >= r.costMoney && state.xp >= r.costXP) {
-      return {
-        money: state.money - r.costMoney,
-        xp: state.xp - r.costXP,
-        totalExpenses: state.totalExpenses + r.costMoney,
-        unlockedResearches: [...state.unlockedResearches, researchId]
-      };
-    }
-    return state;
-  }),
-
   vaccinateBatch: (barnId, cost) => set((state) => {
     if (state.money >= cost) {
-      const duration = state.unlockedResearches.includes('hea_2') ? 25 : 15;
+      const hea2Bonus = state.researches['hea_2']?.current_bonus || 0;
+      const duration = 15 + hea2Bonus;
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
@@ -1665,9 +1790,87 @@ export const useGameStore = create<GameState>()(
     dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
   })),
 
-  completeTask: (taskId) => set((state) => ({
-    dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, completed: true } : t)
-  })),
+  accelerateTask: (barnId, taskId) => set((state) => {
+    if (state.gold < 10) {
+      alert("Ouro insuficiente para acelerar a tarefa (Custa 10 Ouro).");
+      return state;
+    }
+    
+    // Desconta o ouro e completa a tarefa chamando o setState modificado (reaproveitando a logica de completude)
+    return {
+      gold: state.gold - 10,
+      barns: state.barns.map(barn => {
+        if (barn.id === barnId) {
+          return {
+            ...barn,
+            dailyTasks: barn.dailyTasks.map(task => {
+              if (task.id === taskId) {
+                let resultReport = undefined;
+
+                if (task.id === 'check_feed_silo') {
+                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
+                  resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
+                }
+
+                if (task.id === 'record_weights' && barn.batch) {
+                  const cobbData = getCobb500Data(barn.batch.ageDays);
+                  if (cobbData) {
+                    const currentWeightG = barn.batch.currentWeight * 1000;
+                    const diff = ((currentWeightG / cobbData.weightG) - 1) * 100;
+                    const status = diff > 0 ? 'Acima' : diff < 0 ? 'Abaixo' : 'Na média';
+                    resultReport = `Peso Atual: ${currentWeightG.toFixed(0)}g | Padrão Cobb500 (Dia ${barn.batch.ageDays}): ${cobbData.weightG}g. O lote está ${Math.abs(diff).toFixed(1)}% ${status} do padrão.`;
+                  } else {
+                     resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
+                  }
+                }
+
+                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+              }
+              return task;
+            })
+          };
+        }
+        return barn;
+      })
+    };
+  completeTask: (barnId, taskId) => set((state) => {
+      barns: state.barns.map(barn => {
+        if (barn.id === barnId) {
+          return {
+            ...barn,
+            dailyTasks: barn.dailyTasks.map(task => {
+              if (task.id === taskId) {
+                let resultReport = undefined;
+
+                if (task.id === 'check_feed_silo') {
+                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
+                  resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
+                }
+
+                if (task.id === 'record_weights' && barn.batch) {
+                  const cobbData = getCobb500Data(barn.batch.ageDays);
+                  if (cobbData) {
+                    const currentWeightG = barn.batch.currentWeight * 1000;
+                    const diff = ((currentWeightG / cobbData.weightG) - 1) * 100;
+                    const status = diff > 0 ? 'Acima' : diff < 0 ? 'Abaixo' : 'Na média';
+                    resultReport = `Peso Atual: ${currentWeightG.toFixed(0)}g | Padrão Cobb500 (Dia ${barn.batch.ageDays}): ${cobbData.weightG}g. O lote está ${Math.abs(diff).toFixed(1)}% ${status} do padrão.`;
+                  } else {
+                     resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
+                  }
+                }
+
+                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+              }
+              return task;
+            })
+          };
+        }
+        return barn;
+      })
+    };
+  }),
     }),
     {
       name: 'game-storage', // name of item in the storage (must be unique)
