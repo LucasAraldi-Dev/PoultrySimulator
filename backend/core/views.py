@@ -63,6 +63,7 @@ def sync_game_state(request):
         
         # Atualiza campos básicos do Player
         player.money = data.get('money', player.money)
+        player.gold = data.get('gold', player.gold)
         player.xp = data.get('xp', player.xp)
         player.level = data.get('level', player.level)
         player.total_profit = data.get('totalProfit', player.total_profit)
@@ -124,7 +125,7 @@ def sync_game_state(request):
                     barn_type=b_data.get('type', 'POSTURA'),
                     capacity=b_data.get('capacity', 1000),
                     level=b_data.get('level', 1),
-                    silo_capacity=b_data.get('siloCapacity', 5000),
+                    silo_capacity=b_data.get('siloCapacity', 2000),
                     silo_balance=b_data.get('siloBalance', 0),
                     selected_feed_id=b_data.get('selectedFeedId', 'feed_basic'),
                     is_rented=b_data.get('isRented', False),
