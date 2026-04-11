@@ -47,6 +47,7 @@ export default function GameLayout() {
   const currentHour = useGameStore(state => state.currentHour);
   const advanceHour = useGameStore(state => state.advanceHour);
   const accelerateTask = useGameStore(state => state.accelerateTask);
+  const completeTask = useGameStore(state => state.completeTask);
   const barns = useGameStore(state => state.barns);
 
   const pendingTasks = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
@@ -397,100 +398,6 @@ export default function GameLayout() {
 
       {/* Modal de Tarefas */}
       <AnimatePresence>
-        {showTasksModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
-            >
-              <div className="p-6 border-b border-zinc-200 flex justify-between items-center bg-zinc-50">
-                <h2 className="text-xl font-bold text-zinc-800 flex items-center gap-2">
-                  <CheckSquare className="text-indigo-600" /> Tarefas Reais
-                </h2>
-                <button onClick={() => setShowTasksModal(false)} className="text-zinc-500 hover:text-zinc-800 font-bold px-3 py-1 bg-zinc-200 rounded-lg">Fechar</button>
-              </div>
-              
-              <div className="p-6 overflow-y-auto flex-1 bg-white space-y-4">
-                <p className="text-sm text-zinc-500 mb-2">Conclua essas tarefas no tempo real para garantir que sua granja tenha a melhor performance. Ignorar tarefas pode causar doenças, atrasar o crescimento ou aumentar a mortalidade.</p>
-                
-                {dailyTasks.map(task => {
-                  const isStarted = task.startedAt !== null;
-                  const severity = task.severity || 'MEDIA';
-                  const severityLabel = severity === 'ALTA' ? 'Crítica' : severity === 'BAIXA' ? 'Básica' : 'Importante';
-                  const severityClasses = severity === 'ALTA'
-                    ? 'bg-red-100 text-red-700'
-                    : severity === 'BAIXA'
-                      ? 'bg-zinc-100 text-zinc-600'
-                      : 'bg-amber-100 text-amber-700';
-                  let progress = 0;
-                  let timeLeftStr = "";
-                  
-                  if (isStarted && !task.completed) {
-                    const elapsed = now - task.startedAt!;
-                    const required = task.durationMinutes * 60 * 1000;
-                    progress = Math.min(100, (elapsed / required) * 100);
-                    
-                    const leftMs = Math.max(0, required - elapsed);
-                    const m = Math.floor(leftMs / 60000);
-                    const s = Math.floor((leftMs % 60000) / 1000);
-                    timeLeftStr = `${m}:${s.toString().padStart(2, '0')}`;
-                  }
-
-                  return (
-                    <div key={task.id} className={`border rounded-xl p-4 flex flex-col gap-3 transition-colors ${task.completed ? 'bg-emerald-50 border-emerald-200' : isStarted ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-zinc-200'}`}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className={`font-bold ${task.completed ? 'text-emerald-800' : 'text-zinc-800'}`}>{task.name}</h3>
-                          <p className="text-xs text-zinc-500 mt-1">{task.description}</p>
-                        </div>
-                        {task.completed ? (
-                          <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">Concluído ✓</span>
-                        ) : isStarted ? (
-                          <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold font-mono flex items-center gap-1">
-                            <Loader2 size={12} className="animate-spin" /> {timeLeftStr}
-                          </span>
-                        ) : (
-                          <div className="flex flex-col items-end gap-1">
-                            <span className={`${severityClasses} px-2 py-1 rounded text-xs font-bold`}>{severityLabel}</span>
-                            <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded text-xs font-bold">{task.durationMinutes} min</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {!task.completed && (
-                        <div>
-                          {isStarted ? (
-                            <div className="flex items-center gap-2 mt-2">
-                              <div className="flex-1 bg-indigo-200 rounded-full h-2">
-                                <div className="bg-indigo-600 h-2 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }}></div>
-                              </div>
-                              <button
-                                onClick={() => accelerateTask(barn.id, task.id)}
-                                className="bg-amber-400 hover:bg-amber-500 text-amber-900 px-3 py-1 rounded text-xs font-bold flex items-center gap-1 shrink-0 shadow-sm"
-                                title="Acelerar instantaneamente (Custo: 10 Ouro)"
-                              >
-                                <Coins size={12} /> Acelerar (10)
-                              </button>
-                            </div>
-                          ) : (
-                            <button 
-                              onClick={() => startTask(task.id)}
-                              className="w-full mt-2 py-2 bg-zinc-800 hover:bg-black text-white text-sm font-bold rounded-lg transition-colors"
-                            >
-                              Iniciar Tarefa
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </div>
-        )}
       </AnimatePresence>
     </div>
   );

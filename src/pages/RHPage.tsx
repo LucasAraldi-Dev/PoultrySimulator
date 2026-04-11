@@ -111,7 +111,7 @@ export default function RHPage() {
                     <div className="mt-4 pt-4 border-t border-zinc-100 flex flex-col gap-2">
                       <p className="text-sm flex justify-between">
                         <span className="text-zinc-500">Salário/Dia:</span>
-                        <span className="font-bold text-red-600">- R$ {emp.dailySalary.toFixed(2)}</span>
+                        <span className="font-bold text-red-600">- R$ {emp.salary.toFixed(2)}</span>
                       </p>
                       
                       <div className="flex gap-2 mt-2">
