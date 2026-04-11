@@ -577,8 +577,11 @@ export const useGameStore = create<GameState>()(
       history: [],
       activeEvent: null,
       activeMissions: [],
+      gameSpeed: 1,
     };
   }),
+
+  setGameSpeed: (speed) => set({ gameSpeed: speed }),
 
   takeEmergencyLoan: (amount) => set((state) => {
     // Empréstimo de emergência tem 60 dias de carência e juros de 20%

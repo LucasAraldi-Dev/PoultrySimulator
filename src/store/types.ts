@@ -287,6 +287,10 @@ export interface GameState {
   activeEvent: RandomEvent | null;
   activeMissions: Mission[];
 
+  // Game Speed & Loop
+  gameSpeed: number; // 0 = Pause, 1 = Normal, 2 = Rápido, 3 = Muito Rápido
+  setGameSpeed: (speed: number) => void;
+
   // Actions
   buyBarn: (barn: Barn, cost: number) => void;
   upgradeBarn: (barnId: string, cost: number) => void;
