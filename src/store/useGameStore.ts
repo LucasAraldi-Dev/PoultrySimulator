@@ -105,6 +105,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       sanitaryVoidDays: 0,
       siloBalance: 0,
       siloCapacity: 2000,
+      dailyTasks: [],
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -131,8 +132,9 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     isRented: false,
     sanitaryVoidDays: 0,
     siloBalance: 0,
-    siloCapacity: 2000,
-    batch: {
+      siloCapacity: 2000,
+      dailyTasks: [],
+      batch: {
       id: 'batch_1',
       animalCount: 1000,
       ageDays: 1,
@@ -404,6 +406,7 @@ export const useGameStore = create<GameState>()(
         sanitaryVoidDays: 0,
         siloBalance: 0,
         siloCapacity: 2000,
+        dailyTasks: [],
         batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
@@ -604,6 +607,28 @@ export const useGameStore = create<GameState>()(
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
         barns: [...state.barns, barn],
+      };
+    }
+    return state;
+  }),
+
+  upgradeBarn: (barnId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        barns: state.barns.map(barn => {
+          if (barn.id === barnId) {
+            const sizeMultiplier = barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1;
+            return {
+              ...barn,
+              level: barn.level + 1,
+              capacity: Math.floor(barn.capacity * 1.1),
+              dailyCost: barn.dailyCost + (2 * sizeMultiplier)
+            };
+          }
+          return barn;
+        })
       };
     }
     return state;
@@ -1729,7 +1754,7 @@ export const useGameStore = create<GameState>()(
       name: `Funcionário ${state.employees.length + 1}`,
       role,
       experienceLevel: 1,
-      dailySalary: baseSalaries[role]
+      salary: baseSalaries[role as keyof typeof baseSalaries] || 50
     };
     return { employees: [...state.employees, newEmployee] };
   }),
@@ -1745,7 +1770,7 @@ export const useGameStore = create<GameState>()(
         totalExpenses: state.totalExpenses + cost,
         employees: state.employees.map(e => {
           if (e.id === employeeId && e.experienceLevel < 5) {
-            return { ...e, experienceLevel: e.experienceLevel + 1, dailySalary: e.dailySalary * 1.2 };
+            return { ...e, experienceLevel: e.experienceLevel + 1, salary: e.salary * 1.2 };
           }
           return e;
         })

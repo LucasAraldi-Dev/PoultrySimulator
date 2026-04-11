@@ -23,7 +23,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     checkAchievements();
-  }, [checkAchievements, money, totalAnimals, inventory]); // basic dependencies to recheck
+  }, [checkAchievements, money, barns, inventory]); // basic dependencies to recheck
 
   const balance = totalProfit - totalExpenses;
   const isProfitable = balance >= 0;
@@ -283,6 +283,8 @@ export default function Dashboard() {
                 <p className="text-red-500 text-sm mt-1">Suas aves vão morrer de fome.</p>
               </div>
             )}
+          </div>
+
           {/* Conquistas */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
             <h2 className="text-lg font-bold text-zinc-800 mb-4 flex items-center gap-2">

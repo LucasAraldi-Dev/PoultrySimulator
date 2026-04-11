@@ -90,6 +90,7 @@ export interface Barn {
   selectedFeedId: string; // Ração selecionada para o galpão
   siloBalance: number; // kg de ração no silo do galpão
   siloCapacity: number; // kg máximos que o silo aguenta
+  dailyTasks: DailyTask[]; // Tarefas do galpão
 }
 
 export interface InventoryItem {
@@ -287,6 +288,7 @@ export interface GameState {
 
   // Actions
   buyBarn: (barn: Barn, cost: number) => void;
+  upgradeBarn: (barnId: string, cost: number) => void;
   upgradeSilo: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
@@ -296,6 +298,7 @@ export interface GameState {
   sellBatch: (barnId: string) => void; // Para descarte de Postura
   feedFlock: (barnId: string, feedId: string, amountKg: number) => void;
   advanceDay: (days?: number) => void; // Parâmetro days opcional para avançar vários dias
+  advanceHour: () => void;
   resetGame: (initialChoice: 'POSTURA' | 'CORTE', companyName: string, companyColor: string, regionId: string) => void;
   addXp: (amount: number) => void;
   deliverMission: (missionId: string) => void;

@@ -29,6 +29,7 @@ export default function FacilitiesPage() {
         sanitaryVoidDays: 0,
         siloBalance: 0,
         siloCapacity: 2000,
+        dailyTasks: [],
         batch: null,
         selectedFeedId: model.id.includes('postura') ? 'feed_layers_start' : 'feed_broiler_pre',
       }, model.baseCost);
