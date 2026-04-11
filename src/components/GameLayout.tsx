@@ -142,12 +142,11 @@ export default function GameLayout() {
 
   const navItems = [
     { to: '/painel', icon: LayoutDashboard, label: 'Painel' },
-    { to: '/galpoes', icon: Home, label: 'Galpões' },
+    { to: '/infra', icon: Home, label: 'Infraestrutura' },
     { to: '/mercado', icon: ShoppingCart, label: 'Mercado' },
-    { to: '/fabricas', icon: Settings, label: 'Fábricas' },
     { to: '/rh', icon: Users, label: 'RH/Consultoria' },
     { to: '/financas', icon: DollarSign, label: 'Finanças' },
-    { to: '/research', icon: Microscope, label: 'Pesquisas' },
+    { to: '/pesquisa', icon: Microscope, label: 'Pesquisa' },
   ];
 
   return (

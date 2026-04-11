@@ -28,27 +28,11 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
     },
     {
       id: 'biosecurity',
-      name: 'Biosseguridade (Pedilúvio/Acesso)',
-      description: 'Controle de entrada, troca de botas e rotina de higienização.',
+      name: 'Biosseguridade',
+      description: 'Controle de entrada, troca de botas e higienização.',
       durationMinutes: 5,
       effectType: 'DISEASE',
       severity: 'ALTA',
-    },
-    {
-      id: 'check_feed_silo',
-      name: 'Checar Estoque de Ração',
-      description: 'Confere consumo previsto e planeja reposição para evitar falta.',
-      durationMinutes: 1,
-      effectType: 'MORTALITY',
-      severity: 'ALTA',
-    },
-    {
-      id: 'record_weights',
-      name: 'Aferir Peso (Amostragem)',
-      description: 'Amostragem do lote para detectar desvio de ganho e ajustar manejo.',
-      durationMinutes: 8,
-      effectType: 'GROWTH',
-      severity: 'BAIXA',
     },
     {
       id: 'check_litter',
@@ -59,6 +43,19 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
       severity: 'BAIXA',
     },
   ];
+
+  // Tarefa de Alimentação Manual se algum galpão NÃO TIVER Comedouro Automático
+  const needsManualFeed = barns.some(b => b.batch && !b.equipment.includes('eq_comedouro_auto'));
+  if (needsManualFeed) {
+    tasks.push({
+      id: 'manual_feed',
+      name: 'Alimentar Lote (Manual)',
+      description: 'Distribuir ração nos pratos manualmente. (Compre Comedouro Automático para evitar)',
+      durationMinutes: 15,
+      effectType: 'GROWTH', // Afeta o ganho se não der comida
+      severity: 'ALTA',
+    });
+  }
 
   const hasMortalityHistory = barns.some(b => b.batch && b.batch.mortalityCount > 0);
   if (hasMortalityHistory) {
@@ -90,7 +87,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       isRented: false,
       sanitaryVoidDays: 0,
       siloBalance: 0,
-      siloCapacity: 5000,
+      siloCapacity: 2000,
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -117,7 +114,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     isRented: false,
     sanitaryVoidDays: 0,
     siloBalance: 0,
-    siloCapacity: 10000,
+    siloCapacity: 2000,
     batch: {
       id: 'batch_1',
       animalCount: 1000,
@@ -389,7 +386,7 @@ export const useGameStore = create<GameState>()(
         isRented: false,
         sanitaryVoidDays: 0,
         siloBalance: 0,
-        siloCapacity: 5000,
+        siloCapacity: 2000,
         batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
@@ -589,21 +586,17 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  upgradeBarn: (barnId, cost) => set((state) => {
+  upgradeSilo: (barnId, cost) => set((state) => {
     if (state.money >= cost) {
       return {
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
         barns: state.barns.map(barn => {
           if (barn.id === barnId) {
-            const sizeMultiplier = barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1;
             return {
               ...barn,
-              level: barn.level + 1,
-              // Cada nível aumenta a capacidade base em 10%
-              capacity: Math.floor(barn.capacity * 1.1),
-              // Cada nível aumenta um pouco o custo diário
-              dailyCost: barn.dailyCost + (2 * sizeMultiplier)
+              // Cada nível aumenta a capacidade do silo em 2000kg
+              siloCapacity: barn.siloCapacity + 2000,
             };
           }
           return barn;

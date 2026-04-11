@@ -279,7 +279,7 @@ export interface GameState {
 
   // Actions
   buyBarn: (barn: Barn, cost: number) => void;
-  upgradeBarn: (barnId: string, cost: number) => void;
+  upgradeSilo: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
   buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;

@@ -257,8 +257,8 @@ export const EQUIPMENTS: Record<string, import('./types').Equipment> = {
     name: 'Comedouro Automático',
     cost: 1200,
     requiredLevel: 4,
-    description: 'Distribui ração automaticamente. Otimiza o espaço, permitindo mais aves no galpão, mas gasta energia.',
-    effect: { capacityIncrease: 500, dailyCostIncrease: 3 }, 
+    description: 'Distribui ração automaticamente, removendo a necessidade da tarefa diária manual.',
+    effect: { capacityIncrease: 0, dailyCostIncrease: 3 }, 
   },
   'eq_bebedouro_nipple': {
     id: 'eq_bebedouro_nipple',

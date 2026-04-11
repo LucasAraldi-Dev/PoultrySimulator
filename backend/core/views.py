@@ -124,7 +124,7 @@ def sync_game_state(request):
                     barn_type=b_data.get('type', 'POSTURA'),
                     capacity=b_data.get('capacity', 1000),
                     level=b_data.get('level', 1),
-                    silo_capacity=b_data.get('siloCapacity', 5000),
+                    silo_capacity=b_data.get('siloCapacity', 2000),
                     silo_balance=b_data.get('siloBalance', 0),
                     selected_feed_id=b_data.get('selectedFeedId', 'feed_basic'),
                     is_rented=b_data.get('isRented', False),

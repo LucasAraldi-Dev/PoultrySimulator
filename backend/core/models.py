@@ -48,7 +48,7 @@ class Barn(models.Model):
     capacity = models.IntegerField()
     level = models.IntegerField(default=1)
     
-    silo_capacity = models.IntegerField(default=5000)
+    silo_capacity = models.IntegerField(default=2000)
     silo_balance = models.FloatField(default=0.0)
     selected_feed_id = models.CharField(max_length=50, null=True, blank=True)
     
