@@ -17,6 +17,14 @@ class Player(models.Model):
     
     # Passagem de Tempo
     current_day = models.IntegerField(default=1)
+    
+    # Nível e Experiência
+    level = models.IntegerField(default=1)
+    xp = models.FloatField(default=0.0)
+    
+    # Pesquisa Ativa
+    active_research_id = models.CharField(max_length=50, null=True, blank=True)
+    active_research_days_left = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.user.username} - {self.company_name}"
@@ -78,3 +86,15 @@ class Products(models.Model):
 
     def __str__(self):
         return f"Produtos de {self.player.company_name}"
+
+class PlayerResearch(models.Model):
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='researches')
+    research_id = models.CharField(max_length=50)
+    level = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ('player', 'research_id')
+
+    def __str__(self):
+        return f"{self.player.company_name} - {self.research_id} Lvl {self.level}"
+

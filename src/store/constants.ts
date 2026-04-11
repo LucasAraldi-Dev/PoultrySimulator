@@ -533,23 +533,6 @@ export const MEAT_PRICE_PER_KG = 6.0; // Venda de frango vivo por KG
 export const MEAT_PROCESSED_PRICE_PER_KG = 10.0; // Venda frango abatido
 export const LAYER_COST = 18.0; // Price per young layer (franga)
 
-export interface Research {
-  id: string;
-  name: string;
-  description: string;
-  costMoney: number;
-  costXP: number;
-  category: 'GENETICS' | 'NUTRITION' | 'INFRASTRUCTURE' | 'HEALTH';
-}
-
-export const RESEARCHES: Record<string, Research> = {
-  'gen_1': { id: 'gen_1', name: 'Genética Avançada I', description: 'Aves de corte crescem 5% mais rápido.', costMoney: 5000, costXP: 1000, category: 'GENETICS' },
-  'gen_2': { id: 'gen_2', name: 'Seleção Postura I', description: 'Galinhas botam 5% mais ovos.', costMoney: 8000, costXP: 1500, category: 'GENETICS' },
-  'nut_1': { id: 'nut_1', name: 'Nutrição de Precisão', description: 'Reduz o consumo de ração das aves em 5%.', costMoney: 10000, costXP: 2000, category: 'NUTRITION' },
-  'inf_1': { id: 'inf_1', name: 'Isolamento Térmico', description: 'Reduz o consumo de Gás e Energia em 15%.', costMoney: 15000, costXP: 2500, category: 'INFRASTRUCTURE' },
-  'hea_1': { id: 'hea_1', name: 'Imunologia Base', description: 'Reduz a chance base de doenças em 20%.', costMoney: 12000, costXP: 2200, category: 'HEALTH' },
-  'hea_2': { id: 'hea_2', name: 'Super Vacinas', description: 'A vacina manual dura 25 dias em vez de 15.', costMoney: 20000, costXP: 3500, category: 'HEALTH' },
-};
 export const MAX_LAYER_AGE_DAYS = 600; // Idade em que as galinhas de postura param de botar bem
 export const DISCARD_BIRD_PRICE = 3.5; // Valor de venda da galinha de descarte
 export const SANITARY_VOID_DAYS = 15; // Dias que o galpão deve ficar vazio para desinfecção após a saída de um lote

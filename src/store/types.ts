@@ -223,8 +223,11 @@ export interface GameState {
   payEmergencyLoan: () => void;
 
   // Research
-  unlockedResearches: string[];
-  unlockResearch: (researchId: string) => void;
+  researches: Record<string, any>;
+  activeResearchId: string | null;
+  activeResearchDaysLeft: number;
+  fetchResearchesApi: () => Promise<void>;
+  startResearchApi: (researchId: string) => Promise<void>;
   
   // Async Economy Actions
   buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;

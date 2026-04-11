@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Player, Barn, Batch, InventoryItem, Products
+from .models import Player, Barn, Batch, InventoryItem, Products, PlayerResearch
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,11 +34,17 @@ class ProductsSerializer(serializers.ModelSerializer):
         model = Products
         fields = '__all__'
 
+class PlayerResearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlayerResearch
+        fields = ['research_id', 'level']
+
 class PlayerSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     barns = BarnSerializer(many=True, read_only=True)
     inventory = InventoryItemSerializer(many=True, read_only=True)
     products = ProductsSerializer(read_only=True)
+    researches = PlayerResearchSerializer(many=True, read_only=True)
 
     class Meta:
         model = Player

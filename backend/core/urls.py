@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import register, get_game_state, sync_game_state
+from .views import register, get_game_state, sync_game_state, start_research, get_researches
 from .game_logic import advance_day
 from .economy import buy_item, sell_products, buy_barn, buy_batch
 from rest_framework_simplejwt.views import (
@@ -15,6 +15,8 @@ urlpatterns = [
     path('game/state/', get_game_state, name='get_game_state'),
     path('game/sync/', sync_game_state, name='sync_game_state'),
     path('game/advance-day/', advance_day, name='advance_day'),
+    path('game/research/start/', start_research, name='start_research'),
+    path('game/research/', get_researches, name='get_researches'),
     
     path('economy/buy-item/', buy_item, name='buy_item'),
     path('economy/sell-products/', sell_products, name='sell_products'),
