@@ -180,6 +180,7 @@ export interface DailyTask {
   completed: boolean;
   effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
   severity: 'BAIXA' | 'MEDIA' | 'ALTA';
+  resultReport?: string; // Relatório com informações geradas após a conclusão da tarefa
 }
 
 export interface Employee {
@@ -243,7 +244,7 @@ export interface GameState {
   // Tasks
   dailyTasks: DailyTask[];
   startTask: (taskId: string) => void;
-  completeTask: (taskId: string) => void;
+  completeTask: (barnId: string, taskId: string) => void;
   
   // Market State
   marketPrices: MarketPrices;

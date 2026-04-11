@@ -44,6 +44,8 @@ export default function GameLayout() {
   const weatherDaysLeft = useGameStore(state => state.weatherDaysLeft);
   const emergencyLoanAvailable = useGameStore(state => state.emergencyLoanAvailable);
   const takeEmergencyLoan = useGameStore(state => state.takeEmergencyLoan);
+  const currentHour = useGameStore(state => state.currentHour);
+  const advanceHour = useGameStore(state => state.advanceHour);
 
   const getWeatherIcon = () => {
     switch (weather) {
@@ -352,44 +354,46 @@ export default function GameLayout() {
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100 text-sm md:text-base mt-2">
                   <Calendar size={18} />
-                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">(Dia {currentDay})</span>
+                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">({currentHour.toString().padStart(2, '0')}:00)</span>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Tarefas e Botão de Passar Dia */}
+          {/* Tarefas e Botões de Tempo */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-2 pt-4 border-t border-zinc-100">
             <div className="w-full md:w-auto flex-1 flex items-center justify-between md:justify-start gap-4">
               <div className="flex items-center gap-2">
                 <CheckSquare size={20} className={pendingTasks === 0 ? "text-emerald-500" : "text-amber-500"} />
                 <span className="text-sm font-bold text-zinc-700">Tarefas Diárias</span>
               </div>
-              <button 
-                onClick={() => setShowTasksModal(true)}
-                className={`px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-colors border shadow-sm ${
-                  pendingTasks === 0 
-                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
-                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200'
-                }`}
-              >
-                {pendingTasks === 0 ? 'Tudo Certo! ✓' : `${pendingTasks} Pendente(s)`}
-              </button>
             </div>
 
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={handleAdvanceDay}
-              disabled={isAnimatingDay}
-              className={`w-full md:w-auto flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-xl font-bold text-lg md:text-base transition-all shadow-md ${
-                pendingTasks === 0 && !isAnimatingDay
-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
-                  : 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-none'
-              }`}
-            >
-              <Play size={24} className="fill-current" />
-              {pendingTasks > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
-            </motion.button>
+            <div className="flex gap-2 w-full md:w-auto">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => advanceHour()}
+                disabled={isAnimatingDay}
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-all shadow-sm bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+              >
+                <Clock size={18} />
+                Avançar 1h
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAdvanceDay}
+                disabled={isAnimatingDay}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-xl font-bold text-lg md:text-base transition-all shadow-md ${
+                  pendingTasks === 0 && !isAnimatingDay
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
+                    : 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-none'
+                }`}
+              >
+                <Play size={24} className="fill-current" />
+                {pendingTasks > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
+              </motion.button>
+            </div>
           </div>
         </header>
 
