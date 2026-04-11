@@ -248,7 +248,7 @@ export interface GameState {
   
   // Tasks
   dailyTasks: DailyTask[];
-  startTask: (taskId: string) => void;
+  startTask: (barnId: string, taskId: string) => void;
   completeTask: (barnId: string, taskId: string) => void;
   accelerateTask: (barnId: string, taskId: string) => void;
   

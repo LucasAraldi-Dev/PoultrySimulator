@@ -1867,8 +1867,16 @@ export const useGameStore = create<GameState>()(
     }
   }),
 
-  startTask: (taskId) => set((state) => ({
-    dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+  startTask: (barnId, taskId) => set((state) => ({
+    barns: state.barns.map(barn => {
+      if (barn.id === barnId) {
+        return {
+          ...barn,
+          dailyTasks: barn.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+        };
+      }
+      return barn;
+    })
   })),
 
   accelerateTask: (barnId, taskId) => set((state) => {
