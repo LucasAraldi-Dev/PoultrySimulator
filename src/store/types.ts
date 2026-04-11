@@ -233,6 +233,9 @@ export interface GameState {
   fetchResearchesApi: () => Promise<void>;
   startResearchApi: (researchId: string) => Promise<void>;
   
+  unlockedAchievements: string[];
+  checkAchievements: () => void;
+  
   // Async Economy Actions
   buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
   sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
+  ACHIEVEMENTS,
   DISCARD_BIRD_PRICE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
@@ -492,6 +493,8 @@ export const useGameStore = create<GameState>()(
   hasIncubator: false,
   hasSlaughterhouse: false,
   futureContracts: [],
+  unlockedAchievements: [],
+
   financialBuffDays: 0,
   totalProfit: 0,
   totalExpenses: 0,
@@ -563,6 +566,7 @@ export const useGameStore = create<GameState>()(
       hasSlaughterhouse: false,
       futureContracts: [],
       financialBuffDays: 0,
+      unlockedAchievements: [],
       totalProfit: 0,
       totalExpenses: 0,
       detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
@@ -1662,6 +1666,58 @@ export const useGameStore = create<GameState>()(
     };
   }),
 
+  checkAchievements: () => set((state) => {
+    let newMoney = state.money;
+    let newXp = state.xp;
+    const newAchievements = [...state.unlockedAchievements];
+    let unlockedAny = false;
+
+    // Helper functions for conditions
+    const checkCondition = (id: string) => {
+      if (newAchievements.includes(id)) return false;
+      switch (id) {
+        case 'primeiro_lote':
+          return state.barns.some(b => b.batch !== null);
+        case 'empresario':
+          return state.money >= 500000;
+        case 'magnata':
+          return state.money >= 1000000;
+        case 'imperio':
+          const totalAves = state.barns.reduce((acc, b) => acc + (b.batch?.animalCount || 0), 0);
+          return totalAves >= 50000;
+        case 'industrial':
+          return state.hasFeedMill;
+        case 'frigorifico':
+          return state.hasSlaughterhouse;
+        case 'pesquisador':
+          return Object.values(state.researches).some(r => r.current_level >= 5);
+        case 'veterano':
+          return state.level >= 10;
+        default:
+          return false;
+      }
+    };
+
+    Object.values(ACHIEVEMENTS).forEach(achievement => {
+      if (checkCondition(achievement.id)) {
+        newAchievements.push(achievement.id);
+        newMoney += achievement.rewardMoney;
+        newXp += achievement.rewardXp;
+        unlockedAny = true;
+        // Mostrar alerta (Opcional, mas podemos depender de UI depois ou um toast global)
+      }
+    });
+
+    if (unlockedAny) {
+      return {
+        unlockedAchievements: newAchievements,
+        money: newMoney,
+        xp: newXp
+      };
+    }
+    return state;
+  }),
+
   hireEmployee: (role) => set((state) => {
     const baseSalaries = {
       'TRATADOR': 50,
@@ -1834,7 +1890,9 @@ export const useGameStore = create<GameState>()(
         return barn;
       })
     };
-  completeTask: (barnId, taskId) => set((state) => {
+  }),
+
+  completeTask: (barnId, taskId) => set((state) => ({
       barns: state.barns.map(barn => {
         if (barn.id === barnId) {
           return {

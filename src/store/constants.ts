@@ -536,3 +536,80 @@ export const LAYER_COST = 18.0; // Price per young layer (franga)
 export const MAX_LAYER_AGE_DAYS = 600; // Idade em que as galinhas de postura param de botar bem
 export const DISCARD_BIRD_PRICE = 3.5; // Valor de venda da galinha de descarte
 export const SANITARY_VOID_DAYS = 15; // Dias que o galpão deve ficar vazio para desinfecção após a saída de um lote
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string; // nome do ícone lucide
+  rewardMoney: number;
+  rewardXp: number;
+}
+
+export const ACHIEVEMENTS: Record<string, Achievement> = {
+  'primeiro_lote': {
+    id: 'primeiro_lote',
+    title: 'O Início de Tudo',
+    description: 'Aloje seu primeiro lote de aves.',
+    icon: 'Egg',
+    rewardMoney: 1000,
+    rewardXp: 50,
+  },
+  'empresario': {
+    id: 'empresario',
+    title: 'Visão de Negócio',
+    description: 'Acumule R$ 500.000 em caixa.',
+    icon: 'DollarSign',
+    rewardMoney: 5000,
+    rewardXp: 200,
+  },
+  'magnata': {
+    id: 'magnata',
+    title: 'Magnata do Agro',
+    description: 'Acumule R$ 1.000.000 em caixa.',
+    icon: 'Crown',
+    rewardMoney: 20000,
+    rewardXp: 1000,
+  },
+  'imperio': {
+    id: 'imperio',
+    title: 'Império das Aves',
+    description: 'Alcance uma capacidade total de 50.000 aves alojadas.',
+    icon: 'Home',
+    rewardMoney: 15000,
+    rewardXp: 500,
+  },
+  'industrial': {
+    id: 'industrial',
+    title: 'Revolução Industrial',
+    description: 'Construa sua própria Fábrica de Ração.',
+    icon: 'Factory',
+    rewardMoney: 10000,
+    rewardXp: 300,
+  },
+  'frigorifico': {
+    id: 'frigorifico',
+    title: 'Processamento Próprio',
+    description: 'Construa seu Abatedouro Frigorífico.',
+    icon: 'Briefcase',
+    rewardMoney: 25000,
+    rewardXp: 600,
+  },
+  'pesquisador': {
+    id: 'pesquisador',
+    title: 'Tecnologia de Ponta',
+    description: 'Atinja o nível 5 em qualquer pesquisa.',
+    icon: 'Microscope',
+    rewardMoney: 5000,
+    rewardXp: 400,
+  },
+  'veterano': {
+    id: 'veterano',
+    title: 'Veterano',
+    description: 'Alcance o nível 10 de jogador.',
+    icon: 'Star',
+    rewardMoney: 10000,
+    rewardXp: 0,
+  }
+};
+
