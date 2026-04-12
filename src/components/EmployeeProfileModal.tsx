@@ -1,13 +1,13 @@
 import React from 'react';
 import { Modal } from './Modal';
 import { useGameStore } from '../store/useGameStore';
-import { Employee } from '../store/types';
+import { EMPLOYEE_SKILLS_CATALOG } from '../store/constants';
 import { Star, GraduationCap, UserMinus, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  employee: Employee;
+  employee: import('../store/types').Employee;
 }
 
 export function EmployeeProfileModal({ isOpen, onClose, employee }: Props) {
@@ -33,11 +33,7 @@ export function EmployeeProfileModal({ isOpen, onClose, employee }: Props) {
     onClose();
   };
 
-  const SKILLS_DICT: Record<string, { name: string, desc: string, max: number }> = {
-    'fast_hands': { name: 'Manejo Rápido', desc: 'Reduz o tempo base das tarefas diárias em 10% por nível.', max: 3 },
-    'eagle_eye': { name: 'Olho Clínico', desc: 'Reduz a chance de doenças no galpão designado.', max: 3 },
-    'feed_saver': { name: 'Mão Leve', desc: 'Melhora a conversão alimentar no galpão designado (menos desperdício).', max: 3 },
-  };
+  const availableSkills = Object.values(EMPLOYEE_SKILLS_CATALOG).filter(skill => skill.role.includes(employee.role));
 
   return (
     <Modal
@@ -110,18 +106,23 @@ export function EmployeeProfileModal({ isOpen, onClose, employee }: Props) {
           </div>
           
           <div className="space-y-3">
-            {Object.entries(SKILLS_DICT).map(([skillId, skill]) => {
-              const currentLvl = employee.skills?.[skillId] || 0;
+            {availableSkills.map((skill) => {
+              const currentLvl = employee.skills?.[skill.id] || 0;
               const isMax = currentLvl >= skill.max;
               
               return (
-                <div key={skillId} className="border border-zinc-200 rounded-lg p-3 flex justify-between items-center bg-white">
+                <div key={skill.id} className="border border-zinc-200 rounded-lg p-3 flex justify-between items-center bg-white">
                   <div className="flex-1">
                     <h4 className="font-bold text-zinc-800 text-sm">{skill.name} <span className="text-indigo-600 text-xs ml-1">(Nvl {currentLvl}/{skill.max})</span></h4>
                     <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{skill.desc}</p>
+                    {currentLvl > 0 && (
+                      <span className="inline-block mt-1 bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                        {skill.effectLabel(currentLvl)}
+                      </span>
+                    )}
                   </div>
                   <button
-                    onClick={() => upgradeEmployeeSkill(employee.id, skillId)}
+                    onClick={() => upgradeEmployeeSkill(employee.id, skill.id)}
                     disabled={isMax || (employee.skillPoints || 0) <= 0}
                     className={`ml-4 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                       isMax ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed' :

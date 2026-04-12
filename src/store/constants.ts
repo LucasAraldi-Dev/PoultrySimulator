@@ -643,3 +643,17 @@ export const ACHIEVEMENTS: Record<string, Achievement> = {
   }
 };
 
+
+export const EMPLOYEE_SKILLS_CATALOG: Record<string, { id: string, role: string[], name: string, desc: string, max: number, effectLabel: (lvl: number) => string }> = {
+  'fast_hands': { id: 'fast_hands', role: ['TRATADOR', 'OPERADOR_FABRICA'], name: 'Agilidade Operacional', desc: 'Reduz o tempo base das tarefas diárias em 10% por nível.', max: 3, effectLabel: (l) => `-${l * 10}% tempo de tarefa` },
+  'eagle_eye': { id: 'eagle_eye', role: ['TRATADOR', 'VETERINARIO'], name: 'Olho Clínico', desc: 'Reduz a chance de doenças no galpão designado em 15% por nível.', max: 3, effectLabel: (l) => `-${l * 15}% risco de doenças` },
+  'feed_saver': { id: 'feed_saver', role: ['TRATADOR'], name: 'Manejo de Comedouros', desc: 'Melhora a conversão alimentar no galpão designado, economizando 2% de ração por nível.', max: 5, effectLabel: (l) => `+${l * 2}% conversão alimentar` },
+  'careful_handler': { id: 'careful_handler', role: ['TRATADOR'], name: 'Bem-Estar Animal', desc: 'Reduz a mortalidade natural diária do lote em 5% por nível devido a baixo estresse.', max: 5, effectLabel: (l) => `-${l * 5}% mortalidade` },
+  'temp_master': { id: 'temp_master', role: ['TRATADOR', 'GERENTE'], name: 'Mestre da Climatização', desc: 'Garante +2% no ganho de peso diário das aves de corte por nível de habilidade.', max: 3, effectLabel: (l) => `+${l * 2}% ganho de peso` },
+  'mix_master': { id: 'mix_master', role: ['OPERADOR_FABRICA'], name: 'Mistura Precisa', desc: 'Rende +3% a mais de ração produzida por batida sem gastar ingredientes extras.', max: 4, effectLabel: (l) => `+${l * 3}% rendimento da fábrica` },
+  'machine_saver': { id: 'machine_saver', role: ['OPERADOR_FABRICA', 'MOTORISTA'], name: 'Zelo com Máquinas', desc: 'Reduz o custo diário de manutenção da fazenda em 5% por nível.', max: 3, effectLabel: (l) => `-${l * 5}% custos de manutenção` },
+  'eco_driver': { id: 'eco_driver', role: ['MOTORISTA'], name: 'Direção Econômica', desc: 'Economiza 10% no custo de todos os fretes de insumos por nível.', max: 3, effectLabel: (l) => `-${l * 10}% frete de compra` },
+  'safe_transport': { id: 'safe_transport', role: ['MOTORISTA'], name: 'Transporte Seguro', desc: 'Reduz contusões no transporte. Aumenta o valor pago pela ave viva em 3% por nível.', max: 3, effectLabel: (l) => `+${l * 3}% preço venda de aves vivas` },
+  'contract_negociator': { id: 'contract_negociator', role: ['GERENTE'], name: 'Negociador Nato', desc: 'Aumenta os lucros de venda final em 2% por nível.', max: 5, effectLabel: (l) => `+${l * 2}% receita de vendas` },
+  'vet_healing': { id: 'vet_healing', role: ['VETERINARIO'], name: 'Tratamento de Choque', desc: 'Quando o veterinário é chamado, os animais recuperam peso perdido (2% por nível).', max: 3, effectLabel: (l) => `+${l * 2}% recuperação de peso` },
+};

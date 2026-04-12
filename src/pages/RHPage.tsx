@@ -4,6 +4,8 @@ import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, Ale
 import { PageTransition } from '../components/PageTransition';
 import { EmployeeProfileModal } from '../components/EmployeeProfileModal';
 
+import { EMPLOYEE_SKILLS_CATALOG } from '../store/constants';
+
 export default function RHPage() {
   const employees = useGameStore(state => state.employees);
   const money = useGameStore(state => state.money);
@@ -122,10 +124,33 @@ export default function RHPage() {
                     </div>
                     
                     <div className="mt-4 pt-4 border-t border-zinc-100 flex flex-col gap-2">
-                      <p className="text-sm flex justify-between">
+                      <div className="flex justify-between items-center text-sm">
                         <span className="text-zinc-500">Salário/Dia:</span>
                         <span className="font-bold text-red-600">- R$ {emp.salary.toFixed(2)}</span>
-                      </p>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm mb-2">
+                        <span className="text-zinc-500">Moral:</span>
+                        <span className={`font-bold ${emp.morale > 70 ? 'text-emerald-600' : emp.morale > 30 ? 'text-amber-500' : 'text-red-600'}`}>
+                          {emp.morale || 100}%
+                        </span>
+                      </div>
+
+                      {/* Exibir Bônus Ativos do Funcionário no Card */}
+                      {emp.skills && Object.keys(emp.skills).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {Object.entries(emp.skills).map(([skillId, level]) => {
+                            if (level <= 0) return null;
+                            const skillDef = EMPLOYEE_SKILLS_CATALOG[skillId];
+                            if (!skillDef) return null;
+                            return (
+                              <span key={skillId} className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-black uppercase" title={skillDef.name}>
+                                {skillDef.effectLabel(level)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                       
                       <div className="flex gap-2 mt-2">
                         <button 
