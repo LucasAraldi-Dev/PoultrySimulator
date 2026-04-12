@@ -62,8 +62,64 @@ export default function MarketPage() {
     buyBatchApi(barnId, capacity, cost);
   };
 
+  const dynamicContracts = useGameStore(state => state.dynamicContracts);
+  const acceptContract = useGameStore(state => state.acceptContract);
+  const fulfillContract = useGameStore(state => state.fulfillContract);
+
   return (
     <PageTransition className="space-y-8">
+      {/* Contratos Dinâmicos */}
+      {dynamicContracts && dynamicContracts.filter(c => c.status === 'AVAILABLE' || c.status === 'ACCEPTED').length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
+            <Package size={24} className="text-blue-600" />
+            Contratos Comerciais
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {dynamicContracts.filter(c => c.status === 'AVAILABLE' || c.status === 'ACCEPTED').map(contract => (
+              <div key={contract.id} className="bg-white p-6 rounded-xl shadow-sm border border-blue-200">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-lg text-zinc-800">{contract.companyName}</h3>
+                    <p className="text-sm text-zinc-500">Exige: {contract.requiredQuantity.toLocaleString()} {contract.requiredItem === 'meat' ? 'kg de Carne' : 'Ovos'}</p>
+                  </div>
+                  <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full">
+                    {contract.deadlineDays} dia(s) restante(s)
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center bg-zinc-50 p-3 rounded-lg mb-4">
+                  <div>
+                    <p className="text-xs font-bold text-zinc-500">Pagamento</p>
+                    <p className="font-bold text-emerald-600">R$ {contract.rewardMoney.toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-zinc-500">Multa</p>
+                    <p className="font-bold text-red-600">R$ {contract.penaltyMoney.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {contract.status === 'AVAILABLE' ? (
+                  <button
+                    onClick={() => acceptContract(contract.id)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors"
+                  >
+                    Assinar Contrato
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => fulfillContract(contract.id)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition-colors"
+                  >
+                    Entregar Produto
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Vendas (Vender Ovos) */}
       <section>
         <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">

@@ -464,6 +464,21 @@ export const useGameStore = create<GameState>()(
   xp: 0,
   currentWeather: 'SUNNY',
   weatherDaysLeft: 3,
+  activeDilemma: null,
+  dynamicContracts: [],
+  gameSpeed: 1,
+  resolveDilemma: (optionId: string) => set((state) => {
+    if (!state.activeDilemma) return state;
+    
+    const option = state.activeDilemma.options.find(o => o.id === optionId);
+    if (!option) return { activeDilemma: null };
+
+    return {
+      money: state.money - (option.costMoney || 0) + (option.rewardMoney || 0),
+      activeDilemma: null,
+      gameSpeed: 1 // Volta ao normal ao resolver
+    };
+  }),
   researches: {},
   activeResearchId: null,
   activeResearchDaysLeft: 0,
@@ -578,7 +593,45 @@ export const useGameStore = create<GameState>()(
       activeEvent: null,
       activeMissions: [],
       gameSpeed: 1,
+      activeDilemma: null,
+      dynamicContracts: [],
     };
+  }),
+
+  acceptContract: (contractId) => set((state) => ({
+    dynamicContracts: state.dynamicContracts.map(c => 
+      c.id === contractId ? { ...c, status: 'ACCEPTED' as const } : c
+    )
+  })),
+
+  fulfillContract: (contractId) => set((state) => {
+    const contract = state.dynamicContracts.find(c => c.id === contractId);
+    if (!contract || contract.status !== 'ACCEPTED') return state;
+
+    if (contract.requiredItem === 'meat') {
+      if (state.products.meat >= contract.requiredQuantity) {
+        return {
+          products: { ...state.products, meat: state.products.meat - contract.requiredQuantity },
+          money: state.money + contract.rewardMoney,
+          dynamicContracts: state.dynamicContracts.map(c => 
+            c.id === contractId ? { ...c, status: 'COMPLETED' as const } : c
+          )
+        };
+      }
+    } else if (contract.requiredItem === 'eggs') {
+      if (state.products.eggs >= contract.requiredQuantity) {
+        return {
+          products: { ...state.products, eggs: state.products.eggs - contract.requiredQuantity },
+          money: state.money + contract.rewardMoney,
+          dynamicContracts: state.dynamicContracts.map(c => 
+            c.id === contractId ? { ...c, status: 'COMPLETED' as const } : c
+          )
+        };
+      }
+    }
+    
+    alert(`Quantidade insuficiente de ${contract.requiredItem === 'meat' ? 'Carne' : 'Ovos'} para cumprir o contrato.`);
+    return state;
   }),
 
   setGameSpeed: (speed) => set({ gameSpeed: speed }),
@@ -1051,18 +1104,117 @@ export const useGameStore = create<GameState>()(
     let newActiveResearchId = state.activeResearchId;
     let finishedResearchLocally = false;
 
+
     const gen1Bonus = state.researches['gen_1']?.current_bonus || 0;
     const gen2Bonus = state.researches['gen_2']?.current_bonus || 0;
     const nut1Bonus = state.researches['nut_1']?.current_bonus || 0;
     const inf1Bonus = state.researches['inf_1']?.current_bonus || 0;
     const hea1Bonus = state.researches['hea_1']?.current_bonus || 0;
-      const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
-      const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
+    const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
+    const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
 
-      for (let day = 0; day < days; day++) {
+    let activeDilemma = state.activeDilemma;
+    let dynamicContracts = [...(state.dynamicContracts || [])];
+
+    for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
+
+      // Gerador de Contratos (5% chance)
+      if (Math.random() < 0.05) {
+        const isMeat = Math.random() > 0.5;
+        const requiredQty = isMeat ? Math.floor(Math.random() * 10000) + 2000 : Math.floor(Math.random() * 20000) + 5000;
+        const basePrice = isMeat ? MEAT_PRICE_PER_KG : EGG_PRICE;
+        
+        // Paga entre 20% e 50% a mais que o mercado base
+        const reward = requiredQty * basePrice * (1.2 + Math.random() * 0.3);
+        
+        dynamicContracts.push({
+          id: `contract_${Date.now()}_${Math.random()}`,
+          companyName: `Comprador ${Math.floor(Math.random() * 100)}`,
+          requiredItem: isMeat ? 'meat' : 'eggs',
+          requiredQuantity: requiredQty,
+          rewardMoney: Math.floor(reward),
+          penaltyMoney: Math.floor(reward * 0.5),
+          deadlineDays: Math.floor(Math.random() * 10) + 5,
+          status: 'AVAILABLE'
+        });
+      }
+
+      // Processa contratos ativos
+      dynamicContracts = dynamicContracts.map(c => {
+        if (c.status === 'AVAILABLE' || c.status === 'ACCEPTED') {
+          const newDeadline = c.deadlineDays - 1;
+          if (newDeadline <= 0) {
+            if (c.status === 'ACCEPTED') {
+              // Falhou em entregar!
+              money -= c.penaltyMoney;
+              totalExpenses += c.penaltyMoney;
+              alert(`Contrato Falhou! Você pagou uma multa de R$ ${c.penaltyMoney.toFixed(2)} para ${c.companyName}.`);
+            }
+            return { ...c, deadlineDays: 0, status: 'FAILED' as const };
+          }
+          return { ...c, deadlineDays: newDeadline };
+        }
+        return c;
+      });
+
       
+      // Dilemmas Aleatórios (Apenas se não houver um ativo e não for o primeiro dia)
+      if (!activeDilemma && Math.random() < 0.05) { // 5% de chance de um dilema por dia
+        activeDilemma = {
+          id: `dilemma_${Date.now()}`,
+          title: 'Decisão Importante',
+          description: 'Um fiscal sanitário encontrou uma pequena irregularidade no descarte de resíduos do Galpão 1. O que você faz?',
+          options: [
+            {
+              id: 'pay_fine',
+              text: 'Pagar a multa silenciosamente (R$ 5.000)',
+              costMoney: 5000,
+              effectDescription: 'Resolve o problema na hora.'
+            },
+            {
+              id: 'bribe',
+              text: 'Tentar recorrer (Risco de multa maior)',
+              effectDescription: 'Pode custar R$ 10.000 se der errado, ou nada se der certo.'
+            }
+          ]
+        };
+        
+        // Se escolheu "bribe", vamos apenas randomizar no frontend ou deixar simples.
+        // Para simplificar, vou criar 2 dilemas fixos variados:
+        const dilemmas = [
+          {
+            id: `dilemma_${Date.now()}_1`,
+            title: 'Oferta Suspeita',
+            description: 'Um vendedor desconhecido oferece 5 toneladas de ração pela metade do preço, mas sem nota fiscal.',
+            options: [
+              { id: 'opt1', text: 'Aceitar a oferta', rewardMoney: 5000, effectDescription: 'Economiza muito dinheiro, mas pode trazer doenças no futuro.' },
+              { id: 'opt2', text: 'Recusar', effectDescription: 'Segurança em primeiro lugar.' }
+            ]
+          },
+          {
+            id: `dilemma_${Date.now()}_2`,
+            title: 'Caminhão Quebrado',
+            description: 'Seu caminhão de entrega quebrou na estrada sob o sol do meio-dia.',
+            options: [
+              { id: 'opt1', text: 'Pagar guincho de emergência (R$ 3.000)', costMoney: 3000, effectDescription: 'Salva a carga e os animais.' },
+              { id: 'opt2', text: 'Esperar seguro (Risco)', effectDescription: 'Não custa nada, mas os galpões podem ficar sem comida.' }
+            ]
+          },
+          {
+            id: `dilemma_${Date.now()}_3`,
+            title: 'Campanha de Marketing',
+            description: 'A associação local pede uma doação para uma campanha incentivando o consumo de frango.',
+            options: [
+              { id: 'opt1', text: 'Doar R$ 2.000', costMoney: 2000, effectDescription: 'Aumenta a reputação e pode subir o preço da carne.' },
+              { id: 'opt2', text: 'Ignorar', effectDescription: 'Nenhum impacto financeiro.' }
+            ]
+          }
+        ];
+        activeDilemma = dilemmas[Math.floor(Math.random() * dilemmas.length)];
+      }
+
       // Lógica do Clima
       weatherDaysLeft -= 1;
       if (weatherDaysLeft <= 0) {
@@ -1567,6 +1719,9 @@ export const useGameStore = create<GameState>()(
       emergencyLoanActive,
       activeResearchId: newActiveResearchId,
       activeResearchDaysLeft: newActiveResearchDaysLeft,
+      activeDilemma, // Salva o dilema ativo, se houver
+      gameSpeed: activeDilemma ? 0 : state.gameSpeed, // Pausa o jogo se tiver dilema
+      dynamicContracts,
     };
   }),
 
