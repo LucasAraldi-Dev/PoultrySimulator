@@ -20,7 +20,8 @@ import {
   Moon,
   Cloud,
   Coins,
-  ChevronRight
+  ChevronRight,
+  Warehouse
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +29,7 @@ import { formatGameDate } from '../lib/utils';
 
 import { DilemmaModal } from './DilemmaModal';
 import { BuyBarnModal } from './BuyBarnModal';
+import { DailyTasksModal } from './DailyTasksModal';
 
 export default function GameLayout() {
   const { pathname } = useLocation();
@@ -153,6 +155,7 @@ export default function GameLayout() {
 
   const navItems = [
     { to: '/painel', icon: LayoutDashboard, label: 'Painel' },
+    { to: '/galpoes', icon: Warehouse, label: 'Galpões' },
     { to: '/infra', icon: Home, label: 'Infraestrutura' },
     { to: '/mercado', icon: ShoppingCart, label: 'Mercado' },
     { to: '/rh', icon: Users, label: 'RH/Consultoria' },
@@ -163,6 +166,7 @@ export default function GameLayout() {
   return (
     <div className="min-h-screen bg-zinc-100 flex flex-col md:flex-row relative">
       <DilemmaModal />
+      <DailyTasksModal isOpen={showTasksModal} onClose={() => setShowTasksModal(false)} />
       {/* Day Passing Animation Overlay */}
       <AnimatePresence>
         {isAnimatingDay && (
@@ -405,6 +409,24 @@ export default function GameLayout() {
                   Salvar
                 </button>
               )}
+              
+              <button
+                onClick={() => setShowTasksModal(true)}
+                className={`relative flex items-center justify-center w-8 h-8 rounded-full transition-all shadow-sm border ${
+                  pendingTasksCount === 0 
+                    ? 'bg-zinc-100 border-zinc-200 text-zinc-500 hover:bg-zinc-200' 
+                    : 'bg-amber-100 border-amber-200 text-amber-700 hover:bg-amber-200'
+                }`}
+                title="Tarefas Diárias"
+              >
+                <CheckSquare size={14} />
+                {pendingTasksCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                    {pendingTasksCount}
+                  </span>
+                )}
+              </button>
+
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleAdvanceDay}
