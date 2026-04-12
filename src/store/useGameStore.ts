@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+import { RESEARCH_TREE } from './researches';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
   ACHIEVEMENTS,
   DISCARD_BIRD_PRICE,
@@ -1505,6 +1506,29 @@ export const useGameStore = create<GameState>()(
         newActiveResearchDaysLeft -= 1;
         if (newActiveResearchDaysLeft <= 0) {
           finishedResearchLocally = true;
+          
+          // Complete research locally
+          const resId = newActiveResearchId;
+          const currentRes = state.researches[resId];
+          if (currentRes) {
+            const nextLvl = currentRes.current_level + 1;
+            const resDef = RESEARCH_TREE[resId];
+            
+            if (resDef) {
+              state.researches[resId] = {
+                ...currentRes,
+                current_level: nextLvl,
+                current_bonus: resDef.calculateBonus(nextLvl),
+                next_level_info: {
+                  next_bonus: resDef.calculateBonus(nextLvl + 1),
+                  cost_money: Math.floor(resDef.base_cost_money * Math.pow(1.5, nextLvl)),
+                  cost_xp: Math.floor(resDef.base_cost_xp * Math.pow(1.5, nextLvl)),
+                  time_days: resDef.base_time_days + nextLvl,
+                  required_player_level: nextLvl + 1
+                }
+              };
+            }
+          }
           newActiveResearchId = null;
         }
       }
