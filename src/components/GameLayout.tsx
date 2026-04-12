@@ -25,6 +25,9 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatGameDate } from '../lib/utils';
 
+import { DilemmaModal } from './DilemmaModal';
+import { BuyBarnModal } from './BuyBarnModal';
+
 export default function GameLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -49,6 +52,8 @@ export default function GameLayout() {
   const accelerateTask = useGameStore(state => state.accelerateTask);
   const completeTask = useGameStore(state => state.completeTask);
   const barns = useGameStore(state => state.barns);
+  const gameSpeed = useGameStore(state => state.gameSpeed);
+  const setGameSpeed = useGameStore(state => state.setGameSpeed);
 
   const pendingTasks = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
 
@@ -156,6 +161,7 @@ export default function GameLayout() {
 
   return (
     <div className="min-h-screen bg-zinc-100 flex flex-col md:flex-row relative">
+      <DilemmaModal />
       {/* Day Passing Animation Overlay */}
       <AnimatePresence>
         {isAnimatingDay && (
@@ -365,12 +371,22 @@ export default function GameLayout() {
             <div className="flex gap-2 w-full md:w-auto">
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => advanceHour()}
-                disabled={isAnimatingDay}
+                onClick={() => setGameSpeed(gameSpeed === 0 ? 1 : 0)}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                  gameSpeed === 0 ? 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200'
+                }`}
+              >
+                {gameSpeed === 0 ? <Play size={18} /> : <div className="flex gap-1"><div className="w-1.5 h-4 bg-emerald-700 rounded-sm"></div><div className="w-1.5 h-4 bg-emerald-700 rounded-sm"></div></div>}
+                {gameSpeed === 0 ? 'Pausado' : 'Rodando'}
+              </motion.button>
+              
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setGameSpeed(gameSpeed === 1 ? 2 : gameSpeed === 2 ? 3 : 1)}
                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-all shadow-sm bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
               >
                 <Clock size={18} />
-                Avançar 1h
+                {gameSpeed}x
               </motion.button>
 
               <motion.button

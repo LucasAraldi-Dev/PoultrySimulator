@@ -196,6 +196,32 @@ export interface Employee {
 
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
 
+export interface DilemmaOption {
+  id: string;
+  text: string;
+  costMoney?: number;
+  rewardMoney?: number;
+  effectDescription: string;
+}
+
+export interface Dilemma {
+  id: string;
+  title: string;
+  description: string;
+  options: DilemmaOption[];
+}
+
+export interface DynamicContract {
+  id: string;
+  companyName: string;
+  requiredItem: 'meat' | 'eggs';
+  requiredQuantity: number;
+  rewardMoney: number;
+  penaltyMoney: number;
+  deadlineDays: number; // dias restantes para expirar/entregar
+  status: 'AVAILABLE' | 'ACCEPTED' | 'COMPLETED' | 'FAILED';
+}
+
 export interface GameState {
   hasHydrated: boolean;
   setHasHydrated: (hydrated: boolean) => void;
@@ -221,6 +247,12 @@ export interface GameState {
   // Environment
   currentWeather: WeatherType;
   weatherDaysLeft: number;
+  activeDilemma: Dilemma | null;
+  resolveDilemma: (optionId: string) => void;
+
+  dynamicContracts: DynamicContract[];
+  acceptContract: (contractId: string) => void;
+  fulfillContract: (contractId: string) => void;
 
   // Emergency Loan
   emergencyLoanAvailable: boolean;
@@ -286,6 +318,10 @@ export interface GameState {
   history: BatchHistory[]; // Histórico de lotes vendidos
   activeEvent: RandomEvent | null;
   activeMissions: Mission[];
+
+  // Game Speed & Loop
+  gameSpeed: number; // 0 = Pause, 1 = Normal, 2 = Rápido, 3 = Muito Rápido
+  setGameSpeed: (speed: number) => void;
 
   // Actions
   buyBarn: (barn: Barn, cost: number) => void;
