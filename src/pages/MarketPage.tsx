@@ -295,8 +295,8 @@ export default function MarketPage() {
         
         {/* Ração para Corte */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2">Linha Frango de Corte</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <h3 className="text-lg font-bold text-blue-800 mb-4 border-b border-blue-200 pb-2">🐔 Linha Frango de Corte</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Object.values(FEEDS).filter(f => f.id.includes('broiler') || f.id.includes('basic') || f.id.includes('terminacao') || f.id === 'feed_premium').map(feed => (
               <FeedCard
                 key={feed.id}
@@ -318,8 +318,8 @@ export default function MarketPage() {
 
         {/* Ração para Postura */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2">Linha Postura (Ovos)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <h3 className="text-lg font-bold text-amber-800 mb-4 border-b border-amber-200 pb-2">🥚 Linha Postura (Ovos)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Object.values(FEEDS).filter(f => f.id.includes('layers')).map(feed => (
               <FeedCard
                 key={feed.id}
@@ -340,9 +340,9 @@ export default function MarketPage() {
         </div>
 
         {/* Rações Especiais */}
-        <div>
-          <h3 className="text-lg font-bold text-zinc-700 mb-4 border-b border-zinc-200 pb-2">Rações Especiais</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-emerald-800 mb-4 border-b border-emerald-200 pb-2">💊 Rações Especiais e Medicadas</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Object.values(FEEDS).filter(f => f.id.includes('medicada')).map(feed => (
               <FeedCard
                 key={feed.id}
@@ -368,7 +368,7 @@ export default function MarketPage() {
             <Box size={20} className="text-amber-700" />
             Insumos & Matérias-Primas
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Object.values(RAW_MATERIALS).map(mat => (
               <RawMaterialCard
                 key={mat.id}
@@ -405,61 +405,51 @@ function RawMaterialCard({ mat, marketPrices, feedAmounts, setFeedAmounts, handl
   const etaLabel = dispatchIn === 0 ? `${transitDays} dia(s)` : `${dispatchIn + transitDays} dia(s)`;
 
   return (
-    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
-      <div>
-        <h3 className="text-lg font-bold text-zinc-800 mb-1">{mat.name}</h3>
-        <p className="text-xs text-zinc-500 mb-3">{mat.description}</p>
-        <div className="flex items-center gap-2 mb-4">
-          <p className="text-2xl font-bold text-amber-600">R$ {currentCost.toFixed(2)}<span className="text-sm text-zinc-500 font-normal">/{mat.unit}</span></p>
+    <div className={`relative bg-white p-4 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between hover:shadow-md transition-shadow`}>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <h3 className="font-bold text-zinc-800">{mat.name}</h3>
+          <p className="text-[10px] text-zinc-500 line-clamp-1">{mat.description}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold text-emerald-600">R$ {currentCost.toFixed(2)}<span className="text-[10px] text-zinc-500 font-normal">/{mat.unit}</span></p>
         </div>
       </div>
 
-      <div className="mt-auto">
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-            <p className="text-[11px] font-bold text-zinc-500">Envio</p>
-            <select
-              value={pref.scheduledInDays}
-              onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
-              className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
-            >
-              <option value={0}>Enviar hoje</option>
-              <option value={1}>Enviar em 1 dia</option>
-              <option value={2}>Enviar em 2 dias</option>
-              <option value={3}>Enviar em 3 dias</option>
-            </select>
-          </div>
-          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-            <p className="text-[11px] font-bold text-zinc-500">Logística</p>
-            <button
-              type="button"
-              onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
-              className={`w-full mt-1 px-2 py-1 rounded-md text-[11px] font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
-              disabled={!hasFeedTruck}
-            >
-              {mode === 'CAMINHAO' ? 'Buscar' : 'Entrega'}
-            </button>
-            <p className="text-[10px] text-zinc-500 mt-1">Prev: {etaLabel}</p>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <input 
-            type="number"
-            min="1"
-            value={feedAmounts[mat.id] || 100}
-            onChange={(e) => setFeedAmounts({...feedAmounts, [mat.id]: Number(e.target.value)})}
-            className="w-24 p-2 rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
-          <button
-            onClick={() => handleBuyRawMaterial(mat.id)}
-            disabled={money < ((feedAmounts[mat.id] || 100) * currentCost)}
-            className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-zinc-50 border border-zinc-200 rounded px-2 py-1.5">
+          <select
+            value={pref.scheduledInDays}
+            onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
+            className="w-full bg-transparent text-xs font-bold text-zinc-700 focus:outline-none"
           >
-            <ShoppingCart size={18} />
-            Comprar
-          </button>
+            <option value={0}>Enviar hoje</option>
+            <option value={1}>Em 1 dia</option>
+            <option value={2}>Em 2 dias</option>
+            <option value={3}>Em 3 dias</option>
+          </select>
         </div>
+        <div className="bg-zinc-50 border border-zinc-200 rounded px-2 py-1.5 flex items-center justify-between cursor-pointer" onClick={() => hasFeedTruck && setDeliveryPrefs({ ...deliveryPrefs, [mat.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}>
+          <span className="text-xs font-bold text-zinc-700">{mode === 'CAMINHAO' ? 'Buscar' : 'Entrega'}</span>
+          <span className="text-[10px] text-zinc-500">{etaLabel}</span>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <input 
+          type="number"
+          min="1"
+          value={feedAmounts[mat.id] || 100}
+          onChange={(e) => setFeedAmounts({...feedAmounts, [mat.id]: Number(e.target.value)})}
+          className="w-20 p-2 rounded border border-zinc-300 bg-zinc-50 text-zinc-800 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+        />
+        <button
+          onClick={() => handleBuyRawMaterial(mat.id)}
+          disabled={money < ((feedAmounts[mat.id] || 100) * currentCost)}
+          className="flex-1 flex items-center justify-center gap-1 bg-zinc-800 hover:bg-zinc-900 text-white rounded font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ShoppingCart size={16} /> Comprar
+        </button>
       </div>
     </div>
   );
@@ -486,91 +476,57 @@ function FeedCard({ feed, marketPrices, feedAmounts, setFeedAmounts, handleBuyFe
   const etaLabel = dispatchIn === 0 ? `${transitDays} dia(s)` : `${dispatchIn + transitDays} dia(s)`;
 
   return (
-    <div className={`relative bg-white p-6 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between`}>
-      <div>
-        <h3 className="text-lg font-bold text-zinc-800 mb-2">{feed.name}</h3>
-        <div className="flex items-center gap-2 mb-2">
-          <p className="text-2xl font-bold text-emerald-600">R$ {currentCost.toFixed(2)}<span className="text-sm text-zinc-500 font-normal">/kg</span></p>
-          {marketPrices.feedModifier > 1.1 && <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">ALTA</span>}
-          {marketPrices.feedModifier < 0.9 && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">BAIXA</span>}
+    <div className={`relative bg-white p-4 rounded-xl shadow-sm border border-zinc-200 flex flex-col justify-between hover:shadow-md transition-shadow`}>
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <h3 className="font-bold text-zinc-800">{feed.name}</h3>
+          <p className="text-xs text-zinc-500 line-clamp-1">
+            {feed.bonus.growthModifier > 1 && `+${((feed.bonus.growthModifier - 1) * 100).toFixed(0)}% Crescimento `}
+            {feed.bonus.eggModifier > 1 && `+${((feed.bonus.eggModifier - 1) * 100).toFixed(0)}% Postura `}
+          </p>
         </div>
-        
-        {/* Mini Gráfico */}
-        <div className="h-12 w-full mb-4 opacity-50">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <YAxis domain={['dataMin', 'dataMax']} hide />
-              <Line type="monotone" dataKey="price" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="text-right">
+          <p className="text-lg font-bold text-emerald-600">R$ {currentCost.toFixed(2)}<span className="text-[10px] text-zinc-500 font-normal">/kg</span></p>
+          <div className="flex gap-1 justify-end mt-1">
+            {marketPrices.feedModifier > 1.1 && <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">ALTA</span>}
+            {marketPrices.feedModifier < 0.9 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">BAIXA</span>}
+          </div>
         </div>
-        
-        <ul className="space-y-2 mb-6 text-sm text-zinc-600">
-          <li className="flex justify-between">
-            <span>Mortalidade:</span> 
-            <span className={feed.bonus.mortalityModifier < 1 ? 'text-emerald-600 font-medium' : ''}>
-              {((1 - feed.bonus.mortalityModifier) * 100).toFixed(0)}%
-            </span>
-          </li>
-          <li className="flex justify-between">
-            <span>Crescimento:</span> 
-            <span className={feed.bonus.growthModifier > 1 ? 'text-emerald-600 font-medium' : ''}>
-              +{((feed.bonus.growthModifier - 1) * 100).toFixed(0)}%
-            </span>
-          </li>
-          <li className="flex justify-between">
-            <span>Postura:</span> 
-            <span className={feed.bonus.eggModifier > 1 ? 'text-emerald-600 font-medium' : ''}>
-              +{((feed.bonus.eggModifier - 1) * 100).toFixed(0)}%
-            </span>
-          </li>
-        </ul>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-          <p className="text-[11px] font-bold text-zinc-500">Envio</p>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="bg-zinc-50 border border-zinc-200 rounded px-2 py-1.5">
           <select
             value={pref.scheduledInDays}
             onChange={(e) => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, scheduledInDays: Number(e.target.value) } })}
-            className="w-full mt-1 bg-white border border-zinc-200 rounded-md px-2 py-1 text-sm font-bold text-zinc-800"
+            className="w-full bg-transparent text-xs font-bold text-zinc-700 focus:outline-none"
           >
             <option value={0}>Enviar hoje</option>
-            <option value={1}>Enviar em 1 dia</option>
-            <option value={2}>Enviar em 2 dias</option>
-            <option value={3}>Enviar em 3 dias</option>
+            <option value={1}>Em 1 dia</option>
+            <option value={2}>Em 2 dias</option>
+            <option value={3}>Em 3 dias</option>
           </select>
         </div>
-        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
-          <p className="text-[11px] font-bold text-zinc-500">Logística</p>
-          <button
-            type="button"
-            onClick={() => setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}
-            className={`w-full mt-1 px-2 py-1 rounded-md text-sm font-bold border transition-colors ${mode === 'CAMINHAO' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-white text-zinc-700 border-zinc-200'}`}
-            disabled={!hasFeedTruck}
-            title={!hasFeedTruck ? 'Compre um Caminhão de Ração em Fábricas para habilitar retirada' : ''}
-          >
-            {mode === 'CAMINHAO' ? 'Buscar com caminhão' : 'Entrega do fornecedor'}
-          </button>
-          <p className="text-[11px] text-zinc-500 mt-1">Previsão: {etaLabel}</p>
+        <div className="bg-zinc-50 border border-zinc-200 rounded px-2 py-1.5 flex items-center justify-between cursor-pointer" onClick={() => hasFeedTruck && setDeliveryPrefs({ ...deliveryPrefs, [feed.id]: { ...pref, useOwnTruck: !pref.useOwnTruck } })}>
+          <span className="text-xs font-bold text-zinc-700">{mode === 'CAMINHAO' ? 'Buscar' : 'Entrega'}</span>
+          <span className="text-[10px] text-zinc-500">{etaLabel}</span>
         </div>
       </div>
 
-      <div className="flex gap-2 mt-4">
+      <div className="flex gap-2">
         <input 
           type="number"
           min="1"
           value={feedAmounts[feed.id] || 100}
           onChange={(e) => setFeedAmounts({...feedAmounts, [feed.id]: Number(e.target.value)})}
-          className="w-24 p-2 rounded-lg border border-zinc-300 bg-zinc-50 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="w-20 p-2 rounded border border-zinc-300 bg-zinc-50 text-zinc-800 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
         />
         <button
           onClick={() => handleBuyFeed(feed.id)}
           disabled={money < ((feedAmounts[feed.id] || 100) * currentCost)}
-          className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-bold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <ShoppingCart size={18} />
-          Comprar
+          <ShoppingCart size={16} /> Comprar
         </button>
       </div>
     </div>

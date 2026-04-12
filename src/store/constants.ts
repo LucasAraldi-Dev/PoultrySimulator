@@ -175,7 +175,7 @@ export const REGIONS: Record<string, import('./types').Region> = {
 export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
   'pequeno_postura': {
     id: 'pequeno_postura',
-    name: 'Galpão Pequeno',
+    name: 'Galpão de Postura Pequeno',
     size: 'PEQUENO',
     baseCapacity: 1000,
     baseCost: 15000,
@@ -185,7 +185,7 @@ export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
   },
   'medio_postura': {
     id: 'medio_postura',
-    name: 'Galpão Médio',
+    name: 'Galpão de Postura Médio',
     size: 'MEDIO',
     baseCapacity: 3000,
     baseCost: 40000,
@@ -195,7 +195,7 @@ export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
   },
   'grande_postura': {
     id: 'grande_postura',
-    name: 'Galpão Industrial',
+    name: 'Galpão de Postura Industrial',
     size: 'GRANDE',
     baseCapacity: 10000,
     baseCost: 120000,
@@ -205,7 +205,7 @@ export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
   },
   'pequeno_corte': {
     id: 'pequeno_corte',
-    name: 'Galpão Pequeno',
+    name: 'Galpão de Corte Pequeno',
     size: 'PEQUENO',
     baseCapacity: 2000,
     baseCost: 20000,
@@ -215,7 +215,7 @@ export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
   },
   'medio_corte': {
     id: 'medio_corte',
-    name: 'Galpão Médio',
+    name: 'Galpão de Corte Médio',
     size: 'MEDIO',
     baseCapacity: 6000,
     baseCost: 55000,
@@ -225,7 +225,7 @@ export const BARN_MODELS: Record<string, import('./types').BarnModel> = {
   },
   'grande_corte': {
     id: 'grande_corte',
-    name: 'Galpão Industrial',
+    name: 'Galpão de Corte Industrial',
     size: 'GRANDE',
     baseCapacity: 20000,
     baseCost: 160000,
@@ -554,7 +554,14 @@ export const CHICK_COST = 2.0; // Price per chick
 export const EGG_PRICE = 0.5; // Venda de ovo unitário
 export const MEAT_PRICE_PER_KG = 6.0; // Venda de frango vivo por KG
 export const MEAT_PROCESSED_PRICE_PER_KG = 10.0; // Venda frango abatido
-export const LAYER_COST = 18.0; // Price per young layer (franga)
+
+export const LAYER_LINEAGES: Record<string, { id: string; name: string; costPerBird: number; description: string }> = {
+  'hisex_brown': { id: 'hisex_brown', name: 'Hisex Brown', costPerBird: 18.0, description: 'Alta produção de ovos marrons, excelente conversão alimentar.' },
+  'isa_brown': { id: 'isa_brown', name: 'Isa Brown', costPerBird: 19.5, description: 'Muito resistente e adaptável a diferentes climas.' },
+  'lohmann_lsl': { id: 'lohmann_lsl', name: 'Lohmann LSL', costPerBird: 17.0, description: 'Galinha leve, focada em ovos brancos de alta qualidade.' },
+};
+
+export const LAYER_COST = 18.0; // Default price per young layer (franga)
 
 export const MAX_LAYER_AGE_DAYS = 600; // Idade em que as galinhas de postura param de botar bem
 export const DISCARD_BIRD_PRICE = 3.5; // Valor de venda da galinha de descarte
