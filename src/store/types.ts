@@ -61,8 +61,9 @@ export interface Batch {
   totalFeedConsumed: number;
   mortalityCount: number;
   activeDisease: Disease | null; // Doença ativa no lote
-  vaccineProtectionDays: number; // Dias restantes de proteção da vacina
+  vaccineProtectionDays: number; // Dias restantes de proteção da vacina (geral)
   hygieneLevel: number; // Nível de higiene do lote (0-100)
+  vaccines?: string[]; // IDs das vacinas aplicadas no lote
 }
 
 export interface Disease {
@@ -90,6 +91,7 @@ export interface Barn {
   selectedFeedId: string; // Ração selecionada para o galpão
   siloBalance: number; // kg de ração no silo do galpão
   siloCapacity: number; // kg máximos que o silo aguenta
+  dailyTasks: DailyTask[]; // Tarefas do galpão
 }
 
 export interface InventoryItem {
@@ -194,6 +196,32 @@ export interface Employee {
 
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
 
+export interface DilemmaOption {
+  id: string;
+  text: string;
+  costMoney?: number;
+  rewardMoney?: number;
+  effectDescription: string;
+}
+
+export interface Dilemma {
+  id: string;
+  title: string;
+  description: string;
+  options: DilemmaOption[];
+}
+
+export interface DynamicContract {
+  id: string;
+  companyName: string;
+  requiredItem: 'meat' | 'eggs';
+  requiredQuantity: number;
+  rewardMoney: number;
+  penaltyMoney: number;
+  deadlineDays: number; // dias restantes para expirar/entregar
+  status: 'AVAILABLE' | 'ACCEPTED' | 'COMPLETED' | 'FAILED';
+}
+
 export interface GameState {
   hasHydrated: boolean;
   setHasHydrated: (hydrated: boolean) => void;
@@ -219,6 +247,12 @@ export interface GameState {
   // Environment
   currentWeather: WeatherType;
   weatherDaysLeft: number;
+  activeDilemma: Dilemma | null;
+  resolveDilemma: (optionId: string) => void;
+
+  dynamicContracts: DynamicContract[];
+  acceptContract: (contractId: string) => void;
+  fulfillContract: (contractId: string) => void;
 
   // Emergency Loan
   emergencyLoanAvailable: boolean;
@@ -233,6 +267,9 @@ export interface GameState {
   fetchResearchesApi: () => Promise<void>;
   startResearchApi: (researchId: string) => Promise<void>;
   
+  unlockedAchievements: string[];
+  checkAchievements: () => void;
+  
   // Async Economy Actions
   buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
   sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;
@@ -244,7 +281,7 @@ export interface GameState {
   
   // Tasks
   dailyTasks: DailyTask[];
-  startTask: (taskId: string) => void;
+  startTask: (barnId: string, taskId: string) => void;
   completeTask: (barnId: string, taskId: string) => void;
   accelerateTask: (barnId: string, taskId: string) => void;
   
@@ -282,8 +319,13 @@ export interface GameState {
   activeEvent: RandomEvent | null;
   activeMissions: Mission[];
 
+  // Game Speed & Loop
+  gameSpeed: number; // 0 = Pause, 1 = Normal, 2 = Rápido, 3 = Muito Rápido
+  setGameSpeed: (speed: number) => void;
+
   // Actions
   buyBarn: (barn: Barn, cost: number) => void;
+  upgradeBarn: (barnId: string, cost: number) => void;
   upgradeSilo: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
@@ -293,6 +335,7 @@ export interface GameState {
   sellBatch: (barnId: string) => void; // Para descarte de Postura
   feedFlock: (barnId: string, feedId: string, amountKg: number) => void;
   advanceDay: (days?: number) => void; // Parâmetro days opcional para avançar vários dias
+  advanceHour: () => void;
   resetGame: (initialChoice: 'POSTURA' | 'CORTE', companyName: string, companyColor: string, regionId: string) => void;
   addXp: (amount: number) => void;
   deliverMission: (missionId: string) => void;

@@ -1,9 +1,10 @@
 import { useGameStore } from '../store/useGameStore';
-import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS } from '../store/constants';
-import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight } from 'lucide-react';
+import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS, ACHIEVEMENTS } from '../store/constants';
+import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight, CheckSquare, Trophy, Star, Factory, Briefcase, Microscope, Crown } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 
 export default function Dashboard() {
   const money = useGameStore(state => state.money);
@@ -17,6 +18,12 @@ export default function Dashboard() {
   const sellEggs = useGameStore(state => state.sellEggs);
   const activeMissions = useGameStore(state => state.activeMissions);
   const deliverMission = useGameStore(state => state.deliverMission);
+  const unlockedAchievements = useGameStore(state => state.unlockedAchievements);
+  const checkAchievements = useGameStore(state => state.checkAchievements);
+
+  useEffect(() => {
+    checkAchievements();
+  }, [checkAchievements, money, barns, inventory]); // basic dependencies to recheck
 
   const balance = totalProfit - totalExpenses;
   const isProfitable = balance >= 0;
@@ -25,6 +32,10 @@ export default function Dashboard() {
   let totalAnimals = 0;
   let totalCapacity = 0;
   const alerts: string[] = [];
+  
+  const pendingTasks = barns.flatMap(barn => 
+    barn.dailyTasks.filter(t => !t.completed).map(t => ({...t, barnName: barn.name}))
+  );
 
   barns.forEach(barn => {
     totalCapacity += barn.capacity;
@@ -273,6 +284,52 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Conquistas */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
+            <h2 className="text-lg font-bold text-zinc-800 mb-4 flex items-center gap-2">
+              <Trophy size={20} className="text-amber-500" />
+              Conquistas Desbloqueadas
+            </h2>
+            {unlockedAchievements.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {unlockedAchievements.map(id => {
+                  const ach = ACHIEVEMENTS[id];
+                  if (!ach) return null;
+                  
+                  const renderIcon = (name: string) => {
+                    switch (name) {
+                      case 'Egg': return <Egg size={20} className="text-amber-600" />;
+                      case 'DollarSign': return <DollarSign size={20} className="text-emerald-600" />;
+                      case 'Crown': return <Crown size={20} className="text-yellow-600" />;
+                      case 'Home': return <Home size={20} className="text-blue-600" />;
+                      case 'Factory': return <Factory size={20} className="text-purple-600" />;
+                      case 'Briefcase': return <Briefcase size={20} className="text-indigo-600" />;
+                      case 'Microscope': return <Microscope size={20} className="text-pink-600" />;
+                      case 'Star': return <Star size={20} className="text-yellow-500" />;
+                      default: return <Trophy size={20} className="text-amber-500" />;
+                    }
+                  };
+
+                  return (
+                    <div key={id} className="p-3 bg-gradient-to-b from-amber-50 to-amber-100/50 rounded-lg border border-amber-200 flex flex-col items-center text-center gap-2 relative overflow-hidden" title={ach.description}>
+                      <div className="absolute top-0 right-0 w-12 h-12 bg-white/40 rounded-full blur-xl -mr-4 -mt-4"></div>
+                      <div className="p-2 bg-white rounded-full shadow-sm relative z-10">
+                        {renderIcon(ach.icon)}
+                      </div>
+                      <div className="relative z-10">
+                        <p className="text-xs font-bold text-amber-900 leading-tight">{ach.title}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center p-6 bg-zinc-50 rounded-lg border border-dashed border-zinc-300">
+                <p className="text-zinc-500 text-sm">Você ainda não desbloqueou nenhuma conquista. Continue jogando para ganhar prêmios!</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Coluna Lateral: Alertas e Dicas */}
@@ -354,6 +411,42 @@ export default function Dashboard() {
             ) : (
               <div className="text-center p-6 bg-zinc-50 rounded-lg border border-dashed border-zinc-300">
                 <p className="text-zinc-500 text-sm">Nenhum contrato ativo. O mercado fará novas ofertas em breve.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Eventos Diários (Tarefas pendentes) */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
+            <h2 className="text-lg font-bold text-zinc-800 mb-4 flex items-center gap-2">
+              <CheckSquare size={20} className="text-emerald-500" />
+              Eventos Diários
+            </h2>
+            {pendingTasks.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-sm text-zinc-500 mb-3">Conclua os desafios diários para manter a saúde e o crescimento da sua granja.</p>
+                {pendingTasks.slice(0, 5).map((task, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-3 bg-zinc-50 rounded-lg border border-zinc-100">
+                    <div>
+                      <h4 className="font-semibold text-zinc-800 text-sm flex items-center gap-2">
+                        {task.name}
+                      </h4>
+                      <p className="text-xs text-zinc-500 mt-1">{task.barnName}</p>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 px-2 py-1 rounded">Pendente</span>
+                  </div>
+                ))}
+                {pendingTasks.length > 5 && (
+                  <Link to="/infra" className="block text-xs text-center text-indigo-600 hover:text-indigo-800 font-bold pt-2">
+                    + {pendingTasks.length - 5} desafios ocultos. Clique aqui para ir aos galpões.
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="text-center p-6 bg-emerald-50 rounded-lg border border-emerald-100">
+                <p className="text-emerald-600 font-bold flex items-center justify-center gap-2">
+                  <CheckSquare size={18} /> Desafios Concluídos!
+                </p>
+                <p className="text-emerald-500 text-sm mt-1">Você não tem tarefas diárias pendentes.</p>
               </div>
             )}
           </div>

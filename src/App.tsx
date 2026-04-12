@@ -14,6 +14,7 @@ import { ResearchPage } from './pages/ResearchPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Home from './pages/Home';
+import { useGameLoop } from './hooks/useGameLoop';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -42,6 +43,7 @@ function AnimatedRoutes() {
 
 function App() {
   const { isAuthenticated, fetchGameState, syncToServer } = useGameStore();
+  useGameLoop(); // Inicia o loop de jogo contínuo
 
   // Ao iniciar a aplicação, se tiver token, tenta buscar os dados
   // Se falhar, ou não tiver, o jogo usa o estado inicial normal (Offline)

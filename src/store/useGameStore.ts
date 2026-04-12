@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
-  DISCARD_BIRD_PRICE
+  ACHIEVEMENTS,
+  DISCARD_BIRD_PRICE,
+  VACCINES_AVAILABLE
 } from './constants';
 import { getGameMonth } from '../lib/utils';
 import { api } from '../lib/api';
@@ -104,6 +106,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       sanitaryVoidDays: 0,
       siloBalance: 0,
       siloCapacity: 2000,
+      dailyTasks: [],
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -130,8 +133,9 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     isRented: false,
     sanitaryVoidDays: 0,
     siloBalance: 0,
-    siloCapacity: 2000,
-    batch: {
+      siloCapacity: 2000,
+      dailyTasks: [],
+      batch: {
       id: 'batch_1',
       animalCount: 1000,
       ageDays: 1,
@@ -403,6 +407,7 @@ export const useGameStore = create<GameState>()(
         sanitaryVoidDays: 0,
         siloBalance: 0,
         siloCapacity: 2000,
+        dailyTasks: [],
         batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
@@ -459,6 +464,21 @@ export const useGameStore = create<GameState>()(
   xp: 0,
   currentWeather: 'SUNNY',
   weatherDaysLeft: 3,
+  activeDilemma: null,
+  dynamicContracts: [],
+  gameSpeed: 1,
+  resolveDilemma: (optionId: string) => set((state) => {
+    if (!state.activeDilemma) return state;
+    
+    const option = state.activeDilemma.options.find(o => o.id === optionId);
+    if (!option) return { activeDilemma: null };
+
+    return {
+      money: state.money - (option.costMoney || 0) + (option.rewardMoney || 0),
+      activeDilemma: null,
+      gameSpeed: 1 // Volta ao normal ao resolver
+    };
+  }),
   researches: {},
   activeResearchId: null,
   activeResearchDaysLeft: 0,
@@ -492,6 +512,8 @@ export const useGameStore = create<GameState>()(
   hasIncubator: false,
   hasSlaughterhouse: false,
   futureContracts: [],
+  unlockedAchievements: [],
+
   financialBuffDays: 0,
   totalProfit: 0,
   totalExpenses: 0,
@@ -563,14 +585,56 @@ export const useGameStore = create<GameState>()(
       hasSlaughterhouse: false,
       futureContracts: [],
       financialBuffDays: 0,
+      unlockedAchievements: [],
       totalProfit: 0,
       totalExpenses: 0,
       detailedExpenses: { barns: 0, maintenance: 0, labor: 0, freight: 0 },
       history: [],
       activeEvent: null,
       activeMissions: [],
+      gameSpeed: 1,
+      activeDilemma: null,
+      dynamicContracts: [],
     };
   }),
+
+  acceptContract: (contractId) => set((state) => ({
+    dynamicContracts: state.dynamicContracts.map(c => 
+      c.id === contractId ? { ...c, status: 'ACCEPTED' as const } : c
+    )
+  })),
+
+  fulfillContract: (contractId) => set((state) => {
+    const contract = state.dynamicContracts.find(c => c.id === contractId);
+    if (!contract || contract.status !== 'ACCEPTED') return state;
+
+    if (contract.requiredItem === 'meat') {
+      if (state.products.meat >= contract.requiredQuantity) {
+        return {
+          products: { ...state.products, meat: state.products.meat - contract.requiredQuantity },
+          money: state.money + contract.rewardMoney,
+          dynamicContracts: state.dynamicContracts.map(c => 
+            c.id === contractId ? { ...c, status: 'COMPLETED' as const } : c
+          )
+        };
+      }
+    } else if (contract.requiredItem === 'eggs') {
+      if (state.products.eggs >= contract.requiredQuantity) {
+        return {
+          products: { ...state.products, eggs: state.products.eggs - contract.requiredQuantity },
+          money: state.money + contract.rewardMoney,
+          dynamicContracts: state.dynamicContracts.map(c => 
+            c.id === contractId ? { ...c, status: 'COMPLETED' as const } : c
+          )
+        };
+      }
+    }
+    
+    alert(`Quantidade insuficiente de ${contract.requiredItem === 'meat' ? 'Carne' : 'Ovos'} para cumprir o contrato.`);
+    return state;
+  }),
+
+  setGameSpeed: (speed) => set({ gameSpeed: speed }),
 
   takeEmergencyLoan: (amount) => set((state) => {
     // Empréstimo de emergência tem 60 dias de carência e juros de 20%
@@ -600,6 +664,28 @@ export const useGameStore = create<GameState>()(
         money: state.money - cost,
         totalExpenses: state.totalExpenses + cost,
         barns: [...state.barns, barn],
+      };
+    }
+    return state;
+  }),
+
+  upgradeBarn: (barnId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        barns: state.barns.map(barn => {
+          if (barn.id === barnId) {
+            const sizeMultiplier = barn.size === 'GRANDE' ? 3 : barn.size === 'MEDIO' ? 2 : 1;
+            return {
+              ...barn,
+              level: barn.level + 1,
+              capacity: Math.floor(barn.capacity * 1.1),
+              dailyCost: barn.dailyCost + (2 * sizeMultiplier)
+            };
+          }
+          return barn;
+        })
       };
     }
     return state;
@@ -1018,18 +1104,117 @@ export const useGameStore = create<GameState>()(
     let newActiveResearchId = state.activeResearchId;
     let finishedResearchLocally = false;
 
+
     const gen1Bonus = state.researches['gen_1']?.current_bonus || 0;
     const gen2Bonus = state.researches['gen_2']?.current_bonus || 0;
     const nut1Bonus = state.researches['nut_1']?.current_bonus || 0;
     const inf1Bonus = state.researches['inf_1']?.current_bonus || 0;
     const hea1Bonus = state.researches['hea_1']?.current_bonus || 0;
-      const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
-      const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
+    const hea3Bonus = state.researches['hea_3']?.current_bonus || 0;
+    const gen3Bonus = state.researches['gen_3']?.current_bonus || 0;
 
-      for (let day = 0; day < days; day++) {
+    let activeDilemma = state.activeDilemma;
+    let dynamicContracts = [...(state.dynamicContracts || [])];
+
+    for (let day = 0; day < days; day++) {
       currentDay += 1;
       let dailyExpenses = 0;
+
+      // Gerador de Contratos (5% chance)
+      if (Math.random() < 0.05) {
+        const isMeat = Math.random() > 0.5;
+        const requiredQty = isMeat ? Math.floor(Math.random() * 10000) + 2000 : Math.floor(Math.random() * 20000) + 5000;
+        const basePrice = isMeat ? MEAT_PRICE_PER_KG : EGG_PRICE;
+        
+        // Paga entre 20% e 50% a mais que o mercado base
+        const reward = requiredQty * basePrice * (1.2 + Math.random() * 0.3);
+        
+        dynamicContracts.push({
+          id: `contract_${Date.now()}_${Math.random()}`,
+          companyName: `Comprador ${Math.floor(Math.random() * 100)}`,
+          requiredItem: isMeat ? 'meat' : 'eggs',
+          requiredQuantity: requiredQty,
+          rewardMoney: Math.floor(reward),
+          penaltyMoney: Math.floor(reward * 0.5),
+          deadlineDays: Math.floor(Math.random() * 10) + 5,
+          status: 'AVAILABLE'
+        });
+      }
+
+      // Processa contratos ativos
+      dynamicContracts = dynamicContracts.map(c => {
+        if (c.status === 'AVAILABLE' || c.status === 'ACCEPTED') {
+          const newDeadline = c.deadlineDays - 1;
+          if (newDeadline <= 0) {
+            if (c.status === 'ACCEPTED') {
+              // Falhou em entregar!
+              money -= c.penaltyMoney;
+              totalExpenses += c.penaltyMoney;
+              alert(`Contrato Falhou! Você pagou uma multa de R$ ${c.penaltyMoney.toFixed(2)} para ${c.companyName}.`);
+            }
+            return { ...c, deadlineDays: 0, status: 'FAILED' as const };
+          }
+          return { ...c, deadlineDays: newDeadline };
+        }
+        return c;
+      });
+
       
+      // Dilemmas Aleatórios (Apenas se não houver um ativo e não for o primeiro dia)
+      if (!activeDilemma && Math.random() < 0.05) { // 5% de chance de um dilema por dia
+        activeDilemma = {
+          id: `dilemma_${Date.now()}`,
+          title: 'Decisão Importante',
+          description: 'Um fiscal sanitário encontrou uma pequena irregularidade no descarte de resíduos do Galpão 1. O que você faz?',
+          options: [
+            {
+              id: 'pay_fine',
+              text: 'Pagar a multa silenciosamente (R$ 5.000)',
+              costMoney: 5000,
+              effectDescription: 'Resolve o problema na hora.'
+            },
+            {
+              id: 'bribe',
+              text: 'Tentar recorrer (Risco de multa maior)',
+              effectDescription: 'Pode custar R$ 10.000 se der errado, ou nada se der certo.'
+            }
+          ]
+        };
+        
+        // Se escolheu "bribe", vamos apenas randomizar no frontend ou deixar simples.
+        // Para simplificar, vou criar 2 dilemas fixos variados:
+        const dilemmas = [
+          {
+            id: `dilemma_${Date.now()}_1`,
+            title: 'Oferta Suspeita',
+            description: 'Um vendedor desconhecido oferece 5 toneladas de ração pela metade do preço, mas sem nota fiscal.',
+            options: [
+              { id: 'opt1', text: 'Aceitar a oferta', rewardMoney: 5000, effectDescription: 'Economiza muito dinheiro, mas pode trazer doenças no futuro.' },
+              { id: 'opt2', text: 'Recusar', effectDescription: 'Segurança em primeiro lugar.' }
+            ]
+          },
+          {
+            id: `dilemma_${Date.now()}_2`,
+            title: 'Caminhão Quebrado',
+            description: 'Seu caminhão de entrega quebrou na estrada sob o sol do meio-dia.',
+            options: [
+              { id: 'opt1', text: 'Pagar guincho de emergência (R$ 3.000)', costMoney: 3000, effectDescription: 'Salva a carga e os animais.' },
+              { id: 'opt2', text: 'Esperar seguro (Risco)', effectDescription: 'Não custa nada, mas os galpões podem ficar sem comida.' }
+            ]
+          },
+          {
+            id: `dilemma_${Date.now()}_3`,
+            title: 'Campanha de Marketing',
+            description: 'A associação local pede uma doação para uma campanha incentivando o consumo de frango.',
+            options: [
+              { id: 'opt1', text: 'Doar R$ 2.000', costMoney: 2000, effectDescription: 'Aumenta a reputação e pode subir o preço da carne.' },
+              { id: 'opt2', text: 'Ignorar', effectDescription: 'Nenhum impacto financeiro.' }
+            ]
+          }
+        ];
+        activeDilemma = dilemmas[Math.floor(Math.random() * dilemmas.length)];
+      }
+
       // Lógica do Clima
       weatherDaysLeft -= 1;
       if (weatherDaysLeft <= 0) {
@@ -1394,7 +1579,19 @@ export const useGameStore = create<GameState>()(
           if (Math.random() < diseaseChance * (currentWeather === 'RAIN' ? 1.5 : 1)) {
             const diseaseKeys = Object.keys(DISEASES);
             const randomDisease = DISEASES[diseaseKeys[Math.floor(Math.random() * diseaseKeys.length)]];
-            newBatch.activeDisease = { ...randomDisease, daysActive: 0 };
+            
+            // Verifica se está protegido por vacina
+            let isProtected = false;
+            if (newBatch.vaccines) {
+              isProtected = newBatch.vaccines.some(vId => {
+                const vac = VACCINES_AVAILABLE[vId];
+                return vac && vac.protectsAgainst.includes(randomDisease.id);
+              });
+            }
+
+            if (!isProtected) {
+              newBatch.activeDisease = { ...randomDisease, daysActive: 0 };
+            }
           }
         } else {
           newBatch.activeDisease.daysActive += 1;
@@ -1522,6 +1719,9 @@ export const useGameStore = create<GameState>()(
       emergencyLoanActive,
       activeResearchId: newActiveResearchId,
       activeResearchDaysLeft: newActiveResearchDaysLeft,
+      activeDilemma, // Salva o dilema ativo, se houver
+      gameSpeed: activeDilemma ? 0 : state.gameSpeed, // Pausa o jogo se tiver dilema
+      dynamicContracts,
     };
   }),
 
@@ -1662,6 +1862,58 @@ export const useGameStore = create<GameState>()(
     };
   }),
 
+  checkAchievements: () => set((state) => {
+    let newMoney = state.money;
+    let newXp = state.xp;
+    const newAchievements = [...state.unlockedAchievements];
+    let unlockedAny = false;
+
+    // Helper functions for conditions
+    const checkCondition = (id: string) => {
+      if (newAchievements.includes(id)) return false;
+      switch (id) {
+        case 'primeiro_lote':
+          return state.barns.some(b => b.batch !== null);
+        case 'empresario':
+          return state.money >= 500000;
+        case 'magnata':
+          return state.money >= 1000000;
+        case 'imperio':
+          const totalAves = state.barns.reduce((acc, b) => acc + (b.batch?.animalCount || 0), 0);
+          return totalAves >= 50000;
+        case 'industrial':
+          return state.hasFeedMill;
+        case 'frigorifico':
+          return state.hasSlaughterhouse;
+        case 'pesquisador':
+          return Object.values(state.researches).some(r => r.current_level >= 5);
+        case 'veterano':
+          return state.level >= 10;
+        default:
+          return false;
+      }
+    };
+
+    Object.values(ACHIEVEMENTS).forEach(achievement => {
+      if (checkCondition(achievement.id)) {
+        newAchievements.push(achievement.id);
+        newMoney += achievement.rewardMoney;
+        newXp += achievement.rewardXp;
+        unlockedAny = true;
+        // Mostrar alerta (Opcional, mas podemos depender de UI depois ou um toast global)
+      }
+    });
+
+    if (unlockedAny) {
+      return {
+        unlockedAchievements: newAchievements,
+        money: newMoney,
+        xp: newXp
+      };
+    }
+    return state;
+  }),
+
   hireEmployee: (role) => set((state) => {
     const baseSalaries = {
       'TRATADOR': 50,
@@ -1673,7 +1925,7 @@ export const useGameStore = create<GameState>()(
       name: `Funcionário ${state.employees.length + 1}`,
       role,
       experienceLevel: 1,
-      dailySalary: baseSalaries[role]
+      salary: baseSalaries[role as keyof typeof baseSalaries] || 50
     };
     return { employees: [...state.employees, newEmployee] };
   }),
@@ -1689,7 +1941,7 @@ export const useGameStore = create<GameState>()(
         totalExpenses: state.totalExpenses + cost,
         employees: state.employees.map(e => {
           if (e.id === employeeId && e.experienceLevel < 5) {
-            return { ...e, experienceLevel: e.experienceLevel + 1, dailySalary: e.dailySalary * 1.2 };
+            return { ...e, experienceLevel: e.experienceLevel + 1, salary: e.salary * 1.2 };
           }
           return e;
         })
@@ -1786,8 +2038,16 @@ export const useGameStore = create<GameState>()(
     }
   }),
 
-  startTask: (taskId) => set((state) => ({
-    dailyTasks: state.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+  startTask: (barnId, taskId) => set((state) => ({
+    barns: state.barns.map(barn => {
+      if (barn.id === barnId) {
+        return {
+          ...barn,
+          dailyTasks: barn.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+        };
+      }
+      return barn;
+    })
   })),
 
   accelerateTask: (barnId, taskId) => set((state) => {
@@ -1834,7 +2094,10 @@ export const useGameStore = create<GameState>()(
         return barn;
       })
     };
+  }),
+
   completeTask: (barnId, taskId) => set((state) => {
+    return {
       barns: state.barns.map(barn => {
         if (barn.id === barnId) {
           return {
