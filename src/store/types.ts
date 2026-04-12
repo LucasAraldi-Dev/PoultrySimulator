@@ -4,6 +4,7 @@ export type BarnSize = 'PEQUENO' | 'MEDIO' | 'GRANDE';
 export interface BarnModel {
   id: string;
   name: string;
+  type?: 'POSTURA' | 'CORTE';
   size: BarnSize;
   baseCapacity: number;
   baseCost: number;
@@ -64,6 +65,7 @@ export interface Batch {
   vaccineProtectionDays: number; // Dias restantes de proteção da vacina (geral)
   hygieneLevel: number; // Nível de higiene do lote (0-100)
   vaccines?: string[]; // IDs das vacinas aplicadas no lote
+  lineage?: string; // ID da linhagem (para postura)
 }
 
 export interface Disease {

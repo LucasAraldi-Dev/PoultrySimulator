@@ -158,32 +158,67 @@ export default function FacilitiesPage() {
             <h2 className="text-xl font-bold text-zinc-800 mb-4 flex items-center gap-2">
               <Plus size={20} /> Construir Novo Galpão
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {Object.values(BARN_MODELS).map(model => (
-                <div key={model.id} className="bg-white border rounded-xl p-4 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg text-zinc-800">{model.name}</h3>
-                    <p className="text-xs text-zinc-500 mb-2">{model.description}</p>
-                    <div className="bg-zinc-50 p-2 rounded text-xs text-zinc-600 mb-4">
-                      <p>Capacidade: {model.baseCapacity} aves</p>
-                      <p>Custo Diário: R$ {model.baseDailyCost}</p>
-                      <p>Requer Nível: {model.requiredLevel}</p>
+
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-blue-800 mb-3 border-b border-blue-200 pb-2">🐔 Galpões de Frango de Corte</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.values(BARN_MODELS).filter(m => m.id.includes('corte')).map(model => (
+                  <div key={model.id} className="bg-white border border-blue-100 rounded-xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                    <div>
+                      <h3 className="font-bold text-lg text-blue-900">{model.name}</h3>
+                      <p className="text-xs text-zinc-500 mb-3 h-10">{model.description}</p>
+                      <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800 mb-4 space-y-1">
+                        <p className="flex justify-between"><span>Capacidade:</span> <strong>{model.baseCapacity} aves</strong></p>
+                        <p className="flex justify-between"><span>Custo Diário:</span> <strong>R$ {model.baseDailyCost}</strong></p>
+                        <p className="flex justify-between"><span>Requer Nível:</span> <strong>{model.requiredLevel}</strong></p>
+                      </div>
                     </div>
+                    <button
+                          onClick={() => handleBuyBarnClick(model.id)}
+                          disabled={money < model.baseCost || level < model.requiredLevel}
+                      className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors ${
+                        money >= model.baseCost && level >= model.requiredLevel
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Construir (R$ {model.baseCost.toLocaleString()})
+                    </button>
                   </div>
-                  <button
-                        onClick={() => handleBuyBarnClick(model.id)}
-                        disabled={money < model.baseCost || level < model.requiredLevel}
-                    className={`w-full py-2 rounded-lg font-bold text-sm ${
-                      money >= model.baseCost && level >= model.requiredLevel
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
-                    }`}
-                  >
-                    R$ {model.baseCost.toLocaleString()}
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-amber-800 mb-3 border-b border-amber-200 pb-2">🥚 Galpões de Postura (Ovos)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {Object.values(BARN_MODELS).filter(m => m.id.includes('postura')).map(model => (
+                  <div key={model.id} className="bg-white border border-amber-100 rounded-xl p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                    <div>
+                      <h3 className="font-bold text-lg text-amber-900">{model.name}</h3>
+                      <p className="text-xs text-zinc-500 mb-3 h-10">{model.description}</p>
+                      <div className="bg-amber-50 p-3 rounded-lg text-xs text-amber-800 mb-4 space-y-1">
+                        <p className="flex justify-between"><span>Capacidade:</span> <strong>{model.baseCapacity} aves</strong></p>
+                        <p className="flex justify-between"><span>Custo Diário:</span> <strong>R$ {model.baseDailyCost}</strong></p>
+                        <p className="flex justify-between"><span>Requer Nível:</span> <strong>{model.requiredLevel}</strong></p>
+                      </div>
+                    </div>
+                    <button
+                          onClick={() => handleBuyBarnClick(model.id)}
+                          disabled={money < model.baseCost || level < model.requiredLevel}
+                      className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors ${
+                        money >= model.baseCost && level >= model.requiredLevel
+                          ? 'bg-amber-600 text-white hover:bg-amber-700'
+                          : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                      }`}
+                    >
+                      Construir (R$ {model.baseCost.toLocaleString()})
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       )}

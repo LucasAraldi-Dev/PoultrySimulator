@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
-import { BARN_MODELS, EQUIPMENTS, VACCINES_AVAILABLE, CHICK_COST, LAYER_COST } from '../store/constants';
+import { BARN_MODELS, EQUIPMENTS, VACCINES_AVAILABLE, CHICK_COST, LAYER_LINEAGES } from '../store/constants';
 import { useGameStore } from '../store/useGameStore';
 import { Barn, Batch } from '../store/types';
 import { DollarSign, CheckCircle2, ChevronRight, Check } from 'lucide-react';
@@ -17,6 +17,7 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
   const [selectedEquipments, setSelectedEquipments] = useState<string[]>([]);
   const [animalCount, setAnimalCount] = useState<number>(0);
   const [selectedVaccines, setSelectedVaccines] = useState<string[]>([]);
+  const [selectedLineage, setSelectedLineage] = useState<string>('hisex_brown');
 
   useEffect(() => {
     if (isOpen && modelId) {
@@ -25,15 +26,21 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
       const model = BARN_MODELS[modelId];
       setAnimalCount(model?.baseCapacity || 0);
       setSelectedVaccines([]);
+      setSelectedLineage('hisex_brown');
     }
   }, [isOpen, modelId]);
 
   if (!modelId || !isOpen) return null;
 
   const model = BARN_MODELS[modelId];
-  const isPostura = model.id.includes('postura');
+  const isPostura = model.type ? model.type === 'POSTURA' : model.id.includes('postura');
 
   // Cálculos Step 1
+  const availableEquipments = Object.values(EQUIPMENTS).filter(eq => {
+    // Se quiser diferenciar equipamentos, podemos fazer isso aqui no futuro
+    return true;
+  });
+
   const equipmentCost = selectedEquipments.reduce((acc, eqId) => acc + (EQUIPMENTS[eqId]?.cost || 0), 0);
   const totalBarnCost = model.baseCost + equipmentCost;
 
@@ -42,7 +49,7 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
   const maxCapacity = model.baseCapacity + capacityBonus;
 
   // Cálculos Step 2
-  const baseAnimalCost = isPostura ? LAYER_COST : CHICK_COST;
+  const baseAnimalCost = isPostura ? LAYER_LINEAGES[selectedLineage].costPerBird : CHICK_COST;
   const animalCost = animalCount * baseAnimalCost;
   const vaccinesCost = selectedVaccines.reduce((acc, vacId) => acc + (VACCINES_AVAILABLE[vacId]?.costPerBird || 0), 0) * animalCount;
   const totalBatchCost = animalCost + vaccinesCost;
@@ -70,9 +77,10 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
         totalFeedConsumed: 0,
         mortalityCount: 0,
         activeDisease: null,
-        vaccineProtectionDays: selectedVaccines.length > 0 ? 30 : 0, // Simplificação
+        vaccineProtectionDays: selectedVaccines.length > 0 ? 30 : 0,
         hygieneLevel: 100,
         vaccines: selectedVaccines,
+        lineage: isPostura ? selectedLineage : undefined,
       };
     }
 
@@ -117,7 +125,7 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
           <p className="text-sm text-zinc-600">Etapa 1: Personalize seu galpão com equipamentos opcionais.</p>
           
           <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
-            {Object.values(EQUIPMENTS).map(eq => {
+            {availableEquipments.map(eq => {
               const isSelected = selectedEquipments.includes(eq.id);
               return (
                 <div 
@@ -158,6 +166,27 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
           <p className="text-sm text-zinc-600">Etapa 2: Defina o alojamento inicial do lote e vacinação.</p>
           
           <div className="bg-zinc-50 p-4 rounded-lg border border-zinc-200 space-y-4">
+            {isPostura && (
+              <div>
+                <label className="text-xs font-bold text-zinc-500 mb-2 block">Linhagem de Postura</label>
+                <div className="space-y-2">
+                  {Object.values(LAYER_LINEAGES).map(lineage => (
+                    <div 
+                      key={lineage.id}
+                      onClick={() => setSelectedLineage(lineage.id)}
+                      className={`p-2 border rounded-lg cursor-pointer transition-colors ${selectedLineage === lineage.id ? 'border-blue-500 bg-blue-50' : 'border-zinc-200 bg-white'}`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-sm text-zinc-800">{lineage.name}</span>
+                        <span className="text-sm text-emerald-600 font-bold">R$ {lineage.costPerBird.toFixed(2)} / ave</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-1">{lineage.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="text-xs font-bold text-zinc-500 mb-1 block">
                 Quantidade de Aves (Max: {maxCapacity})
@@ -186,7 +215,7 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
 
           <div>
             <h4 className="font-bold text-sm text-zinc-800 mb-2">Vacinas Opcionais</h4>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[150px] overflow-y-auto pr-2">
               {Object.values(VACCINES_AVAILABLE).map(vac => {
                 const isSelected = selectedVaccines.includes(vac.id);
                 return (
@@ -226,7 +255,7 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
             </button>
           </div>
           
-          <button onClick={() => setStep(1)} className="text-sm text-blue-600 font-bold hover:underline">
+          <button onClick={() => setStep(1)} className="text-sm text-blue-600 font-bold hover:underline w-full text-center mt-2 block">
             Voltar para personalização
           </button>
         </div>
