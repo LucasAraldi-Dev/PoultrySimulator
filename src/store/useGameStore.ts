@@ -1078,6 +1078,7 @@ export const useGameStore = create<GameState>()(
     let detailedExpenses = { ...state.detailedExpenses };
     let newEggs = state.products.eggs;
     let currentInventory = [...state.inventory];
+    let newEmployees = JSON.parse(JSON.stringify(state.employees)) as typeof state.employees;
     let newBarns = JSON.parse(JSON.stringify(state.barns)) as Barn[]; // Deep clone para modificar
     let currentMarketPrices = { ...state.marketPrices };
     let currentEvent = null;
@@ -1683,6 +1684,42 @@ export const useGameStore = create<GameState>()(
         emergencyLoanAvailable = true;
       }
 
+      // Gerenciar Funcionários (Pedidos e Salários Diários)
+      newEmployees = newEmployees.map(emp => {
+        let newMorale = emp.morale || 100;
+        let newActiveRequest = emp.activeRequest || null;
+
+        // Se tem pedido ativo, reduz prazo
+        if (newActiveRequest) {
+          newActiveRequest.expiresInDays -= 1;
+          if (newActiveRequest.expiresInDays <= 0) {
+            newMorale = Math.max(0, newMorale - 25); // Caiu morale pq ignorou
+            newActiveRequest = null;
+          }
+        }
+
+        // Chance de gerar novo pedido (se não tem)
+        if (!newActiveRequest && Math.random() < 0.05) { // 5% por dia
+          const types = ['SALARY_RAISE', 'BUY_FEED', 'BONUS'];
+          const reqType = types[Math.floor(Math.random() * types.length)] as any;
+          if (reqType === 'SALARY_RAISE') {
+            newActiveRequest = { id: `req_${Date.now()}`, type: reqType, description: 'Estou trabalhando muito e gostaria de um aumento de salário.', amount: Math.floor(emp.salary * 0.15), expiresInDays: 3 };
+          } else if (reqType === 'BUY_FEED') {
+            newActiveRequest = { id: `req_${Date.now()}`, type: reqType, description: 'Precisamos de mais ração para garantir o padrão do lote!', amount: 500, targetId: 'feed_basic', expiresInDays: 2 };
+          } else if (reqType === 'BONUS') {
+            newActiveRequest = { id: `req_${Date.now()}`, type: reqType, description: 'Gostaria de solicitar um bônus por desempenho.', amount: emp.salary * 2, expiresInDays: 3 };
+          }
+        }
+
+        // Se morale tá muito baixa, pode se demitir
+        if (newMorale <= 0 && Math.random() < 0.3) {
+          // Funcionário pede as contas (mas aqui não vou deletar direto pra não quebrar a tela, vou só deixar ele inútil ou avisar)
+          // Omitindo a demissão automática por enquanto
+        }
+
+        return { ...emp, morale: newMorale, activeRequest: newActiveRequest };
+      });
+
       // Limpa os zerados a cada dia para não poluir
       currentInventory = currentInventory.filter(i => i.quantity > 0);
     }
@@ -1722,6 +1759,7 @@ export const useGameStore = create<GameState>()(
       activeDilemma, // Salva o dilema ativo, se houver
       gameSpeed: activeDilemma ? 0 : state.gameSpeed, // Pausa o jogo se tiver dilema
       dynamicContracts,
+      employees: newEmployees
     };
   }),
 
@@ -1914,20 +1952,89 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  hireEmployee: (role) => set((state) => {
+  hireEmployee: (role, name) => set((state) => {
     const baseSalaries = {
-      'TRATADOR': 50,
-      'MOTORISTA': 70,
-      'OPERADOR_FABRICA': 80
+      'TRATADOR': 180, // Premium service cost
+      'MOTORISTA': 220,
+      'OPERADOR_FABRICA': 250,
+      'VETERINARIO': 400,
+      'GERENTE': 500
     };
-    const newEmployee = {
+    const newEmployee: import('./types').Employee = {
       id: `emp_${Date.now()}`,
-      name: `Funcionário ${state.employees.length + 1}`,
+      name: name || `Funcionário ${state.employees.length + 1}`,
       role,
       experienceLevel: 1,
-      salary: baseSalaries[role as keyof typeof baseSalaries] || 50
+      salary: baseSalaries[role as keyof typeof baseSalaries] || 150,
+      skillPoints: 0,
+      skills: {},
+      morale: 100,
     };
     return { employees: [...state.employees, newEmployee] };
+  }),
+
+  resolveEmployeeRequest: (employeeId, accept) => set((state) => {
+    let newMoney = state.money;
+    let newInventory = [...(state.inventory || [])];
+    
+    const newEmployees = state.employees.map(emp => {
+      if (emp.id !== employeeId || !emp.activeRequest) return emp;
+      
+      let newSalary = emp.salary;
+      let newMorale = emp.morale || 100;
+
+      if (accept) {
+        newMorale = Math.min(100, newMorale + 20);
+        if (emp.activeRequest.type === 'SALARY_RAISE' && emp.activeRequest.amount) {
+          newSalary += emp.activeRequest.amount;
+        } else if (emp.activeRequest.type === 'BUY_FEED' && emp.activeRequest.amount && emp.activeRequest.targetId) {
+          const feedCost = 1.5;
+          const totalCost = emp.activeRequest.amount * feedCost;
+          if (newMoney >= totalCost) {
+            newMoney -= totalCost;
+            const invItem = newInventory.find(i => i.itemId === emp.activeRequest!.targetId);
+            if (invItem) {
+              invItem.quantity += emp.activeRequest!.amount!;
+            } else {
+              newInventory.push({ itemId: emp.activeRequest!.targetId!, quantity: emp.activeRequest!.amount! });
+            }
+          } else {
+            newMorale = Math.max(0, newMorale - 10);
+          }
+        } else if (emp.activeRequest.type === 'BONUS' && emp.activeRequest.amount) {
+          if (newMoney >= emp.activeRequest.amount) {
+            newMoney -= emp.activeRequest.amount;
+          } else {
+            newMorale = Math.max(0, newMorale - 10);
+          }
+        }
+      } else {
+        newMorale = Math.max(0, newMorale - 25);
+      }
+
+      return { ...emp, salary: newSalary, morale: newMorale, activeRequest: null };
+    });
+
+    return {
+      employees: newEmployees,
+      money: newMoney,
+      inventory: newInventory
+    };
+  }),
+
+  upgradeEmployeeSkill: (employeeId, skillId) => set((state) => {
+    return {
+      employees: state.employees.map(emp => {
+        if (emp.id !== employeeId || emp.skillPoints <= 0) return emp;
+        const currentLvl = emp.skills[skillId] || 0;
+        if (currentLvl >= 3) return emp; // Max level 3
+        return {
+          ...emp,
+          skillPoints: emp.skillPoints - 1,
+          skills: { ...emp.skills, [skillId]: currentLvl + 1 }
+        };
+      })
+    };
   }),
 
   fireEmployee: (employeeId) => set((state) => ({

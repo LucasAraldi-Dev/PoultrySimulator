@@ -1,6 +1,8 @@
+import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
-import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle, MessageSquare, Star } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
+import { EmployeeProfileModal } from '../components/EmployeeProfileModal';
 
 export default function RHPage() {
   const employees = useGameStore(state => state.employees);
@@ -8,9 +10,20 @@ export default function RHPage() {
   const hireEmployee = useGameStore(state => state.hireEmployee);
   const fireEmployee = useGameStore(state => state.fireEmployee);
   const trainEmployee = useGameStore(state => state.trainEmployee);
+  const assignEmployeeToBarn = useGameStore(state => state.assignEmployeeToBarn);
+  const barns = useGameStore(state => state.barns);
   const hireVeterinarian = useGameStore(state => state.hireVeterinarian);
   const hireFinancialAdvisor = useGameStore(state => state.hireFinancialAdvisor);
   const financialBuffDays = useGameStore(state => state.financialBuffDays);
+  
+  const [selectedEmp, setSelectedEmp] = useState<any>(null);
+
+  const handleHire = (role: 'TRATADOR' | 'OPERADOR_FABRICA') => {
+    const name = prompt("Qual o nome do novo funcionário?");
+    if (name) {
+      hireEmployee(role, name);
+    }
+  };
 
   return (
     <PageTransition>
@@ -79,10 +92,10 @@ export default function RHPage() {
               Quadro de Funcionários
             </h2>
             <div className="flex gap-2">
-              <button onClick={() => hireEmployee('TRATADOR')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
+              <button onClick={() => handleHire('TRATADOR')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
                 <UserPlus size={16} /> Tratador
               </button>
-              <button onClick={() => hireEmployee('OPERADOR_FABRICA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
+              <button onClick={() => handleHire('OPERADOR_FABRICA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
                 <UserPlus size={16} /> Operador
               </button>
             </div>
@@ -140,6 +153,14 @@ export default function RHPage() {
           </div>
         </section>
       </div>
+      
+      {selectedEmp && (
+        <EmployeeProfileModal
+          isOpen={!!selectedEmp}
+          onClose={() => setSelectedEmp(null)}
+          employee={selectedEmp}
+        />
+      )}
     </PageTransition>
   );
 }

@@ -187,13 +187,26 @@ export interface DailyTask {
   resultReport?: string; // Relatório com informações geradas após a conclusão da tarefa
 }
 
+export interface EmployeeRequest {
+  id: string;
+  type: 'SALARY_RAISE' | 'BUY_FEED' | 'VACATION' | 'BONUS';
+  description: string;
+  amount?: number;
+  targetId?: string;
+  expiresInDays: number;
+}
+
 export interface Employee {
   id: string;
   name: string;
   role: 'VETERINARIO' | 'GERENTE' | 'MOTORISTA' | 'OPERADOR_FABRICA' | 'TRATADOR';
   salary: number;
   experienceLevel: number;
-  assignedBarnId?: string | null; // Apenas para TRATADORES
+  skillPoints: number;
+  skills: Record<string, number>;
+  assignedBarnId?: string | null;
+  activeRequest?: EmployeeRequest | null;
+  morale: number;
 }
 
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
@@ -353,9 +366,12 @@ export interface GameState {
   payInstallment: () => void;
   
   // Employees
-  hireEmployee: (role: Employee['role']) => void;
+  hireEmployee: (role: Employee['role'], name: string) => void;
+  resolveEmployeeRequest: (employeeId: string, accept: boolean) => void;
+  upgradeEmployeeSkill: (employeeId: string, skillId: string) => void;
   fireEmployee: (employeeId: string) => void;
   trainEmployee: (employeeId: string, cost: number) => void;
+  assignEmployeeToBarn: (employeeId: string, barnId: string | null) => void;
 
   // Consultants
   hireVeterinarian: () => void;
