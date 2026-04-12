@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal } from './Modal';
 import { useGameStore } from '../store/useGameStore';
 import { EMPLOYEE_SKILLS_CATALOG } from '../store/constants';
-import { Star, GraduationCap, UserMinus, ShieldAlert, CheckCircle2, XCircle } from 'lucide-react';
+import { Star, GraduationCap, UserMinus, ShieldAlert, CheckCircle2, XCircle, Lock, Unlock, ChevronDown } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -97,43 +97,103 @@ export function EmployeeProfileModal({ isOpen, onClose, employee }: Props) {
         )}
 
         {/* Skill Tree */}
-        <div>
-          <div className="flex justify-between items-end mb-3">
-            <h3 className="font-bold text-zinc-800">Árvore de Habilidades</h3>
-            <div className="text-sm bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-bold">
-              Pontos Disponíveis: {employee.skillPoints || 0}
+        <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-black text-zinc-800 text-lg">Árvore de Habilidades</h3>
+            <div className="text-sm bg-indigo-500 text-white px-4 py-1.5 rounded-full font-black shadow-md flex items-center gap-2">
+              <Star size={16} className="fill-white" />
+              {employee.skillPoints || 0} PTS
             </div>
           </div>
           
-          <div className="space-y-3">
-            {availableSkills.map((skill) => {
-              const currentLvl = employee.skills?.[skill.id] || 0;
-              const isMax = currentLvl >= skill.max;
-              
-              return (
-                <div key={skill.id} className="border border-zinc-200 rounded-lg p-3 flex justify-between items-center bg-white">
-                  <div className="flex-1">
-                    <h4 className="font-bold text-zinc-800 text-sm">{skill.name} <span className="text-indigo-600 text-xs ml-1">(Nvl {currentLvl}/{skill.max})</span></h4>
-                    <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{skill.desc}</p>
-                    {currentLvl > 0 && (
-                      <span className="inline-block mt-1 bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
-                        {skill.effectLabel(currentLvl)}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => upgradeEmployeeSkill(employee.id, skill.id)}
-                    disabled={isMax || (employee.skillPoints || 0) <= 0}
-                    className={`ml-4 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                      isMax ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed' :
-                      (employee.skillPoints || 0) > 0 ? 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm' : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
-                    }`}
-                  >
-                    {isMax ? 'MÁX' : 'Evoluir'}
-                  </button>
-                </div>
-              );
-            })}
+          <div className="relative w-full overflow-x-auto pb-4 custom-scrollbar">
+            <div className="min-w-[500px] flex flex-col gap-6 relative">
+              {/* Lines could be drawn with SVGs, but we'll use a CSS grid approach for simplicity and flexibility */}
+              <div className="grid grid-cols-3 gap-x-4 gap-y-8 relative z-10">
+                {Array.from({ length: 4 }).map((_, rowIdx) => {
+                  const rowSkills = availableSkills.filter(s => s.row === rowIdx);
+                  if (rowSkills.length === 0) return null;
+                  
+                  return (
+                    <React.Fragment key={`row-${rowIdx}`}>
+                      {Array.from({ length: 3 }).map((_, colIdx) => {
+                        const skill = rowSkills.find(s => s.col === colIdx);
+                        if (!skill) return <div key={`empty-${rowIdx}-${colIdx}`} className="flex flex-col items-center justify-start opacity-0"></div>;
+                        
+                        const currentLvl = employee.skills?.[skill.id] || 0;
+                        const isMax = currentLvl >= skill.max;
+                        
+                        // Check if it's locked
+                        let isLocked = false;
+                        let maxAllowedLvl = skill.max;
+                        if (skill.requires) {
+                          const parentLvl = employee.skills?.[skill.requires] || 0;
+                          if (parentLvl === 0) isLocked = true;
+                          // Can only level up to parent's level if it's a 1-10 skill, uniques (max 1) just need parent > 0
+                          if (skill.max > 1) {
+                            maxAllowedLvl = Math.min(skill.max, parentLvl);
+                          }
+                        }
+
+                        const canUpgrade = !isLocked && currentLvl < maxAllowedLvl && (employee.skillPoints || 0) > 0;
+                        const reasonCannotUpgrade = isLocked ? 'Requer Habilidade Anterior' : 
+                                                    (currentLvl >= skill.max) ? 'Nível Máximo' : 
+                                                    (currentLvl >= maxAllowedLvl) ? 'Habilidade Anterior Limita o Nível' : 
+                                                    'Sem Pontos';
+
+                        return (
+                          <div key={skill.id} className="flex flex-col items-center relative">
+                            {/* Visual connector line to parent (basic approximation) */}
+                            {skill.requires && (
+                              <div className="absolute -top-6 left-1/2 w-0.5 h-6 bg-indigo-200 -translate-x-1/2 -z-10"></div>
+                            )}
+                            
+                            <div className={`w-full border-2 rounded-xl p-3 text-center transition-all relative ${
+                              isLocked ? 'bg-zinc-100 border-zinc-200 opacity-60 grayscale' :
+                              currentLvl > 0 ? 'bg-white border-indigo-400 shadow-md' :
+                              'bg-white border-zinc-300'
+                            }`}>
+                              {isLocked && <div className="absolute -top-3 -right-3 bg-zinc-200 p-1.5 rounded-full"><Lock size={14} className="text-zinc-500" /></div>}
+                              {!isLocked && currentLvl === 0 && <div className="absolute -top-3 -right-3 bg-indigo-100 p-1.5 rounded-full"><Unlock size={14} className="text-indigo-500" /></div>}
+                              
+                              <h4 className={`font-black text-sm mb-1 ${isLocked ? 'text-zinc-500' : 'text-zinc-800'}`}>{skill.name}</h4>
+                              
+                              <div className="flex justify-center items-center gap-1 mb-2">
+                                {Array.from({ length: Math.min(5, skill.max) }).map((_, i) => (
+                                  <div key={i} className={`w-2 h-2 rounded-full ${i < currentLvl ? 'bg-indigo-500' : 'bg-zinc-200'}`}></div>
+                                ))}
+                                {skill.max > 5 && <span className="text-[10px] font-bold text-zinc-400 ml-1">+{skill.max - 5}</span>}
+                              </div>
+                              
+                              <p className="text-[10px] text-zinc-500 leading-tight mb-3 h-8 line-clamp-2">{skill.desc}</p>
+                              
+                              {currentLvl > 0 && (
+                                <div className="bg-emerald-50 text-emerald-700 text-[9px] font-black px-2 py-1 rounded mb-3 uppercase tracking-wider">
+                                  {skill.effectLabel(currentLvl)}
+                                </div>
+                              )}
+
+                              <button
+                                onClick={() => upgradeEmployeeSkill(employee.id, skill.id)}
+                                disabled={!canUpgrade}
+                                title={reasonCannotUpgrade}
+                                className={`w-full py-1.5 rounded-lg text-xs font-black transition-all ${
+                                  canUpgrade ? 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm' : 
+                                  isMax ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed' :
+                                  'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                                }`}
+                              >
+                                {isMax ? 'MÁXIMO' : canUpgrade ? '+ EVOLUIR' : 'BLOQUEADO'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 

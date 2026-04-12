@@ -380,10 +380,10 @@ export const useGameStore = create<GameState>()(
     }
   },
 
-  buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
+  buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, vehicleId = null) => {
     const scheduledDays = Math.max(0, Math.floor(scheduledInDays || 0));
-    if (scheduledDays > 0 || useOwnTruck) {
-      get().buyFeed(itemId, quantity, totalCost, scheduledDays, useOwnTruck);
+    if (scheduledDays > 0 || vehicleId) {
+      get().buyFeed(itemId, quantity, totalCost, scheduledDays, vehicleId);
       return;
     }
 
@@ -558,7 +558,8 @@ export const useGameStore = create<GameState>()(
   emergencyLoanAvailable: false,
   emergencyLoanActive: false,
 
-  ownedMachinery: [],
+  ownedVehicles: [],
+      ownedMachinery: [],
   marketPrices: {
     egg: EGG_PRICE,
     meat: MEAT_PRICE_PER_KG,
@@ -643,6 +644,7 @@ export const useGameStore = create<GameState>()(
         { itemId: 'parts', quantity: 5 }
       ],
       pendingDeliveries: [],
+      ownedVehicles: [],
       ownedMachinery: [],
       employees: [],
       products: { eggs: 0, meat: 0 },
@@ -811,55 +813,131 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, useOwnTruck = false) => set((state) => {
-    let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
-    
-    // Buff de Motorista e Pesquisa inf_2
-    const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
-    const inf2Bonus = state.researches['inf_2']?.current_bonus || 0;
-    
-    freightCost *= Math.max(0.2, 1 - driverBuff - inf2Bonus);
+  buyVehicle: (catalogId, cost) => set((state) => {
+    if (state.money >= cost) {
+      const newVehicle: import('./types').VehicleInstance = {
+        id: `veh_${Date.now()}`,
+        catalogId,
+        name: 'Novo Veículo',
+        fuelLevel: 100,
+        condition: 100,
+        assignedDriverId: null,
+      };
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        ownedVehicles: [...(state.ownedVehicles || []), newVehicle]
+      };
+    }
+    return state;
+  }),
 
-    // Impacto de evento no frete
+  assignDriverToVehicle: (vehicleId, driverId) => set((state) => ({
+    ownedVehicles: state.ownedVehicles.map(v => {
+      if (v.id === vehicleId) {
+        return { ...v, assignedDriverId: driverId };
+      }
+      // Se um motorista for designado para este veiculo, removemos ele de outros
+      if (driverId && v.assignedDriverId === driverId) {
+        return { ...v, assignedDriverId: null };
+      }
+      return v;
+    })
+  })),
+
+  refuelVehicle: (vehicleId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        ownedVehicles: state.ownedVehicles.map(v => v.id === vehicleId ? { ...v, fuelLevel: 100 } : v)
+      };
+    }
+    return state;
+  }),
+
+  maintainVehicle: (vehicleId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        ownedVehicles: state.ownedVehicles.map(v => v.id === vehicleId ? { ...v, condition: 100 } : v)
+      };
+    }
+    return state;
+  }),
+
+  buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, vehicleId = null) => set((state) => {
+    let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
+
+    let updatedVehicles = state.ownedVehicles;
+    let usedVehicle = vehicleId ? state.ownedVehicles.find(v => v.id === vehicleId) : null;
+    let driver = null;
+    let transitDays = Math.min(6, Math.max(1, Math.ceil((state.region?.freightCostPerKg || 0.05) * 20))); // default delivery
+    let mode = 'ENTREGA';
+
+    if (usedVehicle && usedVehicle.assignedDriverId) {
+      driver = state.employees.find(e => e.id === usedVehicle.assignedDriverId);
+      if (driver) {
+        mode = 'CAMINHAO';
+        transitDays = 1; // Próprio caminhão entrega no dia seguinte ou rápido
+
+        const catId = usedVehicle.catalogId;
+        if (catId === 'prem_truck_bitrem') freightCost = 0;
+        else if (catId === 'prem_truck_feed') freightCost = 0;
+        else if (catId === 'gen_truck_feed') freightCost *= 0.5;
+        else if (catId === 'gen_truck_toco') freightCost *= 0.75;
+        else if (catId === 'gen_truck_small') freightCost *= 0.9;
+
+        const ecoLevel = driver.skills?.['mot_eco'] || 0;
+        if (ecoLevel > 0) freightCost *= (1 - (ecoLevel * 0.01));
+        
+        // Coruja da Noite
+        if (driver.skills?.['mot_noturno'] > 0) transitDays = 0; // Entrega imediata
+
+        usedVehicle = {
+          ...usedVehicle,
+          fuelLevel: Math.max(0, usedVehicle.fuelLevel - 5),
+          condition: Math.max(0, usedVehicle.condition - 2)
+        };
+        updatedVehicles = state.ownedVehicles.map(v => v.id === usedVehicle.id ? usedVehicle : v);
+      } else {
+         usedVehicle = null; 
+      }
+    } else {
+       usedVehicle = null;
+    }
+
     if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
       freightCost *= state.activeEvent.severity;
     }
 
-    const hasFeedTruck = state.ownedMachinery.includes('prem_truck_feed') || state.ownedMachinery.includes('gen_truck_feed');
-    const mode: 'ENTREGA' | 'CAMINHAO' = useOwnTruck && hasFeedTruck ? 'CAMINHAO' : 'ENTREGA';
-
-    if (mode === 'CAMINHAO') {
-      const truckMod = state.ownedMachinery.includes('prem_truck_feed') ? 0.2 : 0.35;
-      freightCost *= truckMod;
-    }
-
-    const baseTransitDays = Math.min(6, Math.max(1, Math.ceil((state.region?.freightCostPerKg || 0.05) * 20)));
-    const transitDays = mode === 'CAMINHAO' ? 1 : baseTransitDays;
+    const finalCost = totalCost + freightCost;
+    
     const dispatchAtDay = state.currentDay + Math.max(0, Math.floor(scheduledInDays));
     const arrivesAtDay = dispatchAtDay + transitDays;
 
-    // Se a ração não for uma compra (ex: foi comprada por 0 porque é integração e precisa abastecer silo), podemos permitir que a quantidade do pedido seja registrada. Mas vamos ajustar o fillSilo depois para pegar de graça da integardora
-    if (state.money >= totalCost + freightCost) {
+    if (state.money >= finalCost) {
+      // Se a entrega é imediata (transitDays = 0 e scheduled = 0)
+      if (arrivesAtDay <= state.currentDay) {
+        return {
+          money: state.money - finalCost,
+          totalExpenses: state.totalExpenses + finalCost,
+          ownedVehicles: updatedVehicles,
+          inventory: state.inventory.map(item =>
+            item.itemId === feedId ? { ...item, quantity: item.quantity + kg } : item
+          ).concat(state.inventory.find(i => i.itemId === feedId) ? [] : [{ itemId: feedId, quantity: kg }])
+        };
+      }
+
       return {
-        money: state.money - (totalCost + freightCost),
-        totalExpenses: state.totalExpenses + (totalCost + freightCost),
-        detailedExpenses: {
-          ...state.detailedExpenses,
-          freight: state.detailedExpenses.freight + freightCost,
-        },
+        money: state.money - finalCost,
+        totalExpenses: state.totalExpenses + finalCost,
+        ownedVehicles: updatedVehicles,
         pendingDeliveries: [
-          ...state.pendingDeliveries,
-          {
-            id: `delivery_${Date.now()}_${Math.random()}`,
-            itemId: feedId,
-            quantity: kg,
-            orderedAtDay: state.currentDay,
-            dispatchAtDay,
-            arrivesAtDay,
-            freightCost,
-            mode,
-          }
-        ],
+          ...(state.pendingDeliveries || []),
+          { id: `del_${Date.now()}`, itemId: feedId, quantity: kg, orderedAtDay: state.currentDay, dispatchAtDay, arrivesAtDay, freightCost, mode: mode as 'ENTREGA'|'CAMINHAO' }
+        ]
       };
     }
     return state;
@@ -2091,9 +2169,11 @@ export const useGameStore = create<GameState>()(
   upgradeEmployeeSkill: (employeeId, skillId) => set((state) => {
     return {
       employees: state.employees.map(emp => {
-        if (emp.id !== employeeId || emp.skillPoints <= 0) return emp;
+        if (emp.id !== employeeId || (emp.skillPoints || 0) <= 0) return emp;
         const currentLvl = emp.skills[skillId] || 0;
-        if (currentLvl >= 3) return emp; // Max level 3
+        
+        // Let's rely on the UI to not call this if it's locked, 
+        // but just to be safe we increase the level by 1.
         return {
           ...emp,
           skillPoints: emp.skillPoints - 1,

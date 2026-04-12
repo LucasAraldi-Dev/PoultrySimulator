@@ -3,6 +3,7 @@ import { useGameStore } from '../store/useGameStore';
 import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle, MessageSquare, Star } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { EmployeeProfileModal } from '../components/EmployeeProfileModal';
+import { HireEmployeeModal } from '../components/HireEmployeeModal';
 
 import { EMPLOYEE_SKILLS_CATALOG } from '../store/constants';
 
@@ -19,12 +20,10 @@ export default function RHPage() {
   const financialBuffDays = useGameStore(state => state.financialBuffDays);
   
   const [selectedEmp, setSelectedEmp] = useState<any>(null);
+  const [hiringRole, setHiringRole] = useState<'TRATADOR' | 'OPERADOR_FABRICA' | 'MOTORISTA' | null>(null);
 
-  const handleHire = (role: 'TRATADOR' | 'OPERADOR_FABRICA') => {
-    const name = prompt("Qual o nome do novo funcionário?");
-    if (name) {
-      hireEmployee(role, name);
-    }
+  const handleHire = (role: 'TRATADOR' | 'OPERADOR_FABRICA' | 'MOTORISTA') => {
+    setHiringRole(role);
   };
 
   return (
@@ -99,6 +98,9 @@ export default function RHPage() {
               </button>
               <button onClick={() => handleHire('OPERADOR_FABRICA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
                 <UserPlus size={16} /> Operador
+              </button>
+              <button onClick={() => handleHire('MOTORISTA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
+                <UserPlus size={16} /> Motorista
               </button>
             </div>
           </div>
@@ -200,6 +202,14 @@ export default function RHPage() {
           isOpen={!!selectedEmp}
           onClose={() => setSelectedEmp(null)}
           employee={selectedEmp}
+        />
+      )}
+      
+      {hiringRole && (
+        <HireEmployeeModal
+          isOpen={!!hiringRole}
+          onClose={() => setHiringRole(null)}
+          role={hiringRole}
         />
       )}
     </PageTransition>

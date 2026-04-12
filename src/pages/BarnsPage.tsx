@@ -14,6 +14,8 @@ export default function BarnsPage() {
   const sellBatch = useGameStore(state => state.sellBatch);
   const marketPrices = useGameStore(state => state.marketPrices);
   const hasSlaughterhouse = useGameStore(state => state.hasSlaughterhouse);
+  const ownedVehicles = useGameStore(state => state.ownedVehicles);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const cleanBarn = useGameStore(state => state.cleanBarn);
   const vaccinateBatch = useGameStore(state => state.vaccinateBatch);
   const medicateBatch = useGameStore(state => state.medicateBatch);
