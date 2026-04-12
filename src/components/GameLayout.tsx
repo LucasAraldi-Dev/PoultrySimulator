@@ -19,7 +19,8 @@ import {
   Sun,
   Moon,
   Cloud,
-  Coins
+  Coins,
+  ChevronRight
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -292,19 +293,21 @@ export default function GameLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden pb-16 md:pb-0">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden pb-16 md:pb-0 bg-zinc-50">
         {/* Top Header/Status Bar */}
-        <header className="bg-white shadow-sm border-b border-zinc-200 px-4 md:px-6 py-4 flex flex-col items-stretch shrink-0 gap-4">
-          <div className="flex justify-between items-center w-full">
-            <div className="flex flex-col gap-1 w-1/2">
-              <h1 className="text-xl md:text-2xl font-bold text-zinc-800 capitalize truncate">
+        <header className="bg-white border-b border-zinc-200 px-4 py-3 flex flex-wrap lg:flex-nowrap items-center justify-between shrink-0 gap-3 z-30 sticky top-0 shadow-sm">
+          
+          {/* Left: Page Title & Level */}
+          <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-start">
+            <div className="flex flex-col">
+              <h1 className="text-lg font-black text-zinc-900 tracking-tight capitalize">
                 {navItems.find(i => i.to === pathname)?.label || 'Jogo'}
               </h1>
-              <div className="flex items-center gap-2 w-full max-w-[200px]">
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: company.color }}>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
                   Nvl {level}
                 </span>
-                <div className="flex-1 h-2.5 bg-zinc-200 rounded-full overflow-hidden relative" title={`${Math.floor(xp)} / ${nextLevelXp} XP`}>
+                <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden relative">
                   <motion.div
                     className="absolute top-0 left-0 h-full rounded-full"
                     style={{ backgroundColor: company.color }}
@@ -316,91 +319,104 @@ export default function GameLayout() {
               </div>
             </div>
 
-            <div className="flex gap-2 items-center justify-end w-1/2">
-              {!isAuthenticated && (
-                <button 
-                  onClick={() => navigate('/login')}
-                  className="hidden md:flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-zinc-200 mr-2"
-                >
-                  <Cloud size={16} className="text-emerald-500" />
-                  <span>Salvar na Nuvem</span>
-                </button>
-              )}
-              {/* Weather Indicator */}
-              <div className="hidden md:flex items-center gap-3 bg-zinc-100 px-4 py-2 rounded-xl shadow-inner relative group cursor-help">
-                {getWeatherIcon()}
-                <div>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Clima</p>
-                  <p className="font-bold text-zinc-800 text-sm">{getWeatherLabel()}</p>
-                </div>
-                
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-zinc-800 text-white text-xs rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center">
-                  Previsão de durar mais {weatherDaysLeft} dia(s).
-                  {weather === 'HEATWAVE' && ' Mortalidade aumenta sem ventilador!'}
-                  {weather === 'COLD' && ' Pintinhos precisam do dobro de gás!'}
-                  {weather === 'RAIN' && ' Maior chance de surtos de doenças!'}
-                </div>
+            {/* Mobile-only Resources */}
+            <div className="flex lg:hidden items-center gap-2 bg-zinc-50 rounded-full px-3 py-1.5 border border-zinc-200">
+              <div className="flex items-center gap-1 text-emerald-700 font-bold text-xs">
+                <Wallet size={14} /> {money > 1000 ? `${(money/1000).toFixed(1)}k` : money.toFixed(0)}
               </div>
-
-              <div className="flex flex-col items-end">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 text-emerald-700 rounded-lg font-bold border border-emerald-100 text-sm md:text-base relative">
-                  <Wallet size={18} />
-                  R$ {money.toFixed(2)}
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-amber-50 text-amber-600 rounded-lg font-bold border border-amber-100 text-sm md:text-base mt-2" title="Ouro">
-                  <Coins size={18} />
-                  {gold}
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100 text-sm md:text-base mt-2">
-                  <Calendar size={18} />
-                  {formatGameDate(currentDay)} <span className="text-xs font-normal opacity-80">({currentHour.toString().padStart(2, '0')}:00)</span>
-                </div>
+              <div className="w-px h-3 bg-zinc-300" />
+              <div className="flex items-center gap-1 text-amber-600 font-bold text-xs">
+                <Coins size={14} /> {gold}
               </div>
             </div>
           </div>
-          
-          {/* Tarefas e Botões de Tempo */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-2 pt-4 border-t border-zinc-100">
-            <div className="w-full md:w-auto flex-1 flex items-center justify-between md:justify-start gap-4">
-              <div className="flex items-center gap-2">
-                <CheckSquare size={20} className={pendingTasksCount === 0 ? "text-emerald-500" : "text-amber-500"} />
-                <span className="text-sm font-bold text-zinc-700">Tarefas Diárias</span>
+
+          {/* Center: Desktop Resources */}
+          <div className="hidden lg:flex items-center gap-4 bg-zinc-50 rounded-full px-5 py-1.5 border border-zinc-200 shadow-inner">
+            <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-sm relative">
+              <Wallet size={16} /> R$ {money.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              <AnimatePresence>
+                {moneyChanges.map(change => (
+                  <motion.div
+                    key={change.id}
+                    initial={{ opacity: 1, y: 0, x: change.x, scale: 1 }}
+                    animate={{ opacity: 0, y: -40 + change.y, scale: 1.2 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className={`absolute left-4 pointer-events-none font-black text-sm z-50 drop-shadow-md ${change.val > 0 ? 'text-emerald-500' : 'text-red-500'}`}
+                  >
+                    {change.val > 0 ? '+' : ''}{change.val.toFixed(2)}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            <div className="w-px h-4 bg-zinc-300" />
+            <div className="flex items-center gap-1.5 text-amber-600 font-bold text-sm">
+              <Coins size={16} /> {gold.toLocaleString()}
+            </div>
+            <div className="w-px h-4 bg-zinc-300" />
+            <div className="flex items-center gap-1.5 text-blue-700 font-bold text-sm">
+              <Calendar size={16} /> {formatGameDate(currentDay)} <span className="opacity-60 text-xs">({currentHour.toString().padStart(2, '0')}:00)</span>
+            </div>
+            <div className="w-px h-4 bg-zinc-300" />
+            <div className="flex items-center gap-1.5 text-zinc-600 text-sm group relative cursor-help">
+              {getWeatherIcon()}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-zinc-800 text-white text-xs rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl">
+                <span className="font-bold text-amber-400 block mb-1">{getWeatherLabel()}</span>
+                Previsão de durar mais {weatherDaysLeft} dia(s).
+                {weather === 'HEATWAVE' && ' Mortalidade aumenta sem ventilador!'}
+                {weather === 'COLD' && ' Pintinhos precisam do dobro de gás!'}
+                {weather === 'RAIN' && ' Maior chance de surtos de doenças!'}
               </div>
             </div>
+          </div>
 
-            <div className="flex gap-2 w-full md:w-auto">
+          {/* Right: Time Controls */}
+          <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+            <div className="flex items-center gap-1.5 bg-zinc-100 rounded-full p-1 border border-zinc-200">
               <motion.button
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setGameSpeed(gameSpeed === 0 ? 1 : 0)}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-all shadow-sm ${
-                  gameSpeed === 0 ? 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200'
+                className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                  gameSpeed === 0 ? 'bg-amber-200 text-amber-800' : 'bg-white text-zinc-700 shadow-sm'
                 }`}
+                title={gameSpeed === 0 ? "Retomar Jogo" : "Pausar Jogo"}
               >
-                {gameSpeed === 0 ? <Play size={18} /> : <div className="flex gap-1"><div className="w-1.5 h-4 bg-emerald-700 rounded-sm"></div><div className="w-1.5 h-4 bg-emerald-700 rounded-sm"></div></div>}
-                {gameSpeed === 0 ? 'Pausado' : 'Rodando'}
+                {gameSpeed === 0 ? <Play size={14} className="ml-0.5" /> : <div className="flex gap-0.5"><div className="w-1 h-3 bg-zinc-700 rounded-sm"></div><div className="w-1 h-3 bg-zinc-700 rounded-sm"></div></div>}
               </motion.button>
               
               <motion.button
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setGameSpeed(gameSpeed === 1 ? 2 : gameSpeed === 2 ? 3 : 1)}
-                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 md:py-2 rounded-xl font-bold text-sm transition-all shadow-sm bg-zinc-200 hover:bg-zinc-300 text-zinc-700"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm font-black text-xs transition-colors hover:bg-zinc-50"
+                title="Velocidade do Jogo"
               >
-                <Clock size={18} />
                 {gameSpeed}x
               </motion.button>
+            </div>
 
+            <div className="flex items-center gap-2">
+              {!isAuthenticated && (
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="hidden lg:flex items-center gap-1.5 bg-white hover:bg-zinc-50 text-zinc-600 px-3 py-1.5 rounded-full text-xs font-bold transition-colors border border-zinc-200"
+                >
+                  <Cloud size={14} className="text-emerald-500" />
+                  Salvar
+                </button>
+              )}
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={handleAdvanceDay}
                 disabled={isAnimatingDay}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 md:py-3 rounded-xl font-bold text-lg md:text-base transition-all shadow-md ${
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-bold text-xs transition-all shadow-sm ${
                   pendingTasksCount === 0 && !isAnimatingDay
-                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200' 
-                    : 'bg-zinc-800 hover:bg-zinc-900 text-white shadow-none'
+                    ? 'bg-zinc-900 hover:bg-black text-white' 
+                    : 'bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200'
                 }`}
               >
-                <Play size={24} className="fill-current" />
-                {pendingTasksCount > 0 ? 'Forçar Fim do Dia' : 'Passar o Dia'}
+                {pendingTasksCount > 0 ? <AlertCircle size={14} /> : <ChevronRight size={14} />}
+                {pendingTasksCount > 0 ? 'Pular Dia (Risco)' : 'Pular Dia'}
               </motion.button>
             </div>
           </div>
