@@ -1,6 +1,6 @@
 import { useGameStore } from '../store/useGameStore';
-import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS, ACHIEVEMENTS } from '../store/constants';
-import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight, CheckSquare, Trophy, Star, Factory, Briefcase, Microscope, Crown } from 'lucide-react';
+import { FEEDS, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, RAW_MATERIALS, ACHIEVEMENTS, EMPLOYEE_SKILLS_CATALOG, EQUIPMENTS } from '../store/constants';
+import { DollarSign, TrendingUp, TrendingDown, Home, AlertTriangle, Package, Egg, Bird, ArrowRight, CheckSquare, Trophy, Star, Factory, Briefcase, Microscope, Crown, Zap, Wrench, Truck, ShieldPlus, HeartPulse } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -20,6 +20,10 @@ export default function Dashboard() {
   const deliverMission = useGameStore(state => state.deliverMission);
   const unlockedAchievements = useGameStore(state => state.unlockedAchievements);
   const checkAchievements = useGameStore(state => state.checkAchievements);
+  const employees = useGameStore(state => state.employees);
+  const researches = useGameStore(state => state.researches);
+  const ownedMachinery = useGameStore(state => state.ownedMachinery);
+  const financialBuffDays = useGameStore(state => state.financialBuffDays);
 
   useEffect(() => {
     checkAchievements();
@@ -33,6 +37,72 @@ export default function Dashboard() {
   let totalCapacity = 0;
   const alerts: string[] = [];
   
+  // --- BÔNUS ATIVOS CALCULATION ---
+  const activeBonuses: { icon: any, title: string, source: string, color: string }[] = [];
+
+  // P&D (Researches)
+  if (researches) {
+    Object.values(researches).forEach((res: any) => {
+      if (res.current_level > 0) {
+        activeBonuses.push({
+          icon: <Microscope size={16} />,
+          title: `${res.name} (Nvl ${res.current_level})`,
+          source: 'Pesquisa',
+          color: 'text-purple-600 bg-purple-100'
+        });
+      }
+    });
+  }
+
+  // Funcionários
+  employees.forEach(emp => {
+    if (emp.skills) {
+      Object.entries(emp.skills).forEach(([skillId, level]) => {
+        if (level > 0) {
+          const skillDef = EMPLOYEE_SKILLS_CATALOG[skillId];
+          if (skillDef) {
+            activeBonuses.push({
+              icon: <Star size={16} />,
+              title: `${skillDef.effectLabel(level)}`,
+              source: `${emp.name}`,
+              color: 'text-indigo-600 bg-indigo-100'
+            });
+          }
+        }
+      });
+    }
+  });
+
+  // Equipamentos nos Galpões
+  const eqMap = new Set<string>();
+  barns.forEach(b => {
+    b.equipment.forEach(eqId => {
+      if (!eqMap.has(eqId)) {
+        eqMap.add(eqId);
+        const eqDef = EQUIPMENTS[eqId];
+        if (eqDef) {
+          activeBonuses.push({
+            icon: <Wrench size={16} />,
+            title: eqDef.name,
+            source: 'Equipamento',
+            color: 'text-blue-600 bg-blue-100'
+          });
+        }
+      }
+    });
+  });
+
+  // Consultoria
+  if (financialBuffDays > 0) {
+    activeBonuses.push({
+      icon: <TrendingUp size={16} />,
+      title: '+10% Lucro nas Vendas',
+      source: 'Consultor Financeiro',
+      color: 'text-emerald-600 bg-emerald-100'
+    });
+  }
+  // --------------------------------
+
   const pendingTasks = barns.flatMap(barn => 
     barn.dailyTasks.filter(t => !t.completed).map(t => ({...t, barnName: barn.name}))
   );
@@ -204,6 +274,36 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Bônus Ativos (Global) */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-zinc-200">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-zinc-800 flex items-center gap-2">
+                <Zap size={20} className="text-amber-500" />
+                Bônus e Efeitos Ativos
+              </h2>
+            </div>
+            {activeBonuses.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {activeBonuses.map((bonus, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-100 rounded-lg">
+                    <div className={`p-2 rounded-lg ${bonus.color}`}>
+                      {bonus.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-zinc-800">{bonus.title}</p>
+                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{bonus.source}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-6 bg-zinc-50 rounded-lg border border-dashed border-zinc-300">
+                <p className="text-zinc-500 text-sm">Nenhum bônus ativo no momento.</p>
+                <p className="text-zinc-400 text-xs mt-1">Invista em pesquisas, equipamentos ou treine funcionários.</p>
+              </div>
+            )}
           </div>
 
           {/* Resumo dos Galpões */}
