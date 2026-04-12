@@ -21,7 +21,8 @@ import {
   Cloud,
   Coins,
   ChevronRight,
-  Warehouse
+  Warehouse,
+  Box
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -153,6 +154,7 @@ export default function GameLayout() {
     { to: '/rh', icon: Users, label: 'RH/Consultoria' },
     { to: '/financas', icon: DollarSign, label: 'Finanças' },
     { to: '/pesquisa', icon: Microscope, label: 'Pesquisa' },
+    { to: '/lab-3d', icon: Box, label: 'Lab 3D' },
   ];
 
   return (
