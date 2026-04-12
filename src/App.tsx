@@ -30,6 +30,7 @@ function AnimatedRoutes() {
         <Route path="/" element={<GameLayout />}>
           <Route index element={<Home />} />
             <Route path="painel" element={<Dashboard />} />
+            <Route path="galpoes" element={<BarnsPage />} />
             <Route path="infra" element={<FacilitiesPage />} />
             <Route path="mercado" element={<MarketPage />} />
             <Route path="financas" element={<FinancePage />} />
