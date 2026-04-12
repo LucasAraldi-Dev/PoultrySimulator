@@ -14,7 +14,7 @@ export function DailyTasksModal({ isOpen, onClose }: DailyTasksModalProps) {
   const startTask = useGameStore(state => state.startTask);
   const accelerateTask = useGameStore(state => state.accelerateTask);
   const gold = useGameStore(state => state.gold);
-  const now = Date.now();
+  const currentHour = useGameStore(state => state.currentHour);
 
   const totalPending = barns.reduce((acc, barn) => acc + barn.dailyTasks.filter(t => !t.completed).length, 0);
 
@@ -46,16 +46,16 @@ export function DailyTasksModal({ isOpen, onClose }: DailyTasksModalProps) {
                 </div>
                 <div className="p-4 space-y-3">
                   {barn.dailyTasks.filter(t => !t.completed).map(task => {
-                    const isRunning = task.startedAt !== undefined;
+                    const isRunning = task.startedAtHour !== undefined;
                     let progress = 0;
                     let timeLeft = 0;
                     let isDone = false;
 
-                    if (isRunning && task.startedAt) {
-                      const elapsed = now - task.startedAt;
-                      const total = task.durationMinutes * 60 * 1000;
+                    if (isRunning && task.startedAtHour !== undefined) {
+                      const elapsed = currentHour - task.startedAtHour;
+                      const total = task.durationMinutes;
                       progress = Math.min(100, (elapsed / total) * 100);
-                      timeLeft = Math.max(0, Math.ceil((total - elapsed) / 1000));
+                      timeLeft = Math.max(0, total - elapsed);
                       if (progress >= 100) isDone = true;
                     }
 
@@ -96,7 +96,7 @@ export function DailyTasksModal({ isOpen, onClose }: DailyTasksModalProps) {
                           <div className="mt-2 space-y-1">
                             <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
                               <span className="flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Em andamento</span>
-                              <span>{Math.ceil(timeLeft / 60)} min restantes</span>
+                              <span>{timeLeft}h do jogo</span>
                             </div>
                             <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
                               <motion.div 

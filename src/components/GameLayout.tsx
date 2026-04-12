@@ -102,28 +102,20 @@ export default function GameLayout() {
     }
   }, [money]);
 
-  const [now, setNow] = useState(Date.now());
+  const currentHour = useGameStore(state => state.currentHour);
+  const completeTask = useGameStore(state => state.completeTask);
 
-  // Force re-render for active timers
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Update tasks that have completed their timers
   useEffect(() => {
     barns.forEach(barn => {
       barn.dailyTasks.forEach(task => {
-        if (task.startedAt && !task.completed) {
-          const elapsed = now - task.startedAt;
-          const required = task.durationMinutes * 60 * 1000;
-          if (elapsed >= required) {
+        if (task.startedAtHour !== undefined && !task.completed) {
+          if (currentHour >= task.startedAtHour + task.durationMinutes) {
             completeTask(barn.id, task.id);
           }
         }
       });
     });
-  }, [now, barns, completeTask]);
+  }, [currentHour, barns, completeTask]);
   const nextLevelXp = 1000 * Math.pow(level, 2);
   const xpProgress = ((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100;
 

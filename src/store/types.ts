@@ -180,7 +180,7 @@ export interface DailyTask {
   name: string;
   description: string;
   durationMinutes: number; // Tempo necessário para concluir
-  startedAt: number | null; // Timestamp de quando começou (para simular progresso)
+  startedAtHour?: number; // Timestamp de quando começou (para simular progresso)
   completed: boolean;
   effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
   severity: 'BAIXA' | 'MEDIA' | 'ALTA';
