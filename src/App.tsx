@@ -14,6 +14,7 @@ import { ResearchPage } from './pages/ResearchPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Home from './pages/Home';
+import Lab3DPage from './pages/Lab3DPage';
 import { useGameLoop } from './hooks/useGameLoop';
 
 function AnimatedRoutes() {
@@ -36,6 +37,7 @@ function AnimatedRoutes() {
             <Route path="financas" element={<FinancePage />} />
             <Route path="rh" element={<RHPage />} />
             <Route path="pesquisa" element={<ResearchPage />} />
+            <Route path="lab-3d" element={<Lab3DPage />} />
         </Route>
       </Routes>
     </AnimatePresence>
