@@ -107,6 +107,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -135,6 +136,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch: {
       id: 'batch_1',
       animalCount: 1000,
@@ -471,7 +473,8 @@ export const useGameStore = create<GameState>()(
         siloBalance: 0,
         siloCapacity: 2000,
         dailyTasks: [],
-        batch: null,
+      history: [],
+      batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
       set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: [...state.barns, newBarn] });
@@ -2131,7 +2134,7 @@ export const useGameStore = create<GameState>()(
                 let resultReport = undefined;
 
                 if (task.id === 'check_feed_silo') {
-                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const feedInInventory = (state.inventory || []).find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
                   const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
                   resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
                 }
@@ -2146,6 +2149,15 @@ export const useGameStore = create<GameState>()(
                   } else {
                      resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
                   }
+                }
+
+                if (resultReport) {
+                  barn.history.push({
+                    day: state.currentDay,
+                    hour: state.currentHour,
+                    message: `[${task.name}] ${resultReport}`,
+                    type: 'info'
+                  });
                 }
 
                 return { ...task, completed: true, startedAtHour: state.currentHour, resultReport };
@@ -2170,7 +2182,7 @@ export const useGameStore = create<GameState>()(
                 let resultReport = undefined;
 
                 if (task.id === 'check_feed_silo') {
-                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const feedInInventory = (state.inventory || []).find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
                   const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
                   resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
                 }
@@ -2185,6 +2197,15 @@ export const useGameStore = create<GameState>()(
                   } else {
                      resultReport = `Peso Atual: ${(barn.batch.currentWeight * 1000).toFixed(0)}g. Fora da tabela padrão.`;
                   }
+                }
+
+                if (resultReport) {
+                  barn.history.push({
+                    day: state.currentDay,
+                    hour: state.currentHour,
+                    message: `[${task.name}] ${resultReport}`,
+                    type: 'info'
+                  });
                 }
 
                 return { ...task, completed: true, startedAtHour: state.currentHour, resultReport };

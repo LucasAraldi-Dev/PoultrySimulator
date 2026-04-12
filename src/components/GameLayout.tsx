@@ -102,9 +102,6 @@ export default function GameLayout() {
     }
   }, [money]);
 
-  const currentHour = useGameStore(state => state.currentHour);
-  const completeTask = useGameStore(state => state.completeTask);
-
   useEffect(() => {
     barns.forEach(barn => {
       barn.dailyTasks.forEach(task => {
@@ -134,15 +131,18 @@ export default function GameLayout() {
     
     setIsAnimatingDay(true);
     
-    // Animação de 1.5s antes de realmente passar o dia
+    // Animação de 3.5s antes de realmente passar o dia
     setTimeout(async () => {
       if (isAuthenticated) {
         await syncAdvanceDay();
       } else {
         advanceDay(1);
       }
+    }, 1500); // Avança o estado após 1.5s (noite)
+
+    setTimeout(() => {
       setIsAnimatingDay(false);
-    }, 1500);
+    }, 3500); // Termina animação após 3.5s (amanhecer)
   };
 
   const navItems = [
@@ -173,29 +173,41 @@ export default function GameLayout() {
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
             
             <motion.div
-              initial={{ y: 200, opacity: 0, rotate: -45 }}
-              animate={{ y: 0, opacity: 1, rotate: 0 }}
-              exit={{ y: -200, opacity: 0, rotate: 45 }}
-              transition={{ duration: 0.8, ease: "backInOut" }}
+              initial={{ y: 300, opacity: 0, rotate: -45 }}
+              animate={{ y: [300, -120, 300], opacity: [0, 1, 0], rotate: [-45, 0, 45] }}
+              transition={{ duration: 2.2, ease: "easeInOut", times: [0, 0.5, 1] }}
               className="absolute"
             >
-              <Moon size={120} className="text-indigo-300 drop-shadow-[0_0_15px_rgba(165,180,252,0.6)]" />
+              <Moon size={140} className="text-indigo-300 drop-shadow-[0_0_20px_rgba(165,180,252,0.8)]" />
             </motion.div>
 
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 1.1, opacity: 0, y: -50 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-center flex flex-col items-center relative z-10"
+            <motion.div
+              initial={{ y: 300, opacity: 0, rotate: -45 }}
+              animate={{ y: [300, 300, -120], opacity: [0, 0, 1], rotate: [-45, -45, 0] }}
+              transition={{ duration: 3.5, ease: "easeInOut", times: [0, 0.6, 1] }}
+              className="absolute"
+            >
+              <Sun size={140} className="text-amber-400 drop-shadow-[0_0_25px_rgba(251,191,36,0.9)]" />
+            </motion.div>
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 80 }}
+              animate={{ scale: [0.9, 1, 1], opacity: [0, 1, 1], y: [80, 80, 80] }}
+              exit={{ scale: 1.1, opacity: 0, y: 150 }}
+              transition={{ duration: 3, delay: 0.2 }}
+              className="text-center flex flex-col items-center relative z-10 bg-zinc-950/60 p-8 rounded-3xl backdrop-blur-md mt-40"
             >
               <h2 className="text-5xl font-black mb-3 text-white tracking-tight drop-shadow-md">
                 Dia {currentDay}
               </h2>
               <div className="h-1 w-24 bg-indigo-500 rounded-full mb-4"></div>
-              <p className="text-lg text-indigo-200 font-medium tracking-wide">
-                A noite cai na granja...
-              </p>
+              <motion.p 
+                animate={{ opacity: [1, 0, 1] }}
+                transition={{ duration: 3.5, times: [0, 0.5, 1] }}
+                className="text-lg font-medium tracking-wide"
+              >
+                <span className="text-indigo-200">A noite cai na granja...</span>
+              </motion.p>
             </motion.div>
           </motion.div>
         )}

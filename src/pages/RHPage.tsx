@@ -8,6 +8,8 @@ export default function RHPage() {
   const hireEmployee = useGameStore(state => state.hireEmployee);
   const fireEmployee = useGameStore(state => state.fireEmployee);
   const trainEmployee = useGameStore(state => state.trainEmployee);
+  const assignEmployeeToBarn = useGameStore(state => state.assignEmployeeToBarn);
+  const barns = useGameStore(state => state.barns);
   const hireVeterinarian = useGameStore(state => state.hireVeterinarian);
   const hireFinancialAdvisor = useGameStore(state => state.hireFinancialAdvisor);
   const financialBuffDays = useGameStore(state => state.financialBuffDays);
@@ -132,6 +134,22 @@ export default function RHPage() {
                           Demitir
                         </button>
                       </div>
+
+                      {emp.role === 'TRATADOR' && barns.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-1">
+                          <label className="text-xs text-zinc-500 font-bold uppercase">Delegar para Galpão:</label>
+                          <select
+                            value={emp.assignedBarnId || ''}
+                            onChange={(e) => assignEmployeeToBarn(emp.id, e.target.value || null)}
+                            className="p-1.5 rounded-lg border border-zinc-300 text-sm font-bold text-zinc-700 bg-white"
+                          >
+                            <option value="">Nenhum (Descanso)</option>
+                            {barns.map(b => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

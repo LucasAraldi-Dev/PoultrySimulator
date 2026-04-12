@@ -399,9 +399,10 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     brand: 'F-4000 / MB 710',
     type: 'TRUCK_FEED',
     tier: 'GENERIC',
-    cost: 50000,
+    cost: 120000,
     requiredLevel: 4,
-    description: 'Veículo básico para buscar carga leve. Reduz o frete em 10% (Economia de combustível em curtas distâncias).'
+    capacityKg: 4000,
+    description: 'Veículo básico (capacidade de 4 ton). Ideal para buscar pequenos lotes de ração. Reduz o custo do frete em 10%.'
   },
   'gen_truck_toco': {
     id: 'gen_truck_toco',
@@ -409,39 +410,54 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     brand: 'MB 1620 / Ford Cargo 1317',
     type: 'TRUCK_FEED',
     tier: 'GENERIC',
-    cost: 110000,
+    cost: 250000,
     requiredLevel: 6,
-    description: 'O clássico guerreiro das rodovias. Reduz o frete em 25% (melhor custo-benefício em médias distâncias).'
+    capacityKg: 8000,
+    description: 'O clássico guerreiro das rodovias (capacidade de 8 ton). Reduz o frete em 25% (melhor custo-benefício).'
   },
   'gen_truck_feed': {
     id: 'gen_truck_feed',
     name: 'Caminhão Truck Graneleiro',
-    brand: 'VW Worker 24.220',
+    brand: 'VW Constellation 24.280',
     type: 'TRUCK_FEED',
     tier: 'GENERIC',
-    cost: 185000,
+    cost: 380000,
     requiredLevel: 8,
-    description: 'Transporte pesado de ração. Reduz o custo do frete no mercado em 50%.'
+    capacityKg: 14000,
+    description: 'Transporte pesado de ração (capacidade de 14 ton). Reduz o custo do frete no mercado em 50%.'
   },
   'prem_truck_feed': {
     id: 'prem_truck_feed',
-    name: 'Carreta Bi-Trem (LS)',
+    name: 'Carreta Graneleira LS',
     brand: 'Volvo FH 460 / Scania R440',
     type: 'TRUCK_FEED',
     tier: 'PREMIUM',
-    cost: 380000,
+    cost: 750000,
     requiredLevel: 12,
-    description: 'Compra direto das gigantes da soja. Corta todo o custo de frete na compra da ração e ganha -5% no valor do insumo.'
+    capacityKg: 32000,
+    description: 'Compra direto das gigantes da soja (32 ton). Corta 100% do custo de frete na compra da ração.'
+  },
+  'prem_truck_bitrem': {
+    id: 'prem_truck_bitrem',
+    name: 'Carreta Bi-Trem',
+    brand: 'Volvo FH 540 / Scania R500',
+    type: 'TRUCK_FEED',
+    tier: 'PREMIUM',
+    cost: 980000,
+    requiredLevel: 16,
+    capacityKg: 57000,
+    description: 'A maior capacidade de carga do jogo (57 ton). Reduz o frete em 100% e garante 5% de desconto no preço da ração (compra em grande volume).'
   },
   'gen_truck_live': {
     id: 'gen_truck_live',
-    name: 'Caminhão Baú de Transporte',
+    name: 'Caminhão Baú (Transporte Aves)',
     brand: 'MB Atego 2426',
     type: 'TRUCK_LIVE',
     tier: 'GENERIC',
-    cost: 210000,
+    cost: 280000,
     requiredLevel: 7,
-    description: 'Transporte de aves vivas com baixo estresse: Aumenta o preço de venda de frangos vivos em 5%.'
+    capacityKg: 10000,
+    description: 'Transporte de aves vivas com baixo estresse. Aumenta o preço de venda de aves vivas em 5%.'
   },
   'prem_truck_cold': {
     id: 'prem_truck_cold',
@@ -449,8 +465,9 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     brand: 'Scania R450',
     type: 'TRUCK_COLD',
     tier: 'PREMIUM',
-    cost: 450000,
+    cost: 650000,
     requiredLevel: 15,
+    capacityKg: 28000,
     description: 'Exige Abatedouro. Logística refrigerada premium que garante +15% de receita na carne abatida.'
   }
 };
@@ -522,7 +539,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     name: 'Limpar Bebedouros',
     description: 'Evita a proliferação de bactérias na água.',
     durationMinutes: 1,
-    startedAt: null,
+    startedAtHour: undefined,
     completed: false,
     effectType: 'DISEASE',
     severity: 'MEDIA',
@@ -532,7 +549,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     name: 'Checar Climatização',
     description: 'Ajusta a temperatura para o conforto térmico ideal.',
     durationMinutes: 2,
-    startedAt: null,
+    startedAtHour: undefined,
     completed: false,
     effectType: 'GROWTH',
     severity: 'MEDIA',
@@ -542,7 +559,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     name: 'Retirar Aves Mortas',
     description: 'Evita contaminação do lote e doenças.',
     durationMinutes: 3,
-    startedAt: null,
+    startedAtHour: undefined,
     completed: false,
     effectType: 'MORTALITY',
     severity: 'ALTA',
