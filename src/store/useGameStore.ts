@@ -1886,7 +1886,7 @@ export const useGameStore = create<GameState>()(
         case 'frigorifico':
           return state.hasSlaughterhouse;
         case 'pesquisador':
-          return Object.values(state.researches).some(r => r.current_level >= 5);
+          return Object.values(state.researches).some((r: any) => r.level >= 5);
         case 'veterano':
           return state.level >= 10;
         default:
