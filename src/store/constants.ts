@@ -661,16 +661,45 @@ export const ACHIEVEMENTS: Record<string, Achievement> = {
 };
 
 
-export const EMPLOYEE_SKILLS_CATALOG: Record<string, { id: string, role: string[], name: string, desc: string, max: number, effectLabel: (lvl: number) => string }> = {
-  'fast_hands': { id: 'fast_hands', role: ['TRATADOR', 'OPERADOR_FABRICA'], name: 'Agilidade Operacional', desc: 'Reduz o tempo base das tarefas diárias em 10% por nível.', max: 3, effectLabel: (l) => `-${l * 10}% tempo de tarefa` },
-  'eagle_eye': { id: 'eagle_eye', role: ['TRATADOR', 'VETERINARIO'], name: 'Olho Clínico', desc: 'Reduz a chance de doenças no galpão designado em 15% por nível.', max: 3, effectLabel: (l) => `-${l * 15}% risco de doenças` },
-  'feed_saver': { id: 'feed_saver', role: ['TRATADOR'], name: 'Manejo de Comedouros', desc: 'Melhora a conversão alimentar no galpão designado, economizando 2% de ração por nível.', max: 5, effectLabel: (l) => `+${l * 2}% conversão alimentar` },
-  'careful_handler': { id: 'careful_handler', role: ['TRATADOR'], name: 'Bem-Estar Animal', desc: 'Reduz a mortalidade natural diária do lote em 5% por nível devido a baixo estresse.', max: 5, effectLabel: (l) => `-${l * 5}% mortalidade` },
-  'temp_master': { id: 'temp_master', role: ['TRATADOR', 'GERENTE'], name: 'Mestre da Climatização', desc: 'Garante +2% no ganho de peso diário das aves de corte por nível de habilidade.', max: 3, effectLabel: (l) => `+${l * 2}% ganho de peso` },
-  'mix_master': { id: 'mix_master', role: ['OPERADOR_FABRICA'], name: 'Mistura Precisa', desc: 'Rende +3% a mais de ração produzida por batida sem gastar ingredientes extras.', max: 4, effectLabel: (l) => `+${l * 3}% rendimento da fábrica` },
-  'machine_saver': { id: 'machine_saver', role: ['OPERADOR_FABRICA', 'MOTORISTA'], name: 'Zelo com Máquinas', desc: 'Reduz o custo diário de manutenção da fazenda em 5% por nível.', max: 3, effectLabel: (l) => `-${l * 5}% custos de manutenção` },
-  'eco_driver': { id: 'eco_driver', role: ['MOTORISTA'], name: 'Direção Econômica', desc: 'Economiza 10% no custo de todos os fretes de insumos por nível.', max: 3, effectLabel: (l) => `-${l * 10}% frete de compra` },
-  'safe_transport': { id: 'safe_transport', role: ['MOTORISTA'], name: 'Transporte Seguro', desc: 'Reduz contusões no transporte. Aumenta o valor pago pela ave viva em 3% por nível.', max: 3, effectLabel: (l) => `+${l * 3}% preço venda de aves vivas` },
-  'contract_negociator': { id: 'contract_negociator', role: ['GERENTE'], name: 'Negociador Nato', desc: 'Aumenta os lucros de venda final em 2% por nível.', max: 5, effectLabel: (l) => `+${l * 2}% receita de vendas` },
-  'vet_healing': { id: 'vet_healing', role: ['VETERINARIO'], name: 'Tratamento de Choque', desc: 'Quando o veterinário é chamado, os animais recuperam peso perdido (2% por nível).', max: 3, effectLabel: (l) => `+${l * 2}% recuperação de peso` },
+export interface EmployeeSkillDef {
+  id: string;
+  role: string[];
+  name: string;
+  desc: string;
+  max: number;
+  requires?: string; // ID da habilidade pai
+  row: number; // para posicionamento visual na arvore
+  col: number;
+  effectLabel: (lvl: number) => string;
+}
+
+export const EMPLOYEE_SKILLS_CATALOG: Record<string, EmployeeSkillDef> = {
+  // --- TRATADOR ---
+  'trat_basico': { id: 'trat_basico', role: ['TRATADOR'], name: 'Manejo Básico', desc: 'Habilidade essencial. Reduz tempo das tarefas diárias em 1% por nível.', max: 10, row: 0, col: 1, effectLabel: (l) => `-${l * 1}% tempo de tarefa` },
+  
+  'trat_sanidade': { id: 'trat_sanidade', role: ['TRATADOR'], name: 'Higiene e Sanidade', desc: 'Reduz o risco de doenças em 0.5% por nível.', max: 10, requires: 'trat_basico', row: 1, col: 0, effectLabel: (l) => `-${(l * 0.5).toFixed(1)}% risco de doenças` },
+  'trat_racao': { id: 'trat_racao', role: ['TRATADOR'], name: 'Regulagem de Comedouro', desc: 'Melhora a conversão alimentar em 0.5% por nível.', max: 10, requires: 'trat_basico', row: 1, col: 2, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% conversão alimentar` },
+  
+  'trat_clima': { id: 'trat_clima', role: ['TRATADOR'], name: 'Mestre do Clima', desc: 'Aumenta ganho de peso em 0.5% por nível.', max: 10, requires: 'trat_sanidade', row: 2, col: 0, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% ganho de peso` },
+  'trat_bem_estar': { id: 'trat_bem_estar', role: ['TRATADOR'], name: 'Bem-Estar', desc: 'Reduz a mortalidade natural em 0.5% por nível.', max: 10, requires: 'trat_racao', row: 2, col: 2, effectLabel: (l) => `-${(l * 0.5).toFixed(1)}% mortalidade natural` },
+  
+  'trat_olho_clinico': { id: 'trat_olho_clinico', role: ['TRATADOR'], name: 'Olho Clínico', desc: 'Única. Alerta o jogador com 1 dia de antecedência sobre surtos de doenças.', max: 1, requires: 'trat_clima', row: 3, col: 0, effectLabel: () => `Previsão de Doenças` },
+  'trat_mao_leve': { id: 'trat_mao_leve', role: ['TRATADOR'], name: 'Mão Leve', desc: 'Única. Reduz a perda de ração por desperdício em 5% fixo.', max: 1, requires: 'trat_bem_estar', row: 3, col: 2, effectLabel: () => `-5% Desperdício Fixo` },
+
+  // --- MOTORISTA ---
+  'mot_basico': { id: 'mot_basico', role: ['MOTORISTA'], name: 'Direção Defensiva', desc: 'Reduz o consumo de combustível/manutenção do veículo em 1% por nível.', max: 10, row: 0, col: 1, effectLabel: (l) => `-${l * 1}% manutenção de veículos` },
+  
+  'mot_eco': { id: 'mot_eco', role: ['MOTORISTA'], name: 'Pé de Pluma', desc: 'Reduz o custo de frete na compra de insumos em 1% por nível.', max: 10, requires: 'mot_basico', row: 1, col: 0, effectLabel: (l) => `-${l * 1}% frete de compra` },
+  'mot_seguro': { id: 'mot_seguro', role: ['MOTORISTA'], name: 'Transporte Suave', desc: 'Reduz mortes e contusões no frete, garantindo +0.5% no preço de venda por nível.', max: 10, requires: 'mot_basico', row: 1, col: 2, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% preço de venda (Aves)` },
+
+  'mot_mecanico': { id: 'mot_mecanico', role: ['MOTORISTA'], name: 'Mecânico de Estrada', desc: 'Única. O veículo nunca quebra em viagem (Evita perda de carga).', max: 1, requires: 'mot_eco', row: 2, col: 0, effectLabel: () => `Evita Quebras` },
+  'mot_noturno': { id: 'mot_noturno', role: ['MOTORISTA'], name: 'Coruja da Noite', desc: 'Única. Permite viagens noturnas (entregas chegam 1 dia mais rápido).', max: 1, requires: 'mot_seguro', row: 2, col: 2, effectLabel: () => `Entregas Rápidas` },
+
+  // --- OPERADOR DE FÁBRICA ---
+  'op_basico': { id: 'op_basico', role: ['OPERADOR_FABRICA'], name: 'Operação de Moinho', desc: 'Aumenta a velocidade de produção da fábrica em 1% por nível.', max: 10, row: 0, col: 1, effectLabel: (l) => `+${l * 1}% velocidade produção` },
+  
+  'op_mistura': { id: 'op_mistura', role: ['OPERADOR_FABRICA'], name: 'Mistura Homogênea', desc: 'Rende +0.5% a mais de ração sem custo extra por nível.', max: 10, requires: 'op_basico', row: 1, col: 0, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% rendimento de ração` },
+  'op_manutencao': { id: 'op_manutencao', role: ['OPERADOR_FABRICA'], name: 'Lubrificação Preventiva', desc: 'Reduz a depreciação da fábrica em 1% por nível.', max: 10, requires: 'op_basico', row: 1, col: 2, effectLabel: (l) => `-${l * 1}% desgaste fábrica` },
+
+  'op_mestre_peleteiro': { id: 'op_mestre_peleteiro', role: ['OPERADOR_FABRICA'], name: 'Mestre Peleteiro', desc: 'Única. Ração ganha 2% a mais de bônus nutricional na conversão.', max: 1, requires: 'op_mistura', row: 2, col: 1, effectLabel: () => `+2% Nutrição Global` },
 };
