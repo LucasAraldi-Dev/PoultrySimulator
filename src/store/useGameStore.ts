@@ -11,7 +11,7 @@ import { api } from '../lib/api';
 
 // Funções utilitárias mantidas para não quebrar a tipagem existente
 const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
-  const tasks: Omit<DailyTask, 'startedAt' | 'completed' | 'resultReport'>[] = [
+  const tasks: Omit<DailyTask, 'startedAtHour' | 'completed' | 'resultReport'>[] = [
     {
       id: 'clean_drinkers',
       name: 'Limpar Bebedouros',
@@ -87,7 +87,7 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
     });
   }
 
-  return tasks.map(t => ({ ...t, startedAt: null, completed: false }));
+  return tasks.map(t => ({ ...t, completed: false } as DailyTask));
 };
 
 const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
@@ -107,6 +107,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -135,6 +136,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch: {
       id: 'batch_1',
       animalCount: 1000,
@@ -289,9 +291,58 @@ export const useGameStore = create<GameState>()(
       if (get().isAuthenticated && navigator.onLine) {
         const response = await api.get('/game/research/');
         set({ researches: response.data });
+      } else {
+        // Inicializa com dados locais se não houver backend
+        const INITIAL_RESEARCHES = {
+          '1': {
+            id: '1',
+            name: 'Melhoramento Genético Avançado',
+            description: 'Aumenta a conversão alimentar e o ganho de peso diário.',
+            category: 'GENETICS',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.05, cost_money: 1000, cost_xp: 50, time_days: 1, required_player_level: 1 }
+          },
+          '2': {
+            id: '2',
+            name: 'Ração de Alta Densidade',
+            description: 'Reduz o consumo total de ração mantendo o ganho de peso.',
+            category: 'NUTRITION',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.05, cost_money: 1500, cost_xp: 75, time_days: 2, required_player_level: 2 }
+          },
+          '3': {
+            id: '3',
+            name: 'Climatização Inteligente',
+            description: 'Reduz a mortalidade por estresse térmico.',
+            category: 'INFRASTRUCTURE',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.1, cost_money: 2000, cost_xp: 100, time_days: 3, required_player_level: 3 }
+          },
+          '4': {
+            id: '4',
+            name: 'Vacinas de Nova Geração',
+            description: 'Aumenta a resistência a doenças em todos os lotes.',
+            category: 'HEALTH',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.1, cost_money: 3000, cost_xp: 150, time_days: 4, required_player_level: 4 }
+          }
+        };
+        
+        // Preserva o que já está salvo no state local, se existir
+        if (Object.keys(get().researches).length === 0) {
+          set({ researches: INITIAL_RESEARCHES });
+        }
       }
     } catch (err) {
-      console.error("Erro ao buscar pesquisas da nuvem", err);
+      console.error("Erro ao buscar pesquisas", err);
     }
   },
 
@@ -308,9 +359,23 @@ export const useGameStore = create<GameState>()(
         });
         alert(response.data.message);
       } else {
-        alert("Conecte-se online para realizar pesquisas!");
+        const state = get();
+        const research = state.researches[researchId];
+        if (!research || research.current_level >= research.max_level) return;
+        
+        const next = research.next_level_info;
+        if (state.money >= next.cost_money && state.xp >= next.cost_xp && state.level >= next.required_player_level) {
+          set({
+            money: state.money - next.cost_money,
+            totalExpenses: state.totalExpenses + next.cost_money,
+            xp: state.xp - next.cost_xp,
+            activeResearchId: researchId,
+            activeResearchDaysLeft: next.time_days
+          });
+        }
       }
     } catch (err: any) {
+      console.error("Erro ao iniciar pesquisa", err);
       alert(err.response?.data?.error || "Erro ao iniciar pesquisa.");
     }
   },
@@ -408,7 +473,8 @@ export const useGameStore = create<GameState>()(
         siloBalance: 0,
         siloCapacity: 2000,
         dailyTasks: [],
-        batch: null,
+      history: [],
+      batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
       set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: [...state.barns, newBarn] });
@@ -1057,7 +1123,7 @@ export const useGameStore = create<GameState>()(
         
         if (totalWorkMinutesAvailable >= task.durationMinutes) {
           totalWorkMinutesAvailable -= task.durationMinutes;
-          return { ...task, completed: true, startedAt: Date.now() }; // Completa a tarefa
+          return { ...task, completed: true, startedAtHour: state.currentHour }; // Completa a tarefa
         }
         return task;
       });
@@ -2043,7 +2109,7 @@ export const useGameStore = create<GameState>()(
       if (barn.id === barnId) {
         return {
           ...barn,
-          dailyTasks: barn.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+          dailyTasks: barn.dailyTasks.map(t => t.id === taskId ? { ...t, startedAtHour: state.currentHour } : t)
         };
       }
       return barn;
@@ -2068,7 +2134,7 @@ export const useGameStore = create<GameState>()(
                 let resultReport = undefined;
 
                 if (task.id === 'check_feed_silo') {
-                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const feedInInventory = (state.inventory || []).find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
                   const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
                   resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
                 }
@@ -2085,7 +2151,16 @@ export const useGameStore = create<GameState>()(
                   }
                 }
 
-                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+                if (resultReport) {
+                  barn.history.push({
+                    day: state.currentDay,
+                    hour: state.currentHour,
+                    message: `[${task.name}] ${resultReport}`,
+                    type: 'info'
+                  });
+                }
+
+                return { ...task, completed: true, startedAtHour: state.currentHour, resultReport };
               }
               return task;
             })
@@ -2107,7 +2182,7 @@ export const useGameStore = create<GameState>()(
                 let resultReport = undefined;
 
                 if (task.id === 'check_feed_silo') {
-                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const feedInInventory = (state.inventory || []).find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
                   const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
                   resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
                 }
@@ -2124,7 +2199,16 @@ export const useGameStore = create<GameState>()(
                   }
                 }
 
-                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+                if (resultReport) {
+                  barn.history.push({
+                    day: state.currentDay,
+                    hour: state.currentHour,
+                    message: `[${task.name}] ${resultReport}`,
+                    type: 'info'
+                  });
+                }
+
+                return { ...task, completed: true, startedAtHour: state.currentHour, resultReport };
               }
               return task;
             })

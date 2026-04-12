@@ -12,3 +12,8 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Hide injected Trae/Solo badges */
+[id*="trae"], [class*="trae-"], [id*="solo-badge"] {
+  display: none !important;
+}

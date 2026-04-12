@@ -94,6 +94,7 @@ export interface Barn {
   siloBalance: number; // kg de ração no silo do galpão
   siloCapacity: number; // kg máximos que o silo aguenta
   dailyTasks: DailyTask[]; // Tarefas do galpão
+  history: { day: number, hour: number, message: string, type: 'info'|'warning'|'danger'|'success' }[];
 }
 
 export interface InventoryItem {
@@ -155,6 +156,7 @@ export interface Machinery {
   cost: number;
   requiredLevel: number;
   description: string;
+  capacityKg?: number;
 }
 
 export interface Region {
@@ -180,7 +182,7 @@ export interface DailyTask {
   name: string;
   description: string;
   durationMinutes: number; // Tempo necessário para concluir
-  startedAt: number | null; // Timestamp de quando começou (para simular progresso)
+  startedAtHour?: number; // Timestamp de quando começou (para simular progresso)
   completed: boolean;
   effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
   severity: 'BAIXA' | 'MEDIA' | 'ALTA';
@@ -356,6 +358,7 @@ export interface GameState {
   hireEmployee: (role: Employee['role']) => void;
   fireEmployee: (employeeId: string) => void;
   trainEmployee: (employeeId: string, cost: number) => void;
+  assignEmployeeToBarn: (employeeId: string, barnId: string | null) => void;
 
   // Consultants
   hireVeterinarian: () => void;

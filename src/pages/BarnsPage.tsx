@@ -5,6 +5,9 @@ import { PageTransition } from '../components/PageTransition';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { Modal } from '../components/Modal';
+import { FeedSiloModal } from '../components/FeedSiloModal';
+
+import { FileText } from 'lucide-react';
 
 export default function BarnsPage() {
   const barns = useGameStore(state => state.barns);
@@ -20,11 +23,27 @@ export default function BarnsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedBarnId, setSelectedBarnId] = useState<string | null>(null);
   const [modalType, setModalType] = useState<'SELL' | 'DISCARD'>('SELL');
+  
+  const [feedModalOpen, setFeedModalOpen] = useState(false);
+  const [feedBarnData, setFeedBarnData] = useState<any | null>(null);
+
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyBarnData, setHistoryBarnData] = useState<any | null>(null);
+
+  const handleOpenHistoryModal = (barn: any) => {
+    setHistoryBarnData(barn);
+    setHistoryModalOpen(true);
+  };
 
   const handleOpenModal = (barnId: string, type: 'SELL' | 'DISCARD') => {
     setSelectedBarnId(barnId);
     setModalType(type);
     setModalOpen(true);
+  };
+  
+  const handleOpenFeedModal = (barn: any) => {
+    setFeedBarnData(barn);
+    setFeedModalOpen(true);
   };
 
   const handleConfirmAction = () => {
@@ -91,6 +110,13 @@ export default function BarnsPage() {
                         <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 bg-white/10 px-2 py-0.5 rounded-md">
                           {barn.capacity.toLocaleString()} aves
                         </span>
+                        <button
+                          onClick={() => handleOpenHistoryModal(barn)}
+                          className="p-1 bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white rounded-md transition-colors ml-1 flex items-center justify-center"
+                          title="Ver Diário do Galpão"
+                        >
+                          <FileText size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -141,8 +167,7 @@ export default function BarnsPage() {
                                 const amount = Number(prompt(`Integração: Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} solicitar da integradora? (Máx: ${maxAmount} kg)`));
                                 if (!isNaN(amount) && amount > 0) useGameStore.getState().fillSilo(barn.id, amount);
                               } else {
-                                const amount = Number(prompt(`Quantos kg de ${FEEDS[barn.selectedFeedId || 'feed_basic']?.name} transferir do estoque geral para o silo? (Máx: ${maxAmount} kg)`));
-                                if (!isNaN(amount) && amount > 0) useGameStore.getState().fillSilo(barn.id, amount);
+                                handleOpenFeedModal(barn);
                               }
                             }}
                             className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2 ${barn.isRented ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-zinc-900 hover:bg-black text-white'}`}
@@ -333,6 +358,45 @@ export default function BarnsPage() {
           </div>
         </div>
       </Modal>
+
+      {feedBarnData && (
+        <FeedSiloModal
+          isOpen={feedModalOpen}
+          onClose={() => setFeedModalOpen(false)}
+          barn={feedBarnData}
+        />
+      )}
+
+      {historyBarnData && (
+        <Modal
+          isOpen={historyModalOpen}
+          onClose={() => setHistoryModalOpen(false)}
+          title={`Diário do Galpão - ${historyBarnData.name}`}
+          icon={<FileText className="text-zinc-500" />}
+        >
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            {historyBarnData.history && historyBarnData.history.length > 0 ? (
+              [...historyBarnData.history].reverse().map((log: any, idx) => (
+                <div key={idx} className={`p-3 rounded-lg border text-sm flex gap-3 items-start ${
+                  log.type === 'danger' ? 'bg-red-50 border-red-200 text-red-800' :
+                  log.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+                  log.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                  'bg-zinc-50 border-zinc-200 text-zinc-700'
+                }`}>
+                  <div className="text-xs font-black uppercase tracking-wider opacity-70 shrink-0 whitespace-nowrap mt-0.5">
+                    D{log.day} {log.hour}h
+                  </div>
+                  <div className="font-medium leading-relaxed">
+                    {log.message}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-center text-zinc-500 py-10 font-medium">Nenhum evento registrado ainda.</p>
+            )}
+          </div>
+        </Modal>
+      )}
     </PageTransition>
   );
 }

@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { motion } from 'framer-motion';
 import { Warehouse, Plus, Settings, DollarSign, Package, Check, ChevronRight, Droplet, ArrowUpCircle, CheckCircle2 } from 'lucide-react';
-import { BARN_MODELS, EQUIPMENTS } from '../store/constants';
+import { BARN_MODELS, EQUIPMENTS, MACHINERY_CATALOG } from '../store/constants';
 import { PageTransition } from '../components/PageTransition';
 import { BuyBarnModal } from '../components/BuyBarnModal';
 
 export default function FacilitiesPage() {
-  const { 
+  const {
     money, level, barns, inventory, hasFeedMill, hasIncubator, hasSlaughterhouse,
-    buildFeedMill, buildSlaughterhouse, buyBarn, upgradeBarn, upgradeSilo, buyEquipment
+    buildFeedMill, buildSlaughterhouse, buyBarn, upgradeBarn, upgradeSilo, buyEquipment,
+    buyMachinery, ownedMachinery
   } = useGameStore();
 
-  const [activeTab, setActiveTab] = useState<'GALPOES' | 'FABRICAS'>('GALPOES');
+  const [activeTab, setActiveTab] = useState<'GALPOES' | 'FABRICAS' | 'VEICULOS'>('GALPOES');
   const [buyingModelId, setBuyingModelId] = useState<string | null>(null);
 
   const handleBuyBarnClick = (modelId: string) => {
@@ -51,7 +52,15 @@ export default function FacilitiesPage() {
             activeTab === 'FABRICAS' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
           }`}
         >
-          Complexo Industrial
+          Indústria
+        </button>
+        <button
+          onClick={() => setActiveTab('VEICULOS')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-bold transition-colors ${
+            activeTab === 'VEICULOS' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+          }`}
+        >
+          Veículos & Maquinários
         </button>
       </div>
 
@@ -261,6 +270,68 @@ export default function FacilitiesPage() {
                 Construir (R$ 300.000)
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'VEICULOS' && (
+        <div>
+          <div className="flex flex-col gap-2 mb-6">
+            <h2 className="text-xl font-bold text-zinc-800">Frota de Veículos e Máquinas</h2>
+            <p className="text-sm text-zinc-600">Adquira veículos e máquinas para otimizar os processos da granja e reduzir custos com fretes de insumos e vendas.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.values(MACHINERY_CATALOG).map(machinery => {
+              const isOwned = ownedMachinery.includes(machinery.id);
+              const canAfford = money >= machinery.cost && level >= machinery.requiredLevel;
+
+              return (
+                <div key={machinery.id} className={`bg-white border rounded-xl p-5 shadow-sm flex flex-col justify-between transition-all ${isOwned ? 'border-emerald-300 ring-1 ring-emerald-100' : 'border-zinc-200'}`}>
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-black text-lg text-zinc-800 leading-tight">{machinery.name}</h3>
+                        <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{machinery.brand}</p>
+                      </div>
+                      {isOwned && (
+                        <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-black flex items-center gap-1">
+                          <CheckCircle2 size={14} /> Na Frota
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-zinc-600 mb-4 h-16 line-clamp-3">{machinery.description}</p>
+                    
+                    <div className="bg-zinc-50 p-3 rounded-lg text-sm text-zinc-700 mb-4 space-y-2">
+                      {machinery.capacityKg && (
+                        <p className="flex justify-between border-b border-zinc-100 pb-1">
+                          <span className="text-zinc-500">Capacidade:</span>
+                          <span className="font-bold">{machinery.capacityKg.toLocaleString()} kg</span>
+                        </p>
+                      )}
+                      <p className="flex justify-between">
+                        <span className="text-zinc-500">Requer Nível:</span>
+                        <span className={`font-bold ${level >= machinery.requiredLevel ? 'text-zinc-800' : 'text-red-500'}`}>{machinery.requiredLevel}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => buyMachinery(machinery.id, machinery.cost)}
+                    disabled={isOwned || !canAfford}
+                    className={`w-full py-3 rounded-lg font-black transition-colors flex justify-center items-center gap-2 ${
+                      isOwned
+                        ? 'bg-emerald-50 text-emerald-600 cursor-default'
+                        : canAfford
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md'
+                          : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {isOwned ? 'Adquirido' : `Comprar (R$ ${machinery.cost.toLocaleString()})`}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
