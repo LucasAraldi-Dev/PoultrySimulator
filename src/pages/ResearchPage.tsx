@@ -1,48 +1,48 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Microscope, Zap, Cpu, HeartPulse, CheckCircle2, Lock, Clock, ArrowUpCircle } from 'lucide-react';
+import { Microscope, Zap, Cpu, HeartPulse, CheckCircle2, Lock, Clock, ArrowUpCircle, Unlock, Star } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { PageTransition } from '../components/PageTransition';
+import { RESEARCH_TREE } from '../store/researches';
 
 export function ResearchPage() {
   const money = useGameStore(state => state.money);
   const xp = useGameStore(state => state.xp);
   const playerLevel = useGameStore(state => state.level);
-  
+
   const researches = useGameStore(state => state.researches);
   const activeResearchId = useGameStore(state => state.activeResearchId);
   const activeResearchDaysLeft = useGameStore(state => state.activeResearchDaysLeft);
-  
+
   const fetchResearchesApi = useGameStore(state => state.fetchResearchesApi);
   const startResearchApi = useGameStore(state => state.startResearchApi);
+
+  const [activeCategory, setActiveCategory] = useState<string>('GENETICS');
 
   useEffect(() => {
     fetchResearchesApi();
   }, [fetchResearchesApi]);
 
-  const getIcon = (category: string) => {
-    switch (category) {
-      case 'GENETICS': return <Microscope className="text-purple-500" />;
-      case 'NUTRITION': return <Zap className="text-amber-500" />;
-      case 'INFRASTRUCTURE': return <Cpu className="text-blue-500" />;
-      case 'HEALTH': return <HeartPulse className="text-red-500" />;
-      default: return <Microscope className="text-zinc-500" />;
-    }
-  };
+  const categories = [
+    { id: 'GENETICS', name: 'Genética', icon: <Microscope size={18} /> },
+    { id: 'NUTRITION', name: 'Nutrição', icon: <Zap size={18} /> },
+    { id: 'INFRASTRUCTURE', name: 'Infraestrutura', icon: <Cpu size={18} /> },
+    { id: 'HEALTH', name: 'Saúde', icon: <HeartPulse size={18} /> }
+  ];
 
   return (
     <PageTransition className="space-y-6 pb-20">
       <div className="flex flex-col gap-2 mb-6">
         <h1 className="text-2xl font-bold text-zinc-800 flex items-center gap-2">
           <Microscope size={28} className="text-purple-600" />
-          Árvore de Habilidades (P&D)
+          Pesquisa e Desenvolvimento (P&D)
         </h1>
         <p className="text-zinc-600">
-          Invista Dinheiro, XP e tempo para evoluir bônus permanentes. Os bônus crescem exponencialmente, assim como os custos.
+          Invista Dinheiro, XP e tempo para evoluir bônus permanentes. Desbloqueie tecnologias cruciais para a eficiência da sua fazenda.
         </p>
       </div>
 
-      <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl flex items-center gap-4 text-purple-800">
+      <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl flex items-center gap-4 text-purple-800 flex-wrap">
         <div className="bg-white p-3 rounded-lg shadow-sm">
           <p className="text-xs font-bold text-zinc-500 uppercase">Seu Nível</p>
           <p className="text-2xl font-black text-blue-600">{playerLevel}</p>
@@ -59,108 +59,151 @@ export function ResearchPage() {
           <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg shadow-sm flex items-center gap-3 ml-auto">
             <Clock className="text-orange-500 animate-pulse" />
             <div>
-              <p className="text-xs font-bold text-orange-600 uppercase">Pesquisando: {researches[activeResearchId]?.name}</p>
+              <p className="text-xs font-bold text-orange-600 uppercase">Pesquisando: {RESEARCH_TREE[activeResearchId]?.name}</p>
               <p className="text-sm font-bold text-orange-800">{activeResearchDaysLeft} dias restantes</p>
             </div>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.values(researches || {}).map((research: any) => {
-          const isMaxLevel = research.current_level >= research.max_level;
-          const next = research.next_level_info;
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${
+              activeCategory === cat.id 
+                ? 'bg-purple-600 text-white shadow-md' 
+                : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-purple-50'
+            }`}
+          >
+            {cat.icon} {cat.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Visual Tree */}
+      <div className="bg-zinc-50 p-6 rounded-xl border border-zinc-200 overflow-x-auto custom-scrollbar">
+        <div className="min-w-[800px] flex flex-col gap-10 relative">
           
-          const canAfford = !isMaxLevel && 
-            money >= next.cost_money && 
-            xp >= next.cost_xp && 
-            playerLevel >= next.required_player_level &&
-            !activeResearchId;
+          <div className="grid grid-cols-3 gap-x-8 gap-y-12 relative z-10">
+            {Array.from({ length: 3 }).map((_, rowIdx) => {
+              const catResearches = Object.values(RESEARCH_TREE).filter(r => r.category === activeCategory && r.row === rowIdx);
+              if (catResearches.length === 0) return null;
 
-          const isResearchingThis = activeResearchId === research.id;
+              return (
+                <React.Fragment key={`row-${rowIdx}`}>
+                  {Array.from({ length: 3 }).map((_, colIdx) => {
+                    const resDef = Object.values(RESEARCH_TREE).find(r => r.category === activeCategory && r.row === rowIdx && r.col === colIdx);
+                    
+                    if (!resDef) return <div key={`empty-${rowIdx}-${colIdx}`} className="opacity-0"></div>;
 
-          return (
-            <motion.div
-              key={research.id}
-              whileHover={!isMaxLevel ? { scale: 1.02 } : {}}
-              className={`relative overflow-hidden rounded-xl border p-6 flex flex-col justify-between h-full transition-all duration-300 ${
-                isMaxLevel 
-                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200' 
-                  : isResearchingThis
-                  ? 'bg-orange-50 border-orange-300'
-                  : 'bg-white border-zinc-200 shadow-sm'
-              }`}
-            >
-              {isMaxLevel && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-              )}
-              
-              <div>
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                  <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
-                    {getIcon(research.category)}
-                  </div>
-                  <span className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
-                    Lvl {research.current_level} / {research.max_level}
-                  </span>
-                </div>
+                    const stateRes = researches[resDef.id];
+                    const currentLvl = stateRes?.current_level || 0;
+                    const isMax = currentLvl >= resDef.max_level;
+                    const next = stateRes?.next_level_info;
 
-                <h3 className="text-lg font-bold text-zinc-800 mb-2 relative z-10">{research.name}</h3>
-                <p className="text-sm text-zinc-600 mb-4 relative z-10">{research.description}</p>
-                
-                {research.current_level > 0 && (
-                  <div className="mb-4 p-2 bg-blue-50 border border-blue-100 rounded text-sm text-blue-800">
-                    <strong>Bônus Atual:</strong> +{(research.current_bonus * 100).toFixed(1)}%
-                  </div>
-                )}
-              </div>
+                    // Check Locks
+                    let isLocked = false;
+                    let maxAllowedLvl = resDef.max_level;
+                    if (resDef.requires) {
+                      const parentLvl = researches[resDef.requires]?.current_level || 0;
+                      if (parentLvl === 0) isLocked = true;
+                      if (resDef.max_level > 1) {
+                        maxAllowedLvl = Math.min(resDef.max_level, parentLvl);
+                      }
+                    }
 
-              <div className="mt-auto relative z-10">
-                {isResearchingThis ? (
-                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-orange-200 text-orange-800 border border-orange-300">
-                    <Clock size={18} className="animate-spin" /> Em Andamento...
-                  </div>
-                ) : !isMaxLevel ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="text-xs bg-zinc-50 p-2 rounded border border-zinc-100 flex flex-col gap-1">
-                      <div className="flex justify-between">
-                        <span>Próximo Bônus:</span>
-                        <span className="font-bold text-emerald-600">+{(next.next_bonus * 100).toFixed(1)}%</span>
+                    const isResearchingThis = activeResearchId === resDef.id;
+                    const canAfford = !isLocked && !isMax && !activeResearchId && next &&
+                      money >= next.cost_money &&
+                      xp >= next.cost_xp &&
+                      playerLevel >= next.required_player_level &&
+                      currentLvl < maxAllowedLvl;
+
+                    const isMaxAllowed = currentLvl >= maxAllowedLvl && !isMax;
+
+                    return (
+                      <div key={resDef.id} className="flex flex-col items-center relative">
+                        {/* Connector Line */}
+                        {resDef.requires && (
+                          <div className="absolute -top-12 left-1/2 w-0.5 h-12 bg-purple-200 -translate-x-1/2 -z-10"></div>
+                        )}
+
+                        <div className={`w-full p-5 border-2 rounded-2xl transition-all relative ${
+                          isResearchingThis ? 'bg-orange-50 border-orange-400 shadow-lg scale-105 z-20' :
+                          isLocked ? 'bg-zinc-100 border-zinc-200 opacity-70 grayscale' :
+                          currentLvl > 0 ? 'bg-white border-purple-400 shadow-md' :
+                          'bg-white border-zinc-300'
+                        }`}>
+                          
+                          {isLocked && <div className="absolute -top-3 -right-3 bg-zinc-200 p-2 rounded-full shadow-sm"><Lock size={16} className="text-zinc-500" /></div>}
+                          {!isLocked && currentLvl === 0 && <div className="absolute -top-3 -right-3 bg-purple-100 p-2 rounded-full shadow-sm"><Unlock size={16} className="text-purple-600" /></div>}
+                          {isMax && <div className="absolute -top-3 -right-3 bg-emerald-100 p-2 rounded-full shadow-sm"><CheckCircle2 size={16} className="text-emerald-600" /></div>}
+
+                          <h3 className={`font-black text-lg leading-tight mb-1 ${isLocked ? 'text-zinc-500' : 'text-zinc-800'}`}>
+                            {resDef.name}
+                          </h3>
+                          
+                          <div className="flex justify-between items-center mb-3 border-b border-zinc-100 pb-2">
+                            <span className="text-xs font-bold text-zinc-500 uppercase">Nível {currentLvl}/{resDef.max_level}</span>
+                            {currentLvl > 0 && (
+                              <span className="text-[10px] font-black bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full uppercase">
+                                {resDef.effectLabel(currentLvl)}
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-zinc-600 mb-4 h-10 line-clamp-2">{resDef.description}</p>
+
+                          {isResearchingThis ? (
+                            <div className="w-full py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 bg-orange-200 text-orange-800 border border-orange-300 text-sm">
+                              <Clock size={16} className="animate-spin" /> Em Andamento
+                            </div>
+                          ) : isMax ? (
+                            <div className="w-full py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm">
+                              <Star size={16} className="fill-emerald-800" /> Pesquisa Máxima
+                            </div>
+                          ) : isLocked ? (
+                            <div className="w-full py-2.5 rounded-lg font-bold flex justify-center items-center bg-zinc-200 text-zinc-500 text-xs text-center">
+                              Requer Pesquisa Anterior
+                            </div>
+                          ) : isMaxAllowed ? (
+                            <div className="w-full py-2.5 rounded-lg font-bold flex justify-center items-center bg-amber-100 text-amber-800 text-xs text-center leading-tight px-2">
+                              Evolua a pesquisa anterior para liberar o próximo nível.
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <div className="grid grid-cols-2 gap-1 text-[10px] font-bold bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+                                <div className="text-zinc-500">Custo: <span className={money >= next.cost_money ? 'text-zinc-800' : 'text-red-500'}>R$ {next.cost_money.toLocaleString()}</span></div>
+                                <div className="text-zinc-500 text-right">XP: <span className={xp >= next.cost_xp ? 'text-purple-600' : 'text-red-500'}>{next.cost_xp}</span></div>
+                                <div className="text-zinc-500">Tempo: <span className="text-zinc-800">{next.time_days}d</span></div>
+                                <div className="text-zinc-500 text-right">Nível: <span className={playerLevel >= next.required_player_level ? 'text-zinc-800' : 'text-red-500'}>Lvl {next.required_player_level}</span></div>
+                              </div>
+                              <button
+                                onClick={() => startResearchApi(resDef.id)}
+                                disabled={!canAfford || activeResearchId !== null}
+                                className={`w-full py-2.5 rounded-lg text-sm font-black transition-colors flex justify-center items-center gap-1 ${
+                                  canAfford && !activeResearchId
+                                    ? 'bg-zinc-900 hover:bg-zinc-800 text-white shadow-md'
+                                    : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                                }`}
+                              >
+                                <ArrowUpCircle size={16} /> Pesquisar (+{resDef.effectLabel(1).replace(/[^0-9.]/g, '')}%)
+                              </button>
+                            </div>
+                          )}
+
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Tempo:</span>
-                        <span className="font-bold text-zinc-600">{next.time_days} dias</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Nível Necessário:</span>
-                        <span className={`font-bold ${playerLevel >= next.required_player_level ? 'text-zinc-600' : 'text-red-500'}`}>Lvl {next.required_player_level}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className={`font-bold ${money >= next.cost_money ? 'text-zinc-700' : 'text-red-500'}`}>R$ {next.cost_money.toFixed(0)}</span>
-                      <span className={`font-bold ${xp >= next.cost_xp ? 'text-purple-600' : 'text-red-500'}`}>{next.cost_xp} XP</span>
-                    </div>
-                    <button
-                      onClick={() => startResearchApi(research.id)}
-                      disabled={!canAfford}
-                      className={`w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors ${
-                        canAfford 
-                          ? 'bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:shadow-lg' 
-                          : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {canAfford ? <><ArrowUpCircle size={18} /> Evoluir</> : <><Lock size={16} /> Indisponível</>}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <CheckCircle2 size={18} /> Nível Máximo
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </PageTransition>
   );
