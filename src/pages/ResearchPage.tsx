@@ -66,31 +66,15 @@ export function ResearchPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-        {categories.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${
-              activeCategory === cat.id 
-                ? 'bg-purple-600 text-white shadow-md' 
-                : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-purple-50'
-            }`}
-          >
-            {cat.icon} {cat.name}
-          </button>
-        ))}
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Object.values(researches || {}).map((research: any) => {
+          const isMaxLevel = research.current_level >= research.max_level;
+          const next = research.next_level_info;
 
-      {/* Visual Tree */}
-      <div className="bg-zinc-50 p-6 rounded-xl border border-zinc-200 overflow-x-auto custom-scrollbar">
-        <div className="min-w-[800px] flex flex-col gap-10 relative">
-          
-          const canAfford = !isMaxLevel && 
+          const canAfford = !isMaxLevel &&
             next &&
-            money >= next.cost_money && 
-            xp >= next.cost_xp && 
+            money >= next.cost_money &&
+            xp >= next.cost_xp &&
             playerLevel >= next.required_player_level &&
             !activeResearchId;
 
@@ -101,8 +85,8 @@ export function ResearchPage() {
               key={research.id}
               whileHover={!isMaxLevel ? { scale: 1.02 } : {}}
               className={`relative overflow-hidden rounded-xl border p-6 flex flex-col justify-between h-full transition-all duration-300 ${
-                isMaxLevel 
-                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200' 
+                isMaxLevel
+                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200'
                   : isResearchingThis
                   ? 'bg-orange-50 border-orange-300'
                   : 'bg-white border-zinc-200 shadow-sm'

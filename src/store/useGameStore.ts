@@ -1193,16 +1193,14 @@ export const useGameStore = create<GameState>()(
       const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
       if (assignedKeepers.length === 0) return barn;
 
-      // Cada nível de tratador dá 'X' minutos de capacidade de trabalho por hora
-      // Ex: Nível 1 = 60 min, Nível 2 = 70 min, etc
-      let totalWorkMinutesAvailable = assignedKeepers.reduce((acc, k) => acc + (60 + (k.experienceLevel * 10)), 0);
-
+      // Nível 1: Faz as tarefas diárias do galpão automaticamente
+      const hasAutoTasks = assignedKeepers.some(k => k.experienceLevel >= 1);
+      
       const newTasks = barn.dailyTasks.map(task => {
         if (task.completed) return task;
-        
-        if (totalWorkMinutesAvailable >= task.durationMinutes) {
-          totalWorkMinutesAvailable -= task.durationMinutes;
-          return { ...task, completed: true, startedAtHour: state.currentHour }; // Completa a tarefa
+
+        if (hasAutoTasks) {
+          return { ...task, completed: true, startedAt: Date.now() }; // Completa a tarefa automaticamente
         }
         return task;
       });
@@ -1430,7 +1428,7 @@ export const useGameStore = create<GameState>()(
       let partsNeeded = Math.floor(state.barns.reduce((acc, barn) => acc + barn.equipment.length, 0) / 10);
       if (state.hasFeedMill) partsNeeded += 1;
       if (state.hasSlaughterhouse) partsNeeded += 2;
-      
+
       if (partsNeeded > 0) {
         if (partsIdx >= 0 && currentInventory[partsIdx].quantity >= partsNeeded) {
           currentInventory[partsIdx].quantity -= partsNeeded;
@@ -1450,6 +1448,11 @@ export const useGameStore = create<GameState>()(
         const interest = currentLoan * 0.00015;
         currentLoan += interest;
       }
+
+      // Arrays para armazenar notificações e automações (Nível 4 e 5 do Tratador)
+      const notificationsToAdd: any[] = [];
+      const autoSellBarns: string[] = [];
+      const autoBuyBarns: string[] = [];
 
       // Analisa tarefas diárias não feitas e aplica penalidades
       let diseasePenalty = 1;
@@ -1736,7 +1739,7 @@ export const useGameStore = create<GameState>()(
           // Chance de 1% por dia de pegar doença, mitigado por equipamentos e ração medicada e vacina e higiene
           let diseaseChance = 0.01 * (1 - equipmentMortalityBonus) * (feedData.id === 'feed_medicada' ? 0.2 : 1);
           diseaseChance *= diseasePenalty * diseaseSpikeMod * (1 - hea1Bonus); // Bônus da pesquisa hea_1
-          
+
           if (newBatch.vaccineProtectionDays > 0) {
             diseaseChance *= 0.1; // 90% menos chance com vacina
             newBatch.vaccineProtectionDays -= 1;
@@ -1748,7 +1751,7 @@ export const useGameStore = create<GameState>()(
           if (Math.random() < diseaseChance * (currentWeather === 'RAIN' ? 1.5 : 1)) {
             const diseaseKeys = Object.keys(DISEASES);
             const randomDisease = DISEASES[diseaseKeys[Math.floor(Math.random() * diseaseKeys.length)]];
-            
+
             // Verifica se está protegido por vacina
             let isProtected = false;
             if (newBatch.vaccines) {
@@ -1759,7 +1762,16 @@ export const useGameStore = create<GameState>()(
             }
 
             if (!isProtected) {
-              newBatch.activeDisease = { ...randomDisease, daysActive: 0 };
+              let diseaseDuration = randomDisease.durationDays;
+              
+              // Nível 3: Técnico Agrícola (Reduz tempo da doença em 20% no momento em que ela é contraída)
+              const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
+              const hasTechAgricola = assignedKeepers.some(k => k.experienceLevel >= 3);
+              if (hasTechAgricola) {
+                diseaseDuration = Math.max(1, Math.floor(diseaseDuration * 0.8));
+              }
+
+              newBatch.activeDisease = { ...randomDisease, durationDays: diseaseDuration, daysActive: 0 };
             }
           }
         } else {
@@ -1830,10 +1842,16 @@ export const useGameStore = create<GameState>()(
             // Peso esperado de hoje menos o peso esperado de ontem seria o ganho,
             // mas podemos apenas aplicar o peso da tabela modificado pelo crescimento
             const growthFactor = feedData.bonus.growthModifier * diseaseGrowth * growthPenalty * (1 + equipmentGrowthBonus) * feedTypePenalty * feedPhasePenalty * (1 + gen1Bonus); 
-            // O ganho diário (expectedWeightG atual - peso anterior ou aprox) 
+            // O ganho diário (expectedWeightG atual - peso anterior ou aprox)
             // Para simplificar, o currentWeight avança em direção ao expectedWeightG modificado
             const yesterdayCobb = getCobb500Data(Math.max(1, newBatch.ageDays - 1));
-            const baseGainKg = (expectedWeightG - yesterdayCobb.weightG) / 1000;
+            let baseGainKg = (expectedWeightG - yesterdayCobb.weightG) / 1000;
+            
+            // Reduz drasticamente o ganho de peso se passar de 52 dias (lote velho)
+            if (newBatch.ageDays > 52) {
+              baseGainKg *= 0.05; // Cai 95% do ganho de peso
+            }
+            
             const actualGainKg = Math.max(0, baseGainKg * growthFactor);
             newBatch.currentWeight += actualGainKg;
           }
@@ -1841,7 +1859,76 @@ export const useGameStore = create<GameState>()(
 
         newBatch.ageDays += 1;
 
+        // TRATADOR HABILIDADES ESPECIAIS (Níveis 2, 4, 5)
+        const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
+        const keeperLevel = assignedKeepers.reduce((max, k) => Math.max(max, k.experienceLevel), 0);
+
+        if (keeperLevel >= 2 && barn.siloBalance < barn.siloCapacity * 0.2) {
+          // Nível 2: Abastecimento Inteligente
+          const selectedFeed = currentInventory.find(i => i.itemId === barn.selectedFeedId);
+          if (selectedFeed && selectedFeed.quantity > 0) {
+            const amountNeeded = barn.siloCapacity - barn.siloBalance;
+            const amountToTransfer = Math.min(amountNeeded, selectedFeed.quantity);
+            selectedFeed.quantity -= amountToTransfer;
+            barn.siloBalance += amountToTransfer;
+          }
+        }
+
+        if (barn.type === 'CORTE' && newBatch.ageDays >= 40 && newBatch.ageDays <= 45) {
+          if (keeperLevel >= 5) {
+            // Nível 5: Venda Automática do Lote Ideal
+            autoSellBarns.push(barn.id);
+          } else if (keeperLevel >= 4 && newBatch.ageDays === 42) {
+            // Nível 4: Notificação no momento ideal (vamos supor que 42 dias seja o ápice)
+            notificationsToAdd.push({
+              id: `notif_${Date.now()}_${barn.id}`,
+              name: `Lote Ideal para Abate - ${barn.name}`,
+              description: `O lote no galpão ${barn.name} atingiu a idade ideal (42 dias). Venda agora para maximizar lucro!`,
+              durationMinutes: 1440,
+              startedAt: Date.now(),
+              completed: false,
+              effectType: 'GROWTH',
+              severity: 'MEDIA'
+            });
+          }
+        }
+
         return { ...barn, batch: newBatch };
+      });
+
+      // Processar Nível 5: Auto-Buy (Ciclo Infinito)
+      // Se o galpão está sem lote, vazio sanitário = 0 e keeperLevel >= 5, ele compra um novo lote se tiver dinheiro
+      newBarns = newBarns.map(barn => {
+        if (!barn.batch && barn.sanitaryVoidDays === 0) {
+          const assignedKeepers = state.employees.filter(e => e.role === 'TRATADOR' && e.assignedBarnId === barn.id);
+          const keeperLevel = assignedKeepers.reduce((max, k) => Math.max(max, k.experienceLevel), 0);
+          
+          if (keeperLevel >= 5) {
+            const animalCost = barn.type === 'CORTE' ? 1.5 : 5.0; // Preços base (pintainho/franga)
+            const totalCost = barn.capacity * animalCost;
+            if (money >= totalCost) {
+                money -= totalCost;
+                totalExpenses += totalCost;
+                // Add to detailedExpenses.barns as a generic expense or another existing field since 'animals' doesn't exist
+                detailedExpenses.barns += totalCost;
+                return {
+                ...barn,
+                batch: {
+                  id: `batch_auto_${Date.now()}_${barn.id}`,
+                  animalCount: barn.capacity,
+                  ageDays: barn.type === 'POSTURA' ? 100 : 1, // Corte começa 1 dia, postura 100 dias (franga)
+                  currentWeight: 0.05,
+                  totalFeedConsumed: 0,
+                  mortalityCount: 0,
+                  activeDisease: null,
+                  vaccineProtectionDays: 0,
+                  hygieneLevel: 100
+                }
+              };
+            }
+          }
+        }
+        return barn;
       });
 
       money -= dailyExpenses;
@@ -1852,40 +1939,28 @@ export const useGameStore = create<GameState>()(
         emergencyLoanAvailable = true;
       }
 
-      // Gerenciar Funcionários (Pedidos e Salários Diários)
-      newEmployees = newEmployees.map(emp => {
-        let newMorale = emp.morale || 100;
-        let newActiveRequest = emp.activeRequest || null;
+      // Adiciona notificações de abate (Nível 4)
+      state.dailyTasks.push(...notificationsToAdd);
 
-        // Se tem pedido ativo, reduz prazo
-        if (newActiveRequest) {
-          newActiveRequest.expiresInDays -= 1;
-          if (newActiveRequest.expiresInDays <= 0) {
-            newMorale = Math.max(0, newMorale - 25); // Caiu morale pq ignorou
-            newActiveRequest = null;
-          }
+      // Vende lotes ideais (Nível 5)
+      autoSellBarns.forEach(barnId => {
+        const barn = newBarns.find(b => b.id === barnId);
+        if (barn && barn.batch) {
+          const finalWeight = barn.batch.currentWeight;
+          const totalKg = barn.batch.animalCount * finalWeight;
+          let revenue = totalKg * currentMarketPrices.meat * (currentFinancialBuff > 0 ? 1.1 : 1);
+          
+          // Bônus do Motorista
+          const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
+          const freightCost = 1000 * Math.max(0.2, 1 - driverBuff);
+          revenue -= freightCost;
+
+          money += revenue;
+          currentMonthRev += revenue;
+          
+          barn.batch = null;
+          barn.sanitaryVoidDays = 14; 
         }
-
-        // Chance de gerar novo pedido (se não tem)
-        if (!newActiveRequest && Math.random() < 0.05) { // 5% por dia
-          const types = ['SALARY_RAISE', 'BUY_FEED', 'BONUS'];
-          const reqType = types[Math.floor(Math.random() * types.length)] as any;
-          if (reqType === 'SALARY_RAISE') {
-            newActiveRequest = { id: `req_${Date.now()}`, type: reqType, description: 'Estou trabalhando muito e gostaria de um aumento de salário.', amount: Math.floor(emp.salary * 0.15), expiresInDays: 3 };
-          } else if (reqType === 'BUY_FEED') {
-            newActiveRequest = { id: `req_${Date.now()}`, type: reqType, description: 'Precisamos de mais ração para garantir o padrão do lote!', amount: 500, targetId: 'feed_basic', expiresInDays: 2 };
-          } else if (reqType === 'BONUS') {
-            newActiveRequest = { id: `req_${Date.now()}`, type: reqType, description: 'Gostaria de solicitar um bônus por desempenho.', amount: emp.salary * 2, expiresInDays: 3 };
-          }
-        }
-
-        // Se morale tá muito baixa, pode se demitir
-        if (newMorale <= 0 && Math.random() < 0.3) {
-          // Funcionário pede as contas (mas aqui não vou deletar direto pra não quebrar a tela, vou só deixar ele inútil ou avisar)
-          // Omitindo a demissão automática por enquanto
-        }
-
-        return { ...emp, morale: newMorale, activeRequest: newActiveRequest };
       });
 
       // Limpa os zerados a cada dia para não poluir
@@ -2120,25 +2195,35 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  hireEmployee: (role, name) => set((state) => {
+  hireEmployee: (role) => set((state) => {
+    const hiringCosts = {
+      'TRATADOR': 5000,
+      'MOTORISTA': 10000,
+      'OPERADOR_FABRICA': 15000
+    };
     const baseSalaries = {
-      'TRATADOR': 180, // Premium service cost
-      'MOTORISTA': 220,
-      'OPERADOR_FABRICA': 250,
-      'VETERINARIO': 400,
-      'GERENTE': 500
+      'TRATADOR': 400,
+      'MOTORISTA': 400,
+      'OPERADOR_FABRICA': 400
     };
-    const newEmployee: import('./types').Employee = {
-      id: `emp_${Date.now()}`,
-      name: name || `Funcionário ${state.employees.length + 1}`,
-      role,
-      experienceLevel: 1,
-      salary: baseSalaries[role as keyof typeof baseSalaries] || 150,
-      skillPoints: 0,
-      skills: {},
-      morale: 100,
-    };
-    return { employees: [...state.employees, newEmployee] };
+
+    const cost = hiringCosts[role as keyof typeof hiringCosts] || 5000;
+
+    if (state.money >= cost) {
+      const newEmployee = {
+        id: `emp_${Date.now()}`,
+        name: `Funcionário ${state.employees.length + 1}`,
+        role,
+        experienceLevel: 1,
+        salary: baseSalaries[role as keyof typeof baseSalaries] || 400
+      };
+      return { 
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        employees: [...state.employees, newEmployee] 
+      };
+    }
+    return state;
   }),
 
   resolveEmployeeRequest: (employeeId, accept) => set((state) => {
@@ -2218,7 +2303,11 @@ export const useGameStore = create<GameState>()(
         totalExpenses: state.totalExpenses + cost,
         employees: state.employees.map(e => {
           if (e.id === employeeId && e.experienceLevel < 5) {
-            return { ...e, experienceLevel: e.experienceLevel + 1, salary: e.salary * 1.2 };
+            const nextLevel = e.experienceLevel + 1;
+            // Nvl 1 -> 400, Nvl 2 -> 600, Nvl 3 -> 900, Nvl 4 -> 1350, Nvl 5 -> 2000
+            const salaryLevels = [400, 600, 900, 1350, 2000];
+            const newSalary = salaryLevels[nextLevel - 1] || 2000;
+            return { ...e, experienceLevel: nextLevel, salary: newSalary };
           }
           return e;
         })

@@ -22,15 +22,38 @@ export function EmployeeSkillModal({ isOpen, onClose, employee: initialEmployee 
   const maxLevel = 5;
   const currentLevel = employee.experienceLevel;
   const isMaxLevel = currentLevel >= maxLevel;
-  const trainingCost = currentLevel * 200;
+  
+  // Nvl 1->2: 25k, 2->3: 50k, 3->4: 100k, 4->5: 200k
+  const getTrainingCost = (level: number) => {
+    switch (level) {
+      case 1: return 25000;
+      case 2: return 50000;
+      case 3: return 100000;
+      case 4: return 200000;
+      default: return 0;
+    }
+  };
+
+  const getSalaryForLevel = (level: number) => {
+    switch (level) {
+      case 1: return 400;
+      case 2: return 600;
+      case 3: return 900;
+      case 4: return 1350;
+      case 5: return 2000;
+      default: return 400;
+    }
+  };
+
+  const trainingCost = getTrainingCost(currentLevel);
   const canAfford = money >= trainingCost;
 
   const getRoleDescription = (role: string) => {
     switch (role) {
       case 'TRATADOR':
-        return 'O Tratador reduz a mortalidade base dos lotes e fornece mais tempo de trabalho se designado a um galpão.';
+        return 'O Tratador (Gerente de Galpão) assume o controle de um galpão específico, automatizando tarefas diárias, acelerando a cura de doenças e até vendendo e comprando novos lotes de forma independente no end-game.';
       case 'MOTORISTA':
-        return 'O Motorista reduz o custo de frete na compra de insumos e na venda de produtos.';
+        return 'O Motorista reduz significativamente o custo de frete na compra de insumos e na venda de produtos.';
       case 'OPERADOR_FABRICA':
         return 'O Operador de Fábrica melhora a eficiência geral da granja (Bônus passivo).';
       default:
@@ -41,7 +64,14 @@ export function EmployeeSkillModal({ isOpen, onClose, employee: initialEmployee 
   const getLevelBonus = (level: number, role: string) => {
     switch (role) {
       case 'TRATADOR':
-        return `Reduz mortalidade em ${level * 2}% | Tempo de Trabalho: +${level * 10} min/dia`;
+        switch(level) {
+          case 1: return 'Faz as tarefas diárias do galpão automaticamente e reduz mortalidade.';
+          case 2: return 'Abastece o silo do galpão automaticamente (puxando do estoque geral).';
+          case 3: return 'Técnico Agrícola: Acelera em 20% a cura de doenças ativas no lote.';
+          case 4: return 'Avisa você no painel quando o lote de corte atingir o peso/lucro ideal para abate.';
+          case 5: return 'Ciclo Infinito: Vende lotes ideais e compra novos automaticamente quando o galpão limpa.';
+          default: return '';
+        }
       case 'MOTORISTA':
         return `Reduz custos de frete em ${level * 5}%`;
       case 'OPERADOR_FABRICA':
@@ -134,9 +164,9 @@ export function EmployeeSkillModal({ isOpen, onClose, employee: initialEmployee 
                         </div>
                         <div>
                           <h4 className={`font-bold ${isCurrent ? 'text-indigo-900' : isUnlocked ? 'text-emerald-800' : 'text-zinc-700'}`}>
-                            Nível {level}
+                            Nível {level} <span className="text-xs text-zinc-500 ml-2 font-normal">(Salário R$ {getSalaryForLevel(level)}/dia)</span>
                           </h4>
-                          <p className="text-sm text-zinc-600">{getLevelBonus(level, employee.role)}</p>
+                          <p className="text-sm text-zinc-600 mt-1">{getLevelBonus(level, employee.role)}</p>
                         </div>
                       </div>
                       
