@@ -94,6 +94,7 @@ export interface Barn {
   siloBalance: number; // kg de ração no silo do galpão
   siloCapacity: number; // kg máximos que o silo aguenta
   dailyTasks: DailyTask[]; // Tarefas do galpão
+  history: { day: number, hour: number, message: string, type: 'info'|'warning'|'danger'|'success' }[];
 }
 
 export interface InventoryItem {
@@ -146,6 +147,15 @@ export interface Company {
   color: string;
 }
 
+export interface VehicleInstance {
+  id: string; // unique instance ID
+  catalogId: string; // ID from MACHINERY_CATALOG
+  name: string; // user can rename it
+  fuelLevel: number; // 0 to 100
+  condition: number; // 0 to 100 (maintenance)
+  assignedDriverId: string | null;
+}
+
 export interface Machinery {
   id: string;
   name: string;
@@ -155,6 +165,8 @@ export interface Machinery {
   cost: number;
   requiredLevel: number;
   description: string;
+  capacityKg?: number;
+  minDriverLevel?: number;
 }
 
 export interface Region {
@@ -180,11 +192,20 @@ export interface DailyTask {
   name: string;
   description: string;
   durationMinutes: number; // Tempo necessário para concluir
-  startedAt: number | null; // Timestamp de quando começou (para simular progresso)
+  startedAtHour?: number; // Timestamp de quando começou (para simular progresso)
   completed: boolean;
   effectType: 'DISEASE' | 'GROWTH' | 'MORTALITY' | 'FEED_SPIKE';
   severity: 'BAIXA' | 'MEDIA' | 'ALTA';
   resultReport?: string; // Relatório com informações geradas após a conclusão da tarefa
+}
+
+export interface EmployeeRequest {
+  id: string;
+  type: 'SALARY_RAISE' | 'BUY_FEED' | 'VACATION' | 'BONUS';
+  description: string;
+  amount?: number;
+  targetId?: string;
+  expiresInDays: number;
 }
 
 export interface Employee {
@@ -193,7 +214,11 @@ export interface Employee {
   role: 'VETERINARIO' | 'GERENTE' | 'MOTORISTA' | 'OPERADOR_FABRICA' | 'TRATADOR';
   salary: number;
   experienceLevel: number;
-  assignedBarnId?: string | null; // Apenas para TRATADORES
+  skillPoints: number;
+  skills: Record<string, number>;
+  assignedBarnId?: string | null;
+  activeRequest?: EmployeeRequest | null;
+  morale: number;
 }
 
 export type WeatherType = 'SUNNY' | 'RAIN' | 'HEATWAVE' | 'COLD';
@@ -273,8 +298,8 @@ export interface GameState {
   checkAchievements: () => void;
   
   // Async Economy Actions
-  buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => Promise<void>;
-  sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number) => Promise<void>;
+  buyItemApi: (itemId: string, quantity: number, totalCost: number, scheduledInDays?: number, vehicleId?: string | null) => Promise<void>;
+  sellProductsApi: (productType: 'eggs' | 'meat', quantity: number, pricePerUnit: number, vehicleId?: string | null) => Promise<void>;
   buyBarnApi: (name: string, type: 'POSTURA' | 'CORTE', capacity: number, cost: number) => Promise<void>;
   buyBatchApi: (barnId: string, animalCount: number, cost: number) => Promise<void>;
   
@@ -295,7 +320,8 @@ export interface GameState {
   barns: Barn[];
   inventory: InventoryItem[]; // Estoque de insumos (rações e ingredientes)
   pendingDeliveries: FeedDelivery[]; // Pedidos em transporte
-  ownedMachinery: string[]; // IDs of purchased machinery
+  ownedVehicles: VehicleInstance[]; // Unique vehicles
+  ownedMachinery: string[]; // For generators/tractors that don't need drivers
   employees: Employee[]; // Funcionários contratados
   products: {
     eggs: number; // Quantidade de ovos no estoque
@@ -331,7 +357,11 @@ export interface GameState {
   upgradeSilo: (barnId: string, cost: number) => void;
   buyEquipment: (barnId: string, equipmentId: string, cost: number) => void;
   buyMachinery: (machineryId: string, cost: number) => void;
-  buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, useOwnTruck?: boolean) => void;
+  buyVehicle: (catalogId: string, cost: number) => void;
+  assignDriverToVehicle: (vehicleId: string, driverId: string | null) => void;
+  refuelVehicle: (vehicleId: string, cost: number) => void;
+  maintainVehicle: (vehicleId: string, cost: number) => void;
+  buyFeed: (feedId: string, kg: number, totalCost: number, scheduledInDays?: number, vehicleId?: string | null) => void;
   buyChicks: (barnId: string, quantity: number, cost: number) => void;
   sellEggs: (quantity: number, pricePerEgg: number) => void;
   sellBatch: (barnId: string) => void; // Para descarte de Postura
@@ -353,9 +383,12 @@ export interface GameState {
   payInstallment: () => void;
   
   // Employees
-  hireEmployee: (role: Employee['role']) => void;
+  hireEmployee: (role: Employee['role'], name: string) => void;
+  resolveEmployeeRequest: (employeeId: string, accept: boolean) => void;
+  upgradeEmployeeSkill: (employeeId: string, skillId: string) => void;
   fireEmployee: (employeeId: string) => void;
   trainEmployee: (employeeId: string, cost: number) => void;
+  assignEmployeeToBarn: (employeeId: string, barnId: string | null) => void;
 
   // Consultants
   hireVeterinarian: () => void;

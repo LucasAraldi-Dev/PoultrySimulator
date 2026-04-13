@@ -14,6 +14,7 @@ import { ResearchPage } from './pages/ResearchPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import Home from './pages/Home';
+import Lab3DPage from './pages/Lab3DPage';
 import { useGameLoop } from './hooks/useGameLoop';
 
 function AnimatedRoutes() {
@@ -30,11 +31,13 @@ function AnimatedRoutes() {
         <Route path="/" element={<GameLayout />}>
           <Route index element={<Home />} />
             <Route path="painel" element={<Dashboard />} />
+            <Route path="galpoes" element={<BarnsPage />} />
             <Route path="infra" element={<FacilitiesPage />} />
             <Route path="mercado" element={<MarketPage />} />
             <Route path="financas" element={<FinancePage />} />
             <Route path="rh" element={<RHPage />} />
             <Route path="pesquisa" element={<ResearchPage />} />
+            <Route path="lab-3d" element={<Lab3DPage />} />
         </Route>
       </Routes>
     </AnimatePresence>

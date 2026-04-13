@@ -1,48 +1,48 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Microscope, Zap, Cpu, HeartPulse, CheckCircle2, Lock, Clock, ArrowUpCircle } from 'lucide-react';
+import { Microscope, Zap, Cpu, HeartPulse, CheckCircle2, Lock, Clock, ArrowUpCircle, Unlock, Star } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { PageTransition } from '../components/PageTransition';
+import { RESEARCH_TREE } from '../store/researches';
 
 export function ResearchPage() {
   const money = useGameStore(state => state.money);
   const xp = useGameStore(state => state.xp);
   const playerLevel = useGameStore(state => state.level);
-  
+
   const researches = useGameStore(state => state.researches);
   const activeResearchId = useGameStore(state => state.activeResearchId);
   const activeResearchDaysLeft = useGameStore(state => state.activeResearchDaysLeft);
-  
+
   const fetchResearchesApi = useGameStore(state => state.fetchResearchesApi);
   const startResearchApi = useGameStore(state => state.startResearchApi);
+
+  const [activeCategory, setActiveCategory] = useState<string>('GENETICS');
 
   useEffect(() => {
     fetchResearchesApi();
   }, [fetchResearchesApi]);
 
-  const getIcon = (category: string) => {
-    switch (category) {
-      case 'GENETICS': return <Microscope className="text-purple-500" />;
-      case 'NUTRITION': return <Zap className="text-amber-500" />;
-      case 'INFRASTRUCTURE': return <Cpu className="text-blue-500" />;
-      case 'HEALTH': return <HeartPulse className="text-red-500" />;
-      default: return <Microscope className="text-zinc-500" />;
-    }
-  };
+  const categories = [
+    { id: 'GENETICS', name: 'Genética', icon: <Microscope size={18} /> },
+    { id: 'NUTRITION', name: 'Nutrição', icon: <Zap size={18} /> },
+    { id: 'INFRASTRUCTURE', name: 'Infraestrutura', icon: <Cpu size={18} /> },
+    { id: 'HEALTH', name: 'Saúde', icon: <HeartPulse size={18} /> }
+  ];
 
   return (
     <PageTransition className="space-y-6 pb-20">
       <div className="flex flex-col gap-2 mb-6">
         <h1 className="text-2xl font-bold text-zinc-800 flex items-center gap-2">
           <Microscope size={28} className="text-purple-600" />
-          Árvore de Habilidades (P&D)
+          Pesquisa e Desenvolvimento (P&D)
         </h1>
         <p className="text-zinc-600">
-          Invista Dinheiro, XP e tempo para evoluir bônus permanentes. Os bônus crescem exponencialmente, assim como os custos.
+          Invista Dinheiro, XP e tempo para evoluir bônus permanentes. Desbloqueie tecnologias cruciais para a eficiência da sua fazenda.
         </p>
       </div>
 
-      <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl flex items-center gap-4 text-purple-800">
+      <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl flex items-center gap-4 text-purple-800 flex-wrap">
         <div className="bg-white p-3 rounded-lg shadow-sm">
           <p className="text-xs font-bold text-zinc-500 uppercase">Seu Nível</p>
           <p className="text-2xl font-black text-blue-600">{playerLevel}</p>
@@ -59,17 +59,33 @@ export function ResearchPage() {
           <div className="bg-orange-50 border border-orange-200 p-3 rounded-lg shadow-sm flex items-center gap-3 ml-auto">
             <Clock className="text-orange-500 animate-pulse" />
             <div>
-              <p className="text-xs font-bold text-orange-600 uppercase">Pesquisando: {researches[activeResearchId]?.name}</p>
+              <p className="text-xs font-bold text-orange-600 uppercase">Pesquisando: {RESEARCH_TREE[activeResearchId]?.name}</p>
               <p className="text-sm font-bold text-orange-800">{activeResearchDaysLeft} dias restantes</p>
             </div>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.values(researches || {}).map((research: any) => {
-          const isMaxLevel = research.current_level >= research.max_level;
-          const next = research.next_level_info;
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${
+              activeCategory === cat.id 
+                ? 'bg-purple-600 text-white shadow-md' 
+                : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-purple-50'
+            }`}
+          >
+            {cat.icon} {cat.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Visual Tree */}
+      <div className="bg-zinc-50 p-6 rounded-xl border border-zinc-200 overflow-x-auto custom-scrollbar">
+        <div className="min-w-[800px] flex flex-col gap-10 relative">
           
           const canAfford = !isMaxLevel && 
             next &&
@@ -136,32 +152,13 @@ export function ResearchPage() {
                         <span>Nível Necessário:</span>
                         <span className={`font-bold ${playerLevel >= next.required_player_level ? 'text-zinc-600' : 'text-red-500'}`}>Lvl {next.required_player_level}</span>
                       </div>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className={`font-bold ${money >= next.cost_money ? 'text-zinc-700' : 'text-red-500'}`}>R$ {next.cost_money.toFixed(0)}</span>
-                      <span className={`font-bold ${xp >= next.cost_xp ? 'text-purple-600' : 'text-red-500'}`}>{next.cost_xp} XP</span>
-                    </div>
-                    <button
-                      onClick={() => startResearchApi(research.id)}
-                      disabled={!canAfford}
-                      className={`w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors ${
-                        canAfford 
-                          ? 'bg-zinc-900 hover:bg-zinc-800 text-white shadow-md hover:shadow-lg' 
-                          : 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {canAfford ? <><ArrowUpCircle size={18} /> Evoluir</> : <><Lock size={16} /> Indisponível</>}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <CheckCircle2 size={18} /> Nível Máximo
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </PageTransition>
   );
