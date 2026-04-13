@@ -90,11 +90,26 @@ export default function RHPage() {
               Quadro de Funcionários
             </h2>
             <div className="flex gap-2">
-              <button onClick={() => hireEmployee('TRATADOR')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
-                <UserPlus size={16} /> Tratador
+              <button 
+                onClick={() => hireEmployee('TRATADOR')} 
+                disabled={money < 5000}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <UserPlus size={16} /> Tratador (R$ 5k)
               </button>
-              <button onClick={() => hireEmployee('OPERADOR_FABRICA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
-                <UserPlus size={16} /> Operador
+              <button 
+                onClick={() => hireEmployee('MOTORISTA')} 
+                disabled={money < 10000}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <UserPlus size={16} /> Motorista (R$ 10k)
+              </button>
+              <button 
+                onClick={() => hireEmployee('OPERADOR_FABRICA')} 
+                disabled={money < 15000}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <UserPlus size={16} /> Operador (R$ 15k)
               </button>
             </div>
           </div>
@@ -108,7 +123,6 @@ export default function RHPage() {
               </div>
             ) : (
               employees.map(emp => {
-                const trainingCost = emp.experienceLevel * 200;
                 return (
                   <div key={emp.id} className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm">
                     <div className="flex justify-between items-start mb-2">
