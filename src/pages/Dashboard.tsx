@@ -58,12 +58,12 @@ export default function Dashboard() {
   employees.forEach(emp => {
     if (emp.skills) {
       Object.entries(emp.skills).forEach(([skillId, level]) => {
-        if (level > 0) {
+        if ((level as number) > 0) {
           const skillDef = EMPLOYEE_SKILLS_CATALOG[skillId];
           if (skillDef) {
             activeBonuses.push({
               icon: <Star size={16} />,
-              title: `${skillDef.effectLabel(level)}`,
+              title: `${skillDef.effectLabel(level as number)}`,
               source: `${emp.name}`,
               color: 'text-indigo-600 bg-indigo-100'
             });
