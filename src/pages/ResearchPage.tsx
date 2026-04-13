@@ -72,6 +72,7 @@ export function ResearchPage() {
           const next = research.next_level_info;
           
           const canAfford = !isMaxLevel && 
+            next &&
             money >= next.cost_money && 
             xp >= next.cost_xp && 
             playerLevel >= next.required_player_level &&
@@ -120,7 +121,7 @@ export function ResearchPage() {
                   <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-orange-200 text-orange-800 border border-orange-300">
                     <Clock size={18} className="animate-spin" /> Em Andamento...
                   </div>
-                ) : !isMaxLevel ? (
+                ) : !isMaxLevel && next ? (
                   <div className="flex flex-col gap-3">
                     <div className="text-xs bg-zinc-50 p-2 rounded border border-zinc-100 flex flex-col gap-1">
                       <div className="flex justify-between">
