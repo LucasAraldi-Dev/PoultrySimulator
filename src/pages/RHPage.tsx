@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
 import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
+import { EmployeeSkillModal } from '../components/EmployeeSkillModal';
+import { Employee } from '../store/types';
 
 export default function RHPage() {
   const employees = useGameStore(state => state.employees);
@@ -11,6 +14,14 @@ export default function RHPage() {
   const hireVeterinarian = useGameStore(state => state.hireVeterinarian);
   const hireFinancialAdvisor = useGameStore(state => state.hireFinancialAdvisor);
   const financialBuffDays = useGameStore(state => state.financialBuffDays);
+
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
+
+  const handleOpenSkillTree = (emp: Employee) => {
+    setSelectedEmployee(emp);
+    setIsSkillModalOpen(true);
+  };
 
   return (
     <PageTransition>
@@ -79,11 +90,26 @@ export default function RHPage() {
               Quadro de Funcionários
             </h2>
             <div className="flex gap-2">
-              <button onClick={() => hireEmployee('TRATADOR')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
-                <UserPlus size={16} /> Tratador
+              <button 
+                onClick={() => hireEmployee('TRATADOR')} 
+                disabled={money < 5000}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <UserPlus size={16} /> Tratador (R$ 5k)
               </button>
-              <button onClick={() => hireEmployee('OPERADOR_FABRICA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
-                <UserPlus size={16} /> Operador
+              <button 
+                onClick={() => hireEmployee('MOTORISTA')} 
+                disabled={money < 10000}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <UserPlus size={16} /> Motorista (R$ 10k)
+              </button>
+              <button 
+                onClick={() => hireEmployee('OPERADOR_FABRICA')} 
+                disabled={money < 15000}
+                className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <UserPlus size={16} /> Operador (R$ 15k)
               </button>
             </div>
           </div>
@@ -97,7 +123,6 @@ export default function RHPage() {
               </div>
             ) : (
               employees.map(emp => {
-                const trainingCost = emp.experienceLevel * 200;
                 return (
                   <div key={emp.id} className="bg-white p-5 rounded-xl border border-zinc-200 shadow-sm">
                     <div className="flex justify-between items-start mb-2">
@@ -116,12 +141,11 @@ export default function RHPage() {
                       
                       <div className="flex gap-2 mt-2">
                         <button 
-                          onClick={() => trainEmployee(emp.id, trainingCost)}
-                          disabled={money < trainingCost || emp.experienceLevel >= 5}
-                          className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                          onClick={() => handleOpenSkillTree(emp)}
+                          className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
                         >
                           <GraduationCap size={14} /> 
-                          {emp.experienceLevel >= 5 ? 'Max' : `Treinar (R$ ${trainingCost})`}
+                          Árvore de Habilidades
                         </button>
                         <button 
                           onClick={() => {
@@ -140,6 +164,12 @@ export default function RHPage() {
           </div>
         </section>
       </div>
+
+      <EmployeeSkillModal 
+        isOpen={isSkillModalOpen} 
+        onClose={() => setIsSkillModalOpen(false)} 
+        employee={selectedEmployee} 
+      />
     </PageTransition>
   );
 }

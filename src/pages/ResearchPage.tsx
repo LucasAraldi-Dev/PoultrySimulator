@@ -70,10 +70,11 @@ export function ResearchPage() {
         {Object.values(researches || {}).map((research: any) => {
           const isMaxLevel = research.current_level >= research.max_level;
           const next = research.next_level_info;
-          
-          const canAfford = !isMaxLevel && 
-            money >= next.cost_money && 
-            xp >= next.cost_xp && 
+
+          const canAfford = !isMaxLevel &&
+            next &&
+            money >= next.cost_money &&
+            xp >= next.cost_xp &&
             playerLevel >= next.required_player_level &&
             !activeResearchId;
 
@@ -84,8 +85,8 @@ export function ResearchPage() {
               key={research.id}
               whileHover={!isMaxLevel ? { scale: 1.02 } : {}}
               className={`relative overflow-hidden rounded-xl border p-6 flex flex-col justify-between h-full transition-all duration-300 ${
-                isMaxLevel 
-                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200' 
+                isMaxLevel
+                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200'
                   : isResearchingThis
                   ? 'bg-orange-50 border-orange-300'
                   : 'bg-white border-zinc-200 shadow-sm'
@@ -120,7 +121,7 @@ export function ResearchPage() {
                   <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-orange-200 text-orange-800 border border-orange-300">
                     <Clock size={18} className="animate-spin" /> Em Andamento...
                   </div>
-                ) : !isMaxLevel ? (
+                ) : !isMaxLevel && next ? (
                   <div className="flex flex-col gap-3">
                     <div className="text-xs bg-zinc-50 p-2 rounded border border-zinc-100 flex flex-col gap-1">
                       <div className="flex justify-between">
