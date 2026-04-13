@@ -399,9 +399,10 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     brand: 'F-4000 / MB 710',
     type: 'TRUCK_FEED',
     tier: 'GENERIC',
-    cost: 50000,
+    cost: 120000,
     requiredLevel: 4,
-    description: 'Veículo básico para buscar carga leve. Reduz o frete em 10% (Economia de combustível em curtas distâncias).'
+    capacityKg: 4000,
+    description: 'Veículo básico (capacidade de 4 ton). Ideal para buscar pequenos lotes de ração. Reduz o custo do frete em 10%.'
   },
   'gen_truck_toco': {
     id: 'gen_truck_toco',
@@ -409,39 +410,54 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     brand: 'MB 1620 / Ford Cargo 1317',
     type: 'TRUCK_FEED',
     tier: 'GENERIC',
-    cost: 110000,
+    cost: 250000,
     requiredLevel: 6,
-    description: 'O clássico guerreiro das rodovias. Reduz o frete em 25% (melhor custo-benefício em médias distâncias).'
+    capacityKg: 8000,
+    description: 'O clássico guerreiro das rodovias (capacidade de 8 ton). Reduz o frete em 25% (melhor custo-benefício).'
   },
   'gen_truck_feed': {
     id: 'gen_truck_feed',
     name: 'Caminhão Truck Graneleiro',
-    brand: 'VW Worker 24.220',
+    brand: 'VW Constellation 24.280',
     type: 'TRUCK_FEED',
     tier: 'GENERIC',
-    cost: 185000,
+    cost: 380000,
     requiredLevel: 8,
-    description: 'Transporte pesado de ração. Reduz o custo do frete no mercado em 50%.'
+    capacityKg: 14000,
+    description: 'Transporte pesado de ração (capacidade de 14 ton). Reduz o custo do frete no mercado em 50%.'
   },
   'prem_truck_feed': {
     id: 'prem_truck_feed',
-    name: 'Carreta Bi-Trem (LS)',
+    name: 'Carreta Graneleira LS',
     brand: 'Volvo FH 460 / Scania R440',
     type: 'TRUCK_FEED',
     tier: 'PREMIUM',
-    cost: 380000,
+    cost: 750000,
     requiredLevel: 12,
-    description: 'Compra direto das gigantes da soja. Corta todo o custo de frete na compra da ração e ganha -5% no valor do insumo.'
+    capacityKg: 32000,
+    description: 'Compra direto das gigantes da soja (32 ton). Corta 100% do custo de frete na compra da ração.'
+  },
+  'prem_truck_bitrem': {
+    id: 'prem_truck_bitrem',
+    name: 'Carreta Bi-Trem',
+    brand: 'Volvo FH 540 / Scania R500',
+    type: 'TRUCK_FEED',
+    tier: 'PREMIUM',
+    cost: 980000,
+    requiredLevel: 16,
+    capacityKg: 57000,
+    description: 'A maior capacidade de carga do jogo (57 ton). Reduz o frete em 100% e garante 5% de desconto no preço da ração (compra em grande volume).'
   },
   'gen_truck_live': {
     id: 'gen_truck_live',
-    name: 'Caminhão Baú de Transporte',
+    name: 'Caminhão Baú (Transporte Aves)',
     brand: 'MB Atego 2426',
     type: 'TRUCK_LIVE',
     tier: 'GENERIC',
-    cost: 210000,
+    cost: 280000,
     requiredLevel: 7,
-    description: 'Transporte de aves vivas com baixo estresse: Aumenta o preço de venda de frangos vivos em 5%.'
+    capacityKg: 10000,
+    description: 'Transporte de aves vivas com baixo estresse. Aumenta o preço de venda de aves vivas em 5%.'
   },
   'prem_truck_cold': {
     id: 'prem_truck_cold',
@@ -449,8 +465,9 @@ export const MACHINERY_CATALOG: Record<string, import('./types').Machinery> = {
     brand: 'Scania R450',
     type: 'TRUCK_COLD',
     tier: 'PREMIUM',
-    cost: 450000,
+    cost: 650000,
     requiredLevel: 15,
+    capacityKg: 28000,
     description: 'Exige Abatedouro. Logística refrigerada premium que garante +15% de receita na carne abatida.'
   }
 };
@@ -522,7 +539,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     name: 'Limpar Bebedouros',
     description: 'Evita a proliferação de bactérias na água.',
     durationMinutes: 1,
-    startedAt: null,
+    startedAtHour: undefined,
     completed: false,
     effectType: 'DISEASE',
     severity: 'MEDIA',
@@ -532,7 +549,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     name: 'Checar Climatização',
     description: 'Ajusta a temperatura para o conforto térmico ideal.',
     durationMinutes: 2,
-    startedAt: null,
+    startedAtHour: undefined,
     completed: false,
     effectType: 'GROWTH',
     severity: 'MEDIA',
@@ -542,7 +559,7 @@ export const DEFAULT_DAILY_TASKS: import('./types').DailyTask[] = [
     name: 'Retirar Aves Mortas',
     description: 'Evita contaminação do lote e doenças.',
     durationMinutes: 3,
-    startedAt: null,
+    startedAtHour: undefined,
     completed: false,
     effectType: 'MORTALITY',
     severity: 'ALTA',
@@ -643,3 +660,46 @@ export const ACHIEVEMENTS: Record<string, Achievement> = {
   }
 };
 
+
+export interface EmployeeSkillDef {
+  id: string;
+  role: string[];
+  name: string;
+  desc: string;
+  max: number;
+  requires?: string; // ID da habilidade pai
+  row: number; // para posicionamento visual na arvore
+  col: number;
+  effectLabel: (lvl: number) => string;
+}
+
+export const EMPLOYEE_SKILLS_CATALOG: Record<string, EmployeeSkillDef> = {
+  // --- TRATADOR ---
+  'trat_basico': { id: 'trat_basico', role: ['TRATADOR'], name: 'Manejo Básico', desc: 'Habilidade essencial. Reduz tempo das tarefas diárias em 1% por nível.', max: 10, row: 0, col: 1, effectLabel: (l) => `-${l * 1}% tempo de tarefa` },
+  
+  'trat_sanidade': { id: 'trat_sanidade', role: ['TRATADOR'], name: 'Higiene e Sanidade', desc: 'Reduz o risco de doenças em 0.5% por nível.', max: 10, requires: 'trat_basico', row: 1, col: 0, effectLabel: (l) => `-${(l * 0.5).toFixed(1)}% risco de doenças` },
+  'trat_racao': { id: 'trat_racao', role: ['TRATADOR'], name: 'Regulagem de Comedouro', desc: 'Melhora a conversão alimentar em 0.5% por nível.', max: 10, requires: 'trat_basico', row: 1, col: 2, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% conversão alimentar` },
+  
+  'trat_clima': { id: 'trat_clima', role: ['TRATADOR'], name: 'Mestre do Clima', desc: 'Aumenta ganho de peso em 0.5% por nível.', max: 10, requires: 'trat_sanidade', row: 2, col: 0, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% ganho de peso` },
+  'trat_bem_estar': { id: 'trat_bem_estar', role: ['TRATADOR'], name: 'Bem-Estar', desc: 'Reduz a mortalidade natural em 0.5% por nível.', max: 10, requires: 'trat_racao', row: 2, col: 2, effectLabel: (l) => `-${(l * 0.5).toFixed(1)}% mortalidade natural` },
+  
+  'trat_olho_clinico': { id: 'trat_olho_clinico', role: ['TRATADOR'], name: 'Olho Clínico', desc: 'Única. Alerta o jogador com 1 dia de antecedência sobre surtos de doenças.', max: 1, requires: 'trat_clima', row: 3, col: 0, effectLabel: () => `Previsão de Doenças` },
+  'trat_mao_leve': { id: 'trat_mao_leve', role: ['TRATADOR'], name: 'Mão Leve', desc: 'Única. Reduz a perda de ração por desperdício em 5% fixo.', max: 1, requires: 'trat_bem_estar', row: 3, col: 2, effectLabel: () => `-5% Desperdício Fixo` },
+
+  // --- MOTORISTA ---
+  'mot_basico': { id: 'mot_basico', role: ['MOTORISTA'], name: 'Direção Defensiva', desc: 'Reduz o consumo de combustível/manutenção do veículo em 1% por nível.', max: 10, row: 0, col: 1, effectLabel: (l) => `-${l * 1}% manutenção de veículos` },
+  
+  'mot_eco': { id: 'mot_eco', role: ['MOTORISTA'], name: 'Pé de Pluma', desc: 'Reduz o custo de frete na compra de insumos em 1% por nível.', max: 10, requires: 'mot_basico', row: 1, col: 0, effectLabel: (l) => `-${l * 1}% frete de compra` },
+  'mot_seguro': { id: 'mot_seguro', role: ['MOTORISTA'], name: 'Transporte Suave', desc: 'Reduz mortes e contusões no frete, garantindo +0.5% no preço de venda por nível.', max: 10, requires: 'mot_basico', row: 1, col: 2, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% preço de venda (Aves)` },
+
+  'mot_mecanico': { id: 'mot_mecanico', role: ['MOTORISTA'], name: 'Mecânico de Estrada', desc: 'Única. O veículo nunca quebra em viagem (Evita perda de carga).', max: 1, requires: 'mot_eco', row: 2, col: 0, effectLabel: () => `Evita Quebras` },
+  'mot_noturno': { id: 'mot_noturno', role: ['MOTORISTA'], name: 'Coruja da Noite', desc: 'Única. Permite viagens noturnas (entregas chegam 1 dia mais rápido).', max: 1, requires: 'mot_seguro', row: 2, col: 2, effectLabel: () => `Entregas Rápidas` },
+
+  // --- OPERADOR DE FÁBRICA ---
+  'op_basico': { id: 'op_basico', role: ['OPERADOR_FABRICA'], name: 'Operação de Moinho', desc: 'Aumenta a velocidade de produção da fábrica em 1% por nível.', max: 10, row: 0, col: 1, effectLabel: (l) => `+${l * 1}% velocidade produção` },
+  
+  'op_mistura': { id: 'op_mistura', role: ['OPERADOR_FABRICA'], name: 'Mistura Homogênea', desc: 'Rende +0.5% a mais de ração sem custo extra por nível.', max: 10, requires: 'op_basico', row: 1, col: 0, effectLabel: (l) => `+${(l * 0.5).toFixed(1)}% rendimento de ração` },
+  'op_manutencao': { id: 'op_manutencao', role: ['OPERADOR_FABRICA'], name: 'Lubrificação Preventiva', desc: 'Reduz a depreciação da fábrica em 1% por nível.', max: 10, requires: 'op_basico', row: 1, col: 2, effectLabel: (l) => `-${l * 1}% desgaste fábrica` },
+
+  'op_mestre_peleteiro': { id: 'op_mestre_peleteiro', role: ['OPERADOR_FABRICA'], name: 'Mestre Peleteiro', desc: 'Única. Ração ganha 2% a mais de bônus nutricional na conversão.', max: 1, requires: 'op_mistura', row: 2, col: 1, effectLabel: () => `+2% Nutrição Global` },
+};

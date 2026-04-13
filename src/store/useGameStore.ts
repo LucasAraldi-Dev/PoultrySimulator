@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+import { RESEARCH_TREE } from './researches';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
   ACHIEVEMENTS,
   DISCARD_BIRD_PRICE,
@@ -11,7 +12,7 @@ import { api } from '../lib/api';
 
 // Funções utilitárias mantidas para não quebrar a tipagem existente
 const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
-  const tasks: Omit<DailyTask, 'startedAt' | 'completed' | 'resultReport'>[] = [
+  const tasks: Omit<DailyTask, 'startedAtHour' | 'completed' | 'resultReport'>[] = [
     {
       id: 'clean_drinkers',
       name: 'Limpar Bebedouros',
@@ -87,7 +88,7 @@ const generateDailyTasks = (barns: Barn[]): DailyTask[] => {
     });
   }
 
-  return tasks.map(t => ({ ...t, startedAt: null, completed: false }));
+  return tasks.map(t => ({ ...t, completed: false } as DailyTask));
 };
 
 const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn => {
@@ -107,6 +108,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
       siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch: {
         id: 'batch_1',
         animalCount: 500,
@@ -135,6 +137,7 @@ const createInitialBarn = (choice: 'POSTURA' | 'CORTE', regionId: string): Barn 
     siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch: {
       id: 'batch_1',
       animalCount: 1000,
@@ -289,9 +292,58 @@ export const useGameStore = create<GameState>()(
       if (get().isAuthenticated && navigator.onLine) {
         const response = await api.get('/game/research/');
         set({ researches: response.data });
+      } else {
+        // Inicializa com dados locais se não houver backend
+        const INITIAL_RESEARCHES = {
+          '1': {
+            id: '1',
+            name: 'Melhoramento Genético Avançado',
+            description: 'Aumenta a conversão alimentar e o ganho de peso diário.',
+            category: 'GENETICS',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.05, cost_money: 1000, cost_xp: 50, time_days: 1, required_player_level: 1 }
+          },
+          '2': {
+            id: '2',
+            name: 'Ração de Alta Densidade',
+            description: 'Reduz o consumo total de ração mantendo o ganho de peso.',
+            category: 'NUTRITION',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.05, cost_money: 1500, cost_xp: 75, time_days: 2, required_player_level: 2 }
+          },
+          '3': {
+            id: '3',
+            name: 'Climatização Inteligente',
+            description: 'Reduz a mortalidade por estresse térmico.',
+            category: 'INFRASTRUCTURE',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.1, cost_money: 2000, cost_xp: 100, time_days: 3, required_player_level: 3 }
+          },
+          '4': {
+            id: '4',
+            name: 'Vacinas de Nova Geração',
+            description: 'Aumenta a resistência a doenças em todos os lotes.',
+            category: 'HEALTH',
+            current_level: 0,
+            max_level: 5,
+            current_bonus: 0,
+            next_level_info: { next_bonus: 0.1, cost_money: 3000, cost_xp: 150, time_days: 4, required_player_level: 4 }
+          }
+        };
+        
+        // Preserva o que já está salvo no state local, se existir
+        if (Object.keys(get().researches).length === 0) {
+          set({ researches: INITIAL_RESEARCHES });
+        }
       }
     } catch (err) {
-      console.error("Erro ao buscar pesquisas da nuvem", err);
+      console.error("Erro ao buscar pesquisas", err);
     }
   },
 
@@ -308,17 +360,31 @@ export const useGameStore = create<GameState>()(
         });
         alert(response.data.message);
       } else {
-        alert("Conecte-se online para realizar pesquisas!");
+        const state = get();
+        const research = state.researches[researchId];
+        if (!research || research.current_level >= research.max_level) return;
+        
+        const next = research.next_level_info;
+        if (state.money >= next.cost_money && state.xp >= next.cost_xp && state.level >= next.required_player_level) {
+          set({
+            money: state.money - next.cost_money,
+            totalExpenses: state.totalExpenses + next.cost_money,
+            xp: state.xp - next.cost_xp,
+            activeResearchId: researchId,
+            activeResearchDaysLeft: next.time_days
+          });
+        }
       }
     } catch (err: any) {
+      console.error("Erro ao iniciar pesquisa", err);
       alert(err.response?.data?.error || "Erro ao iniciar pesquisa.");
     }
   },
 
-  buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, useOwnTruck = false) => {
+  buyItemApi: async (itemId, quantity, totalCost, scheduledInDays = 0, vehicleId = null) => {
     const scheduledDays = Math.max(0, Math.floor(scheduledInDays || 0));
-    if (scheduledDays > 0 || useOwnTruck) {
-      get().buyFeed(itemId, quantity, totalCost, scheduledDays, useOwnTruck);
+    if (scheduledDays > 0 || vehicleId) {
+      get().buyFeed(itemId, quantity, totalCost, scheduledDays, vehicleId);
       return;
     }
 
@@ -408,7 +474,8 @@ export const useGameStore = create<GameState>()(
         siloBalance: 0,
         siloCapacity: 2000,
         dailyTasks: [],
-        batch: null,
+      history: [],
+      batch: null,
         selectedFeedId: type === 'POSTURA' ? 'feed_layers_start' : 'feed_broiler_pre',
       };
       set({ money: state.money - cost, totalExpenses: state.totalExpenses + cost, barns: [...state.barns, newBarn] });
@@ -492,7 +559,8 @@ export const useGameStore = create<GameState>()(
   emergencyLoanAvailable: false,
   emergencyLoanActive: false,
 
-  ownedMachinery: [],
+  ownedVehicles: [],
+      ownedMachinery: [],
   marketPrices: {
     egg: EGG_PRICE,
     meat: MEAT_PRICE_PER_KG,
@@ -577,6 +645,7 @@ export const useGameStore = create<GameState>()(
         { itemId: 'parts', quantity: 5 }
       ],
       pendingDeliveries: [],
+      ownedVehicles: [],
       ownedMachinery: [],
       employees: [],
       products: { eggs: 0, meat: 0 },
@@ -745,55 +814,131 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, useOwnTruck = false) => set((state) => {
-    let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
-    
-    // Buff de Motorista e Pesquisa inf_2
-    const driverBuff = state.employees.filter(e => e.role === 'MOTORISTA').reduce((acc, emp) => acc + (emp.experienceLevel * 0.05), 0);
-    const inf2Bonus = state.researches['inf_2']?.current_bonus || 0;
-    
-    freightCost *= Math.max(0.2, 1 - driverBuff - inf2Bonus);
+  buyVehicle: (catalogId, cost) => set((state) => {
+    if (state.money >= cost) {
+      const newVehicle: import('./types').VehicleInstance = {
+        id: `veh_${Date.now()}`,
+        catalogId,
+        name: 'Novo Veículo',
+        fuelLevel: 100,
+        condition: 100,
+        assignedDriverId: null,
+      };
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        ownedVehicles: [...(state.ownedVehicles || []), newVehicle]
+      };
+    }
+    return state;
+  }),
 
-    // Impacto de evento no frete
+  assignDriverToVehicle: (vehicleId, driverId) => set((state) => ({
+    ownedVehicles: state.ownedVehicles.map(v => {
+      if (v.id === vehicleId) {
+        return { ...v, assignedDriverId: driverId };
+      }
+      // Se um motorista for designado para este veiculo, removemos ele de outros
+      if (driverId && v.assignedDriverId === driverId) {
+        return { ...v, assignedDriverId: null };
+      }
+      return v;
+    })
+  })),
+
+  refuelVehicle: (vehicleId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        ownedVehicles: state.ownedVehicles.map(v => v.id === vehicleId ? { ...v, fuelLevel: 100 } : v)
+      };
+    }
+    return state;
+  }),
+
+  maintainVehicle: (vehicleId, cost) => set((state) => {
+    if (state.money >= cost) {
+      return {
+        money: state.money - cost,
+        totalExpenses: state.totalExpenses + cost,
+        ownedVehicles: state.ownedVehicles.map(v => v.id === vehicleId ? { ...v, condition: 100 } : v)
+      };
+    }
+    return state;
+  }),
+
+  buyFeed: (feedId, kg, totalCost, scheduledInDays = 0, vehicleId = null) => set((state) => {
+    let freightCost = kg * (state.region?.freightCostPerKg || 0.05);
+
+    let updatedVehicles = state.ownedVehicles;
+    let usedVehicle = vehicleId ? state.ownedVehicles.find(v => v.id === vehicleId) : null;
+    let driver = null;
+    let transitDays = Math.min(6, Math.max(1, Math.ceil((state.region?.freightCostPerKg || 0.05) * 20))); // default delivery
+    let mode = 'ENTREGA';
+
+    if (usedVehicle && usedVehicle.assignedDriverId) {
+      driver = state.employees.find(e => e.id === usedVehicle.assignedDriverId);
+      if (driver) {
+        mode = 'CAMINHAO';
+        transitDays = 1; // Próprio caminhão entrega no dia seguinte ou rápido
+
+        const catId = usedVehicle.catalogId;
+        if (catId === 'prem_truck_bitrem') freightCost = 0;
+        else if (catId === 'prem_truck_feed') freightCost = 0;
+        else if (catId === 'gen_truck_feed') freightCost *= 0.5;
+        else if (catId === 'gen_truck_toco') freightCost *= 0.75;
+        else if (catId === 'gen_truck_small') freightCost *= 0.9;
+
+        const ecoLevel = driver.skills?.['mot_eco'] || 0;
+        if (ecoLevel > 0) freightCost *= (1 - (ecoLevel * 0.01));
+        
+        // Coruja da Noite
+        if (driver.skills?.['mot_noturno'] > 0) transitDays = 0; // Entrega imediata
+
+        usedVehicle = {
+          ...usedVehicle,
+          fuelLevel: Math.max(0, usedVehicle.fuelLevel - 5),
+          condition: Math.max(0, usedVehicle.condition - 2)
+        };
+        updatedVehicles = state.ownedVehicles.map(v => v.id === usedVehicle.id ? usedVehicle : v);
+      } else {
+         usedVehicle = null; 
+      }
+    } else {
+       usedVehicle = null;
+    }
+
     if (state.activeEvent?.effectType === 'FREIGHT_SPIKE') {
       freightCost *= state.activeEvent.severity;
     }
 
-    const hasFeedTruck = state.ownedMachinery.includes('prem_truck_feed') || state.ownedMachinery.includes('gen_truck_feed');
-    const mode: 'ENTREGA' | 'CAMINHAO' = useOwnTruck && hasFeedTruck ? 'CAMINHAO' : 'ENTREGA';
-
-    if (mode === 'CAMINHAO') {
-      const truckMod = state.ownedMachinery.includes('prem_truck_feed') ? 0.2 : 0.35;
-      freightCost *= truckMod;
-    }
-
-    const baseTransitDays = Math.min(6, Math.max(1, Math.ceil((state.region?.freightCostPerKg || 0.05) * 20)));
-    const transitDays = mode === 'CAMINHAO' ? 1 : baseTransitDays;
+    const finalCost = totalCost + freightCost;
+    
     const dispatchAtDay = state.currentDay + Math.max(0, Math.floor(scheduledInDays));
     const arrivesAtDay = dispatchAtDay + transitDays;
 
-    // Se a ração não for uma compra (ex: foi comprada por 0 porque é integração e precisa abastecer silo), podemos permitir que a quantidade do pedido seja registrada. Mas vamos ajustar o fillSilo depois para pegar de graça da integardora
-    if (state.money >= totalCost + freightCost) {
+    if (state.money >= finalCost) {
+      // Se a entrega é imediata (transitDays = 0 e scheduled = 0)
+      if (arrivesAtDay <= state.currentDay) {
+        return {
+          money: state.money - finalCost,
+          totalExpenses: state.totalExpenses + finalCost,
+          ownedVehicles: updatedVehicles,
+          inventory: state.inventory.map(item =>
+            item.itemId === feedId ? { ...item, quantity: item.quantity + kg } : item
+          ).concat(state.inventory.find(i => i.itemId === feedId) ? [] : [{ itemId: feedId, quantity: kg }])
+        };
+      }
+
       return {
-        money: state.money - (totalCost + freightCost),
-        totalExpenses: state.totalExpenses + (totalCost + freightCost),
-        detailedExpenses: {
-          ...state.detailedExpenses,
-          freight: state.detailedExpenses.freight + freightCost,
-        },
+        money: state.money - finalCost,
+        totalExpenses: state.totalExpenses + finalCost,
+        ownedVehicles: updatedVehicles,
         pendingDeliveries: [
-          ...state.pendingDeliveries,
-          {
-            id: `delivery_${Date.now()}_${Math.random()}`,
-            itemId: feedId,
-            quantity: kg,
-            orderedAtDay: state.currentDay,
-            dispatchAtDay,
-            arrivesAtDay,
-            freightCost,
-            mode,
-          }
-        ],
+          ...(state.pendingDeliveries || []),
+          { id: `del_${Date.now()}`, itemId: feedId, quantity: kg, orderedAtDay: state.currentDay, dispatchAtDay, arrivesAtDay, freightCost, mode: mode as 'ENTREGA'|'CAMINHAO' }
+        ]
       };
     }
     return state;
@@ -1076,6 +1221,7 @@ export const useGameStore = create<GameState>()(
     let detailedExpenses = { ...state.detailedExpenses };
     let newEggs = state.products.eggs;
     let currentInventory = [...state.inventory];
+    let newEmployees = JSON.parse(JSON.stringify(state.employees)) as typeof state.employees;
     let newBarns = JSON.parse(JSON.stringify(state.barns)) as Barn[]; // Deep clone para modificar
     let currentMarketPrices = { ...state.marketPrices };
     let currentEvent = null;
@@ -1363,6 +1509,29 @@ export const useGameStore = create<GameState>()(
         newActiveResearchDaysLeft -= 1;
         if (newActiveResearchDaysLeft <= 0) {
           finishedResearchLocally = true;
+          
+          // Complete research locally
+          const resId = newActiveResearchId;
+          const currentRes = state.researches[resId];
+          if (currentRes) {
+            const nextLvl = currentRes.current_level + 1;
+            const resDef = RESEARCH_TREE[resId];
+            
+            if (resDef) {
+              state.researches[resId] = {
+                ...currentRes,
+                current_level: nextLvl,
+                current_bonus: resDef.calculateBonus(nextLvl),
+                next_level_info: {
+                  next_bonus: resDef.calculateBonus(nextLvl + 1),
+                  cost_money: Math.floor(resDef.base_cost_money * Math.pow(1.5, nextLvl)),
+                  cost_xp: Math.floor(resDef.base_cost_xp * Math.pow(1.5, nextLvl)),
+                  time_days: resDef.base_time_days + nextLvl,
+                  required_player_level: nextLvl + 1
+                }
+              };
+            }
+          }
           newActiveResearchId = null;
         }
       }
@@ -1833,6 +2002,7 @@ export const useGameStore = create<GameState>()(
       activeDilemma, // Salva o dilema ativo, se houver
       gameSpeed: activeDilemma ? 0 : state.gameSpeed, // Pausa o jogo se tiver dilema
       dynamicContracts,
+      employees: newEmployees
     };
   }),
 
@@ -2056,6 +2226,72 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
+  resolveEmployeeRequest: (employeeId, accept) => set((state) => {
+    let newMoney = state.money;
+    let newInventory = [...(state.inventory || [])];
+    
+    const newEmployees = state.employees.map(emp => {
+      if (emp.id !== employeeId || !emp.activeRequest) return emp;
+      
+      let newSalary = emp.salary;
+      let newMorale = emp.morale || 100;
+
+      if (accept) {
+        newMorale = Math.min(100, newMorale + 20);
+        if (emp.activeRequest.type === 'SALARY_RAISE' && emp.activeRequest.amount) {
+          newSalary += emp.activeRequest.amount;
+        } else if (emp.activeRequest.type === 'BUY_FEED' && emp.activeRequest.amount && emp.activeRequest.targetId) {
+          const feedCost = 1.5;
+          const totalCost = emp.activeRequest.amount * feedCost;
+          if (newMoney >= totalCost) {
+            newMoney -= totalCost;
+            const invItem = newInventory.find(i => i.itemId === emp.activeRequest!.targetId);
+            if (invItem) {
+              invItem.quantity += emp.activeRequest!.amount!;
+            } else {
+              newInventory.push({ itemId: emp.activeRequest!.targetId!, quantity: emp.activeRequest!.amount! });
+            }
+          } else {
+            newMorale = Math.max(0, newMorale - 10);
+          }
+        } else if (emp.activeRequest.type === 'BONUS' && emp.activeRequest.amount) {
+          if (newMoney >= emp.activeRequest.amount) {
+            newMoney -= emp.activeRequest.amount;
+          } else {
+            newMorale = Math.max(0, newMorale - 10);
+          }
+        }
+      } else {
+        newMorale = Math.max(0, newMorale - 25);
+      }
+
+      return { ...emp, salary: newSalary, morale: newMorale, activeRequest: null };
+    });
+
+    return {
+      employees: newEmployees,
+      money: newMoney,
+      inventory: newInventory
+    };
+  }),
+
+  upgradeEmployeeSkill: (employeeId, skillId) => set((state) => {
+    return {
+      employees: state.employees.map(emp => {
+        if (emp.id !== employeeId || (emp.skillPoints || 0) <= 0) return emp;
+        const currentLvl = emp.skills[skillId] || 0;
+        
+        // Let's rely on the UI to not call this if it's locked, 
+        // but just to be safe we increase the level by 1.
+        return {
+          ...emp,
+          skillPoints: emp.skillPoints - 1,
+          skills: { ...emp.skills, [skillId]: currentLvl + 1 }
+        };
+      })
+    };
+  }),
+
   fireEmployee: (employeeId) => set((state) => ({
     employees: state.employees.filter(e => e.id !== employeeId)
   })),
@@ -2173,7 +2409,7 @@ export const useGameStore = create<GameState>()(
       if (barn.id === barnId) {
         return {
           ...barn,
-          dailyTasks: barn.dailyTasks.map(t => t.id === taskId ? { ...t, startedAt: Date.now() } : t)
+          dailyTasks: barn.dailyTasks.map(t => t.id === taskId ? { ...t, startedAtHour: state.currentHour } : t)
         };
       }
       return barn;
@@ -2198,7 +2434,7 @@ export const useGameStore = create<GameState>()(
                 let resultReport = undefined;
 
                 if (task.id === 'check_feed_silo') {
-                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const feedInInventory = (state.inventory || []).find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
                   const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
                   resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
                 }
@@ -2215,7 +2451,16 @@ export const useGameStore = create<GameState>()(
                   }
                 }
 
-                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+                if (resultReport) {
+                  barn.history.push({
+                    day: state.currentDay,
+                    hour: state.currentHour,
+                    message: `[${task.name}] ${resultReport}`,
+                    type: 'info'
+                  });
+                }
+
+                return { ...task, completed: true, startedAtHour: state.currentHour, resultReport };
               }
               return task;
             })
@@ -2237,7 +2482,7 @@ export const useGameStore = create<GameState>()(
                 let resultReport = undefined;
 
                 if (task.id === 'check_feed_silo') {
-                  const feedInInventory = state.inventory.find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
+                  const feedInInventory = (state.inventory || []).find(i => i.itemId === barn.selectedFeedId)?.quantity || 0;
                   const daysLeftInSilo = barn.batch && barn.siloBalance > 0 ? (barn.siloBalance / (barn.batch.animalCount * 0.150)).toFixed(1) : 0;
                   resultReport = `Silo atual: ${barn.siloBalance.toFixed(0)} kg. Estoque na fazenda (${barn.selectedFeedId}): ${feedInInventory.toFixed(0)} kg. Estimativa no silo dura aprox. ${daysLeftInSilo} dias.`;
                 }
@@ -2254,7 +2499,16 @@ export const useGameStore = create<GameState>()(
                   }
                 }
 
-                return { ...task, completed: true, startedAt: Date.now(), resultReport };
+                if (resultReport) {
+                  barn.history.push({
+                    day: state.currentDay,
+                    hour: state.currentHour,
+                    message: `[${task.name}] ${resultReport}`,
+                    type: 'info'
+                  });
+                }
+
+                return { ...task, completed: true, startedAtHour: state.currentHour, resultReport };
               }
               return task;
             })

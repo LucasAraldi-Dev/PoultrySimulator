@@ -11,6 +11,8 @@
     "check": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "axios": "^1.15.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
@@ -21,6 +23,7 @@
     "react-router-dom": "^7.3.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.0.2",
+    "three": "^0.183.2",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
@@ -28,6 +31,7 @@
     "@types/node": "^22.15.30",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.183.1",
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "babel-plugin-react-dev-locator": "^1.0.0",

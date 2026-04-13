@@ -19,6 +19,7 @@ export default function MarketPage() {
   const level = useGameStore(state => state.level);
   const region = useGameStore(state => state.region);
   const ownedMachinery = useGameStore(state => state.ownedMachinery);
+  const ownedVehicles = useGameStore(state => state.ownedVehicles);
   const pendingDeliveries = useGameStore(state => state.pendingDeliveries);
   const currentDay = useGameStore(state => state.currentDay);
 
@@ -28,7 +29,9 @@ export default function MarketPage() {
     feed_broiler_pre: 100, feed_basic: 100, feed_terminacao: 100, feed_premium: 100,
     feed_layers_start: 100, feed_layers: 100, feed_layers_premium: 100, feed_medicada: 100
   });
-  const [deliveryPrefs, setDeliveryPrefs] = useState<Record<string, { scheduledInDays: number; useOwnTruck: boolean }>>({});
+  const [deliveryPrefs, setDeliveryPrefs] = useState<Record<string, { scheduledInDays: number; vehicleId: string | null }>>({});
+  const [sellVehicleEggs, setSellVehicleEggs] = useState<string | null>(null);
+  const [sellVehicleMeat, setSellVehicleMeat] = useState<string | null>(null);
 
   const emptyBarns = barns.filter(b => !b.batch);
 
@@ -38,10 +41,10 @@ export default function MarketPage() {
     
     const currentCost = feed.costPerKg * marketPrices.feedModifier;
     const kg = feedAmounts[feedId] || 100;
-    const pref = deliveryPrefs[feedId] || { scheduledInDays: 0, useOwnTruck: false };
+    const pref = deliveryPrefs[feedId] || { scheduledInDays: 0, vehicleId: null };
 
     const totalCost = kg * currentCost;
-    buyItemApi(feedId, kg, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    buyItemApi(feedId, kg, totalCost, pref.scheduledInDays, pref.vehicleId);
     setFeedAmounts({ ...feedAmounts, [feedId]: 100 });
   };
 
@@ -51,10 +54,10 @@ export default function MarketPage() {
     
     const currentCost = mat.costPerUnit * marketPrices.feedModifier;
     const qty = feedAmounts[matId] || 100;
-    const pref = deliveryPrefs[matId] || { scheduledInDays: 0, useOwnTruck: false };
+    const pref = deliveryPrefs[matId] || { scheduledInDays: 0, vehicleId: null };
 
     const totalCost = qty * currentCost;
-    buyItemApi(matId, qty, totalCost, pref.scheduledInDays, pref.useOwnTruck);
+    buyItemApi(matId, qty, totalCost, pref.scheduledInDays, pref.vehicleId);
     setFeedAmounts({ ...feedAmounts, [matId]: 100 });
   };
 
@@ -178,8 +181,26 @@ export default function MarketPage() {
                     <span className="text-zinc-500 font-bold">Quantidade Disponível</span>
                     <span className="text-xl font-black text-zinc-800">{products.eggs.toLocaleString()} un</span>
                   </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <label className="text-xs text-zinc-600 font-bold">Transporte (Opcional):</label>
+                    <select
+                      value={sellVehicleEggs || ''}
+                      onChange={(e) => setSellVehicleEggs(e.target.value || null)}
+                      className="text-xs p-2 border border-zinc-300 rounded bg-zinc-50 font-bold mb-2"
+                    >
+                      <option value="">O comprador retira (Frete FOB)</option>
+                      {ownedVehicles?.map(v => {
+                        const canDrive = v.assignedDriverId && v.fuelLevel >= 5 && v.condition >= 2;
+                        return (
+                          <option key={v.id} value={v.id} disabled={!canDrive}>
+                            {v.name} {!v.assignedDriverId ? '(Sem Motorista)' : v.fuelLevel < 5 ? '(Sem Combustível)' : v.condition < 2 ? '(Quebrado)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                   <button
-                    onClick={() => sellProductsApi('eggs', products.eggs, marketPrices.egg)}
+                    onClick={() => sellProductsApi('eggs', products.eggs, marketPrices.egg, sellVehicleEggs)}
                     disabled={products.eggs === 0}
                     className="w-full px-6 py-4 text-white rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-lg flex items-center justify-center gap-2"
                     style={{ backgroundColor: company?.color || '#10b981' }}
@@ -209,10 +230,28 @@ export default function MarketPage() {
                     <span className="text-zinc-500 font-bold">Quantidade Disponível</span>
                     <span className="text-xl font-black text-zinc-800">{(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0).toFixed(1)} kg</span>
                   </div>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <label className="text-xs text-zinc-600 font-bold">Transporte (Opcional):</label>
+                    <select
+                      value={sellVehicleMeat || ''}
+                      onChange={(e) => setSellVehicleMeat(e.target.value || null)}
+                      className="text-xs p-2 border border-zinc-300 rounded bg-zinc-50 font-bold mb-2"
+                    >
+                      <option value="">O comprador retira (Frete FOB)</option>
+                      {ownedVehicles?.map(v => {
+                        const canDrive = v.assignedDriverId && v.fuelLevel >= 5 && v.condition >= 2;
+                        return (
+                          <option key={v.id} value={v.id} disabled={!canDrive}>
+                            {v.name} {!v.assignedDriverId ? '(Sem Motorista)' : v.fuelLevel < 5 ? '(Sem Combustível)' : v.condition < 2 ? '(Quebrado)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                   <button
                     onClick={() => {
                       const qty = useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0;
-                      if (qty > 0) sellProductsApi('meat', qty, marketPrices.processedMeat);
+                      if (qty > 0) sellProductsApi('meat', qty, marketPrices.processedMeat, sellVehicleMeat);
                     }}
                     disabled={(useGameStore.getState().inventory.find(i => i.itemId === 'processed_meat')?.quantity || 0) <= 0}
                     className="w-full px-6 py-4 bg-zinc-900 text-white rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-black hover:shadow-lg flex items-center justify-center gap-2"
@@ -364,6 +403,7 @@ export default function MarketPage() {
                         money={money}
                         region={region}
                         ownedMachinery={ownedMachinery}
+                        ownedVehicles={ownedVehicles}
                         deliveryPrefs={deliveryPrefs}
                         setDeliveryPrefs={setDeliveryPrefs}
                       />
@@ -382,6 +422,7 @@ export default function MarketPage() {
                         money={money}
                         region={region}
                         ownedMachinery={ownedMachinery}
+                        ownedVehicles={ownedVehicles}
                         deliveryPrefs={deliveryPrefs}
                         setDeliveryPrefs={setDeliveryPrefs}
                       />
@@ -400,12 +441,12 @@ export default function MarketPage() {
 }
 
 // Componente para renderizar a linha da tabela de compra
-function MarketTableRow({ item, type, marketPrices, feedAmounts, setFeedAmounts, handleBuy, money, region, ownedMachinery, deliveryPrefs, setDeliveryPrefs }: any) {
+function MarketTableRow({ item, type, marketPrices, feedAmounts, setFeedAmounts, handleBuy, money, region, ownedMachinery, ownedVehicles, deliveryPrefs, setDeliveryPrefs }: any) {
   const currentCost = (type === 'FEED' ? item.costPerKg : item.costPerUnit) * marketPrices.feedModifier;
   const unit = type === 'FEED' ? 'kg' : item.unit;
   
   const hasFeedTruck = ownedMachinery?.includes('prem_truck_feed') || ownedMachinery?.includes('gen_truck_feed');
-  const pref = deliveryPrefs[item.id] || { scheduledInDays: 0, useOwnTruck: false };
+  const pref = deliveryPrefs[item.id] || { scheduledInDays: 0, vehicleId: null };
   const mode = pref.useOwnTruck && hasFeedTruck ? 'CAMINHAO' : 'ENTREGA';
   const baseTransitDays = Math.min(6, Math.max(1, Math.ceil(((region?.freightCostPerKg || 0.05) * 20))));
   const transitDays = mode === 'CAMINHAO' ? 1 : baseTransitDays;

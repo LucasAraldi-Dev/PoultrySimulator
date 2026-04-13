@@ -98,6 +98,7 @@ export function BuyBarnModal({ isOpen, onClose, modelId }: BuyBarnModalProps) {
       siloBalance: 0,
       siloCapacity: 2000,
       dailyTasks: [],
+      history: [],
       batch,
       selectedFeedId: isPostura ? 'feed_layers_start' : 'feed_broiler_pre',
     };

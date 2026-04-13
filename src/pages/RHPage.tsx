@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/useGameStore';
-import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, AlertTriangle, MessageSquare, Star } from 'lucide-react';
 import { PageTransition } from '../components/PageTransition';
 import { EmployeeSkillModal } from '../components/EmployeeSkillModal';
 import { Employee } from '../store/types';
@@ -11,9 +11,18 @@ export default function RHPage() {
   const hireEmployee = useGameStore(state => state.hireEmployee);
   const fireEmployee = useGameStore(state => state.fireEmployee);
   const trainEmployee = useGameStore(state => state.trainEmployee);
+  const assignEmployeeToBarn = useGameStore(state => state.assignEmployeeToBarn);
+  const barns = useGameStore(state => state.barns);
   const hireVeterinarian = useGameStore(state => state.hireVeterinarian);
   const hireFinancialAdvisor = useGameStore(state => state.hireFinancialAdvisor);
   const financialBuffDays = useGameStore(state => state.financialBuffDays);
+  
+  const [selectedEmp, setSelectedEmp] = useState<any>(null);
+  const [hiringRole, setHiringRole] = useState<'TRATADOR' | 'OPERADOR_FABRICA' | 'MOTORISTA' | null>(null);
+
+  const handleHire = (role: 'TRATADOR' | 'OPERADOR_FABRICA' | 'MOTORISTA') => {
+    setHiringRole(role);
+  };
 
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
@@ -111,6 +120,9 @@ export default function RHPage() {
               >
                 <UserPlus size={16} /> Operador (R$ 15k)
               </button>
+              <button onClick={() => handleHire('MOTORISTA')} className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700">
+                <UserPlus size={16} /> Motorista
+              </button>
             </div>
           </div>
 
@@ -134,10 +146,33 @@ export default function RHPage() {
                     </div>
                     
                     <div className="mt-4 pt-4 border-t border-zinc-100 flex flex-col gap-2">
-                      <p className="text-sm flex justify-between">
+                      <div className="flex justify-between items-center text-sm">
                         <span className="text-zinc-500">Salário/Dia:</span>
                         <span className="font-bold text-red-600">- R$ {emp.salary.toFixed(2)}</span>
-                      </p>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-sm mb-2">
+                        <span className="text-zinc-500">Moral:</span>
+                        <span className={`font-bold ${emp.morale > 70 ? 'text-emerald-600' : emp.morale > 30 ? 'text-amber-500' : 'text-red-600'}`}>
+                          {emp.morale || 100}%
+                        </span>
+                      </div>
+
+                      {/* Exibir Bônus Ativos do Funcionário no Card */}
+                      {emp.skills && Object.keys(emp.skills).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {Object.entries(emp.skills).map(([skillId, level]) => {
+                            if (level <= 0) return null;
+                            const skillDef = EMPLOYEE_SKILLS_CATALOG[skillId];
+                            if (!skillDef) return null;
+                            return (
+                              <span key={skillId} className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-black uppercase" title={skillDef.name}>
+                                {skillDef.effectLabel(level)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                       
                       <div className="flex gap-2 mt-2">
                         <button 
@@ -156,6 +191,22 @@ export default function RHPage() {
                           Demitir
                         </button>
                       </div>
+
+                      {emp.role === 'TRATADOR' && barns.length > 0 && (
+                        <div className="mt-2 flex flex-col gap-1">
+                          <label className="text-xs text-zinc-500 font-bold uppercase">Delegar para Galpão:</label>
+                          <select
+                            value={emp.assignedBarnId || ''}
+                            onChange={(e) => assignEmployeeToBarn(emp.id, e.target.value || null)}
+                            className="p-1.5 rounded-lg border border-zinc-300 text-sm font-bold text-zinc-700 bg-white"
+                          >
+                            <option value="">Nenhum (Descanso)</option>
+                            {barns.map(b => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
