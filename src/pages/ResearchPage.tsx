@@ -30,6 +30,11 @@ export function ResearchPage() {
     { id: 'HEALTH', name: 'Saúde', icon: <HeartPulse size={18} /> }
   ];
 
+  const getIcon = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category ? category.icon : <Microscope size={18} />;
+  };
+
   return (
     <PageTransition className="space-y-6 pb-20">
       <div className="flex flex-col gap-2 mb-6">
@@ -136,13 +141,34 @@ export function ResearchPage() {
                         <span>Nível Necessário:</span>
                         <span className={`font-bold ${playerLevel >= next.required_player_level ? 'text-zinc-600' : 'text-red-500'}`}>Lvl {next.required_player_level}</span>
                       </div>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xs font-bold text-zinc-600 px-1">
+                      <span className="flex items-center gap-1 text-emerald-600">R$ {next.cost_money}</span>
+                      <span className="flex items-center gap-1 text-purple-600">{next.cost_xp} XP</span>
+                    </div>
+
+                    <button
+                      onClick={() => startResearchApi(research.id)}
+                      disabled={!canAfford}
+                      className={`w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-all duration-300 ${
+                        canAfford
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                          : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <ArrowUpCircle size={18} /> {canAfford ? 'Pesquisar' : 'Sem Recursos'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-emerald-100 text-emerald-700">
+                    <CheckCircle2 size={18} /> Nível Máximo
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
     </PageTransition>
   );
