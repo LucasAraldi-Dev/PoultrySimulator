@@ -70,11 +70,11 @@ export function ResearchPage() {
         {Object.values(researches || {}).map((research: any) => {
           const isMaxLevel = research.current_level >= research.max_level;
           const next = research.next_level_info;
-          
-          const canAfford = !isMaxLevel && 
+
+          const canAfford = !isMaxLevel &&
             next &&
-            money >= next.cost_money && 
-            xp >= next.cost_xp && 
+            money >= next.cost_money &&
+            xp >= next.cost_xp &&
             playerLevel >= next.required_player_level &&
             !activeResearchId;
 
@@ -85,8 +85,8 @@ export function ResearchPage() {
               key={research.id}
               whileHover={!isMaxLevel ? { scale: 1.02 } : {}}
               className={`relative overflow-hidden rounded-xl border p-6 flex flex-col justify-between h-full transition-all duration-300 ${
-                isMaxLevel 
-                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200' 
+                isMaxLevel
+                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200'
                   : isResearchingThis
                   ? 'bg-orange-50 border-orange-300'
                   : 'bg-white border-zinc-200 shadow-sm'
