@@ -383,7 +383,7 @@ export interface GameState {
   payInstallment: () => void;
   
   // Employees
-  hireEmployee: (role: Employee['role'], name: string) => void;
+  hireEmployee: (role: Employee['role'], name?: string) => void;
   resolveEmployeeRequest: (employeeId: string, accept: boolean) => void;
   upgradeEmployeeSkill: (employeeId: string, skillId: string) => void;
   fireEmployee: (employeeId: string) => void;

@@ -4,6 +4,7 @@ import { Users, UserPlus, GraduationCap, Briefcase, Stethoscope, TrendingUp, Ale
 import { PageTransition } from '../components/PageTransition';
 import { EmployeeSkillModal } from '../components/EmployeeSkillModal';
 import { Employee } from '../store/types';
+import { EMPLOYEE_SKILLS_CATALOG } from '../store/constants';
 
 export default function RHPage() {
   const employees = useGameStore(state => state.employees);
@@ -162,12 +163,12 @@ export default function RHPage() {
                       {emp.skills && Object.keys(emp.skills).length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-2">
                           {Object.entries(emp.skills).map(([skillId, level]) => {
-                            if (level <= 0) return null;
+                            if ((level as number) <= 0) return null;
                             const skillDef = EMPLOYEE_SKILLS_CATALOG[skillId];
                             if (!skillDef) return null;
                             return (
                               <span key={skillId} className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-black uppercase" title={skillDef.name}>
-                                {skillDef.effectLabel(level)}
+                                {skillDef.effectLabel(level as number)}
                               </span>
                             );
                           })}

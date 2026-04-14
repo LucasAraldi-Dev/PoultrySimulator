@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, Barn, Batch, Disease, DailyTask } from './types';
+import { GameState, Barn, Batch, Disease, DailyTask, Employee } from './types';
 import { RESEARCH_TREE } from './researches';
 import { INITIAL_MONEY, FEEDS, EQUIPMENTS, DISEASES, EGG_PRICE, MEAT_PRICE_PER_KG, MEAT_PROCESSED_PRICE_PER_KG, MACHINERY_CATALOG, REGIONS, SANITARY_VOID_DAYS, getCobb500Data, GLOBAL_EVENTS,
   ACHIEVEMENTS,
@@ -2195,7 +2195,7 @@ export const useGameStore = create<GameState>()(
     return state;
   }),
 
-  hireEmployee: (role) => set((state) => {
+  hireEmployee: (role, name) => set((state) => {
     const hiringCosts = {
       'TRATADOR': 5000,
       'MOTORISTA': 10000,
@@ -2210,12 +2210,15 @@ export const useGameStore = create<GameState>()(
     const cost = hiringCosts[role as keyof typeof hiringCosts] || 5000;
 
     if (state.money >= cost) {
-      const newEmployee = {
+      const newEmployee: Employee = {
         id: `emp_${Date.now()}`,
-        name: `Funcionário ${state.employees.length + 1}`,
+        name: name || `Funcionário ${state.employees.length + 1}`,
         role,
         experienceLevel: 1,
-        salary: baseSalaries[role as keyof typeof baseSalaries] || 400
+        salary: baseSalaries[role as keyof typeof baseSalaries] || 400,
+        skillPoints: 0,
+        skills: {},
+        morale: 100
       };
       return { 
         money: state.money - cost,
