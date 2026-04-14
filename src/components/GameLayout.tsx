@@ -165,14 +165,21 @@ export default function GameLayout() {
       <AnimatePresence>
         {isAnimatingDay && (
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, backgroundColor: '#09090b' }} // zinc-950
+            animate={{ 
+              opacity: 1, 
+              backgroundColor: ['#09090b', '#09090b', '#38bdf8'] // zinc-950 to sky-400
+            }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-zinc-950"
+            transition={{ duration: 3.5, times: [0, 0.6, 1] }}
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
           >
             {/* Stars background */}
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
+            <motion.div 
+              animate={{ opacity: [0.3, 0.3, 0] }}
+              transition={{ duration: 3.5, times: [0, 0.6, 1] }}
+              className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"
+            />
             
             <motion.div
               initial={{ y: 300, opacity: 0, rotate: -45 }}
@@ -203,13 +210,22 @@ export default function GameLayout() {
                 Dia {currentDay}
               </h2>
               <div className="h-1 w-24 bg-indigo-500 rounded-full mb-4"></div>
-              <motion.p 
-                animate={{ opacity: [1, 0, 1] }}
-                transition={{ duration: 3.5, times: [0, 0.5, 1] }}
-                className="text-lg font-medium tracking-wide"
-              >
-                <span className="text-indigo-200">A noite cai na granja...</span>
-              </motion.p>
+              <div className="text-lg font-medium tracking-wide relative h-8 overflow-hidden w-full flex justify-center items-center">
+                <motion.span 
+                  animate={{ opacity: [1, 1, 0], y: [0, 0, -20] }}
+                  transition={{ duration: 3.5, times: [0, 0.5, 0.6] }}
+                  className="text-indigo-200 absolute"
+                >
+                  A noite cai na granja...
+                </motion.span>
+                <motion.span 
+                  animate={{ opacity: [0, 0, 1], y: [20, 20, 0] }}
+                  transition={{ duration: 3.5, times: [0, 0.6, 0.7] }}
+                  className="text-amber-200 absolute font-bold"
+                >
+                  Um novo dia começa!
+                </motion.span>
+              </div>
             </motion.div>
           </motion.div>
         )}

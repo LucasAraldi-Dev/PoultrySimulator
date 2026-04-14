@@ -23,11 +23,13 @@ export default function MarketPage() {
   const pendingDeliveries = useGameStore(state => state.pendingDeliveries);
   const currentDay = useGameStore(state => state.currentDay);
 
+  const hasFeedMill = useGameStore(state => state.hasFeedMill);
+
   const [activeTab, setActiveTab] = useState<'RACOES' | 'AVES' | 'VENDAS'>('RACOES');
 
   const [feedAmounts, setFeedAmounts] = useState<Record<string, number>>({
-    feed_broiler_pre: 100, feed_basic: 100, feed_terminacao: 100, feed_premium: 100,
-    feed_layers_start: 100, feed_layers: 100, feed_layers_premium: 100, feed_medicada: 100
+    feed_broiler_pre: 100, feed_basic: 100, feed_terminacao: 100, feed_abate: 100,
+    feed_layers_pre: 100, feed_layers_start: 100, feed_layers_grow: 100, feed_layers_pre_lay: 100, feed_layers: 100, feed_layers_2: 100, feed_layers_3: 100
   });
   const [deliveryPrefs, setDeliveryPrefs] = useState<Record<string, { scheduledInDays: number; vehicleId: string | null }>>({});
   const [sellVehicleEggs, setSellVehicleEggs] = useState<string | null>(null);
@@ -390,8 +392,29 @@ export default function MarketPage() {
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
                     
-                    {/* Renderiza Rações */}
-                    {Object.values(FEEDS).map(item => (
+                    {/* Renderiza Rações de Corte */}
+                    <tr><td colSpan={4} className="bg-blue-50 text-blue-800 font-black px-4 py-2 uppercase text-xs tracking-wider">Rações - Frango de Corte</td></tr>
+                    {Object.values(FEEDS).filter(f => f.id.includes('broiler') || f.id.includes('terminacao') || f.id.includes('basic') || f.id.includes('abate')).map(item => (
+                      <MarketTableRow 
+                        key={item.id}
+                        item={item}
+                        type="FEED"
+                        marketPrices={marketPrices}
+                        feedAmounts={feedAmounts}
+                        setFeedAmounts={setFeedAmounts}
+                        handleBuy={handleBuyFeed}
+                        money={money}
+                        region={region}
+                        ownedMachinery={ownedMachinery}
+                        ownedVehicles={ownedVehicles}
+                        deliveryPrefs={deliveryPrefs}
+                        setDeliveryPrefs={setDeliveryPrefs}
+                      />
+                    ))}
+
+                    {/* Renderiza Rações de Postura */}
+                    <tr><td colSpan={4} className="bg-orange-50 text-orange-800 font-black px-4 py-2 uppercase text-xs tracking-wider">Rações - Postura</td></tr>
+                    {Object.values(FEEDS).filter(f => f.id.includes('layers')).map(item => (
                       <MarketTableRow 
                         key={item.id}
                         item={item}
@@ -410,7 +433,12 @@ export default function MarketPage() {
                     ))}
 
                     {/* Renderiza Matérias Primas */}
-                    {Object.values(RAW_MATERIALS).map(item => (
+                    {Object.values(RAW_MATERIALS).filter(item => hasFeedMill || !['corn', 'soy', 'premix'].includes(item.id)).length > 0 && (
+                      <tr><td colSpan={4} className="bg-zinc-800 text-white font-black px-4 py-2 uppercase text-xs tracking-wider">Matérias-Primas e Insumos Gerais</td></tr>
+                    )}
+                    {Object.values(RAW_MATERIALS)
+                      .filter(item => hasFeedMill || !['corn', 'soy', 'premix'].includes(item.id))
+                      .map(item => (
                       <MarketTableRow 
                         key={item.id}
                         item={item}
@@ -456,7 +484,7 @@ function MarketTableRow({ item, type, marketPrices, feedAmounts, setFeedAmounts,
   // Define badges visuais
   let badgeColor = "bg-zinc-100 text-zinc-600";
   let badgeText = "Básico";
-  if (item.id.includes('broiler') || item.id.includes('corte') || item.id.includes('terminacao')) { badgeColor = "bg-blue-100 text-blue-700"; badgeText = "Frango de Corte"; }
+  if (item.id.includes('broiler') || item.id.includes('basic') || item.id.includes('abate') || item.id.includes('corte') || item.id.includes('terminacao')) { badgeColor = "bg-blue-100 text-blue-700"; badgeText = "Frango de Corte"; }
   if (item.id.includes('layers') || item.id.includes('postura')) { badgeColor = "bg-orange-100 text-orange-700"; badgeText = "Postura"; }
   if (item.id.includes('medicada')) { badgeColor = "bg-emerald-100 text-emerald-700"; badgeText = "Medicado"; }
   if (type === 'RAW') { badgeColor = "bg-zinc-800 text-white"; badgeText = "Matéria-Prima"; }

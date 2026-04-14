@@ -1688,16 +1688,33 @@ export const useGameStore = create<GameState>()(
 
         // Penalidade por fase de idade
         if (barn.type === 'CORTE') {
-          if (newBatch.ageDays <= 21 && usedFeedId === 'feed_terminacao') {
-            feedPhasePenalty = 0.7; // Ração muito grossa para pintinho
-          } else if (newBatch.ageDays > 21 && usedFeedId === 'feed_broiler_pre') {
-            feedPhasePenalty = 0.8; // Ração pré-inicial não dá conta do frango grande
+          const age = newBatch.ageDays;
+          if (age <= 7 && usedFeedId !== 'feed_broiler_pre') {
+            feedPhasePenalty = 0.7; // Precisa de pré-inicial
+          } else if (age > 7 && age <= 21 && usedFeedId !== 'feed_basic') {
+            feedPhasePenalty = 0.8;
+          } else if (age > 21 && age <= 42 && usedFeedId !== 'feed_terminacao') {
+            feedPhasePenalty = 0.8;
+          } else if (age > 42 && usedFeedId !== 'feed_abate' && usedFeedId !== 'feed_terminacao') {
+            feedPhasePenalty = 0.9;
           }
         } else if (barn.type === 'POSTURA') {
-          if (newBatch.ageDays < 120 && (usedFeedId === 'feed_layers' || usedFeedId === 'feed_layers_premium')) {
-            feedPhasePenalty = 0.6; // Muito cálcio para franga jovem, danifica os rins
-          } else if (newBatch.ageDays >= 120 && usedFeedId === 'feed_layers_start') {
-            feedPhasePenalty = 0.4; // Falta cálcio para botar ovo
+          const age = newBatch.ageDays;
+          const ageWeeks = Math.floor(age / 7);
+          if (ageWeeks <= 1 && usedFeedId !== 'feed_layers_pre') {
+            feedPhasePenalty = 0.6; // Muito forte ou fraca para pintinhas
+          } else if (ageWeeks > 1 && ageWeeks <= 4 && usedFeedId !== 'feed_layers_start') {
+            feedPhasePenalty = 0.7; 
+          } else if (ageWeeks > 4 && ageWeeks <= 15 && usedFeedId !== 'feed_layers_grow') {
+            feedPhasePenalty = 0.7; 
+          } else if (ageWeeks >= 16 && ageWeeks <= 21 && usedFeedId !== 'feed_layers_pre_lay') {
+            feedPhasePenalty = 0.8; // Falta preparo de cálcio
+          } else if (ageWeeks >= 22 && ageWeeks <= 35 && usedFeedId !== 'feed_layers') {
+            feedPhasePenalty = 0.5; // Precisa de postura 1
+          } else if (ageWeeks > 35 && ageWeeks <= 45 && usedFeedId !== 'feed_layers_2') {
+            feedPhasePenalty = 0.8;
+          } else if (ageWeeks > 45 && usedFeedId !== 'feed_layers_3') {
+            feedPhasePenalty = 0.9;
           }
         }
 
@@ -1813,9 +1830,21 @@ export const useGameStore = create<GameState>()(
           newBatch.mortalityCount += dead;
         } else {
           // Mortalidade normal reduzida pelo bônus da ração e multiplicada pela doença e eventos
-            const mortalityChance = baseMortality * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * Math.max(0.1, 1 - caretakerBuff) * diseaseMortal * eventMortal * mortalityPenalty * 10;
-            if (Math.random() < mortalityChance) {
-              const dead = Math.max(1, Math.floor(newBatch.animalCount * baseMortality * diseaseMortal * eventMortal * mortalityPenalty * Math.max(0.1, 1 - caretakerBuff)));
+          // Como isso roda a cada hora, a chance e a quantidade devem ser proporcionais
+          const hourlyMortalityRate = (baseMortality / 24) * feedData.bonus.mortalityModifier * (1 - equipmentMortalityBonus) * Math.max(0.1, 1 - caretakerBuff) * diseaseMortal * eventMortal * mortalityPenalty;
+          
+          // Usa probabilidade para decidir se morre pelo menos 1, baseado na fração esperada
+          const expectedDead = newBatch.animalCount * hourlyMortalityRate;
+          
+          // Parte inteira morre com certeza
+          let dead = Math.floor(expectedDead);
+          
+          // Parte fracionária vira chance de morrer mais 1
+          if (Math.random() < (expectedDead - dead)) {
+            dead += 1;
+          }
+
+          if (dead > 0) {
             newBatch.animalCount -= dead;
             newBatch.mortalityCount += dead;
           }

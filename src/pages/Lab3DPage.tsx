@@ -71,6 +71,17 @@ function CarPlaceholder() {
   );
 }
 
+import * as THREE from 'three';
+
+// Suprimir avisos de deprecation do THREE.js até que o R3F seja atualizado
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (typeof args[0] === 'string' && (args[0].includes('THREE.Clock') || args[0].includes('PCFSoftShadowMap'))) {
+    return;
+  }
+  originalWarn(...args);
+};
+
 type ModelType = 'character' | 'barn' | 'car';
 
 export default function Lab3DPage() {
@@ -128,7 +139,7 @@ export default function Lab3DPage() {
 
       {/* 3D Canvas */}
       <div className="flex-1 w-full h-full bg-gradient-to-b from-zinc-900 to-zinc-950">
-        <Canvas shadows camera={{ position: [5, 3, 5], fov: 50 }}>
+        <Canvas shadows={{ type: THREE.PCFShadowMap }} camera={{ position: [5, 3, 5], fov: 50 }}>
           <color attach="background" args={['#18181b']} />
           <Sky distance={450000} sunPosition={[0, 1, 0]} inclination={0} azimuth={0.25} />
           <ambientLight intensity={0.5} />
