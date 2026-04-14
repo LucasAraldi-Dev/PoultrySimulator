@@ -329,7 +329,7 @@ export default function Dashboard() {
                       </h4>
                       {barn.batch ? (
                         <p className="text-sm text-zinc-500 mt-1">
-                          {barn.batch.animalCount.toLocaleString()} aves • {barn.batch.ageDays} dias
+                          {barn.batch.animalCount.toLocaleString()} aves • {barn.type === 'POSTURA' ? `${Math.floor(barn.batch.ageDays / 7)} sem` : `${barn.batch.ageDays} dias`}
                         </p>
                       ) : (
                         <p className="text-sm text-zinc-400 mt-1 italic">Galpão Vazio</p>

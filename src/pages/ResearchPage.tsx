@@ -78,9 +78,9 @@ export function ResearchPage() {
 
           const canAfford = !isMaxLevel &&
             next &&
-            money >= next.cost_money &&
-            xp >= next.cost_xp &&
-            playerLevel >= next.required_player_level &&
+            money >= next.costMoney &&
+            xp >= next.costXP &&
+            playerLevel >= next.requiredPlayerLevel &&
             !activeResearchId;
 
           const isResearchingThis = activeResearchId === research.id;
@@ -144,8 +144,8 @@ export function ResearchPage() {
                     </div>
                     
                     <div className="flex justify-between items-center text-xs font-bold text-zinc-600 px-1">
-                      <span className="flex items-center gap-1 text-emerald-600">R$ {next.cost_money}</span>
-                      <span className="flex items-center gap-1 text-purple-600">{next.cost_xp} XP</span>
+                      <span className="flex items-center gap-1 text-emerald-600">R$ {next.costMoney}</span>
+                      <span className="flex items-center gap-1 text-purple-600">{next.costXP} XP</span>
                     </div>
 
                     <button

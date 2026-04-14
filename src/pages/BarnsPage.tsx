@@ -187,7 +187,13 @@ export default function BarnsPage() {
                         </div>
                         <div className="bg-white p-3 rounded-2xl border border-zinc-200 shadow-sm flex flex-col items-center text-center">
                           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Idade</span>
-                          <span className="text-xl font-black text-zinc-800">{barn.batch.ageDays} <span className="text-xs text-zinc-400">d</span></span>
+                          <span className="text-xl font-black text-zinc-800">
+                            {barn.type === 'POSTURA' ? (
+                              <>{Math.floor(barn.batch.ageDays / 7)} <span className="text-xs text-zinc-400">sem</span></>
+                            ) : (
+                              <>{barn.batch.ageDays} <span className="text-xs text-zinc-400">d</span></>
+                            )}
+                          </span>
                         </div>
                         <div className="bg-white p-3 rounded-2xl border border-zinc-200 shadow-sm flex flex-col items-center text-center">
                           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Peso Médio</span>
@@ -275,9 +281,9 @@ export default function BarnsPage() {
                           <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
                             <div className="mb-4">
                               <div className="flex justify-between text-xs font-black mb-2 uppercase tracking-wider text-orange-800">
-                                <span>Idade Produtiva</span>
+                                <span>Idade Produtiva ({Math.floor(MAX_LAYER_AGE_DAYS / 7)} sem)</span>
                                 <span className={barn.batch.ageDays > MAX_LAYER_AGE_DAYS ? 'text-red-600' : 'text-orange-600'}>
-                                  {barn.batch.ageDays} / {MAX_LAYER_AGE_DAYS} dias
+                                  {Math.floor(barn.batch.ageDays / 7)} / {Math.floor(MAX_LAYER_AGE_DAYS / 7)} sem
                                 </span>
                               </div>
                               <div className="w-full bg-orange-200/50 rounded-full h-2 overflow-hidden">
