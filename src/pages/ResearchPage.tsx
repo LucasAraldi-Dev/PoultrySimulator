@@ -71,104 +71,170 @@ export function ResearchPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.values(researches || {}).map((research: any) => {
-          const isMaxLevel = research.current_level >= research.max_level;
-          const next = research.next_level_info;
+      <div className="flex flex-wrap gap-2 mb-6">
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategory(cat.id)}
+            className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors ${
+              activeCategory === cat.id
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50'
+            }`}
+          >
+            {cat.icon}
+            {cat.name}
+          </button>
+        ))}
+      </div>
 
-          const canAfford = !isMaxLevel &&
-            next &&
-            money >= next.costMoney &&
-            xp >= next.costXP &&
-            playerLevel >= next.requiredPlayerLevel &&
-            !activeResearchId;
+      <div className="relative w-full min-h-[800px] bg-zinc-50 rounded-2xl border border-zinc-200 p-8 overflow-hidden">
+        {/* Lines */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+          {Object.values(researches || {}).filter((r: any) => r.category === activeCategory).map((r: any) => {
+            const def = RESEARCH_TREE[r.id];
+            if (!def || !def.requires) return null;
+            const reqDef = RESEARCH_TREE[def.requires];
+            if (!reqDef) return null;
 
-          const isResearchingThis = activeResearchId === research.id;
+            const getX = (col: number) => `${(col * 33.33) + 16.66}%`;
+            const getY = (row: number) => `${(row * 33.33) + 16.66}%`;
 
-          return (
-            <motion.div
-              key={research.id}
-              whileHover={!isMaxLevel ? { scale: 1.02 } : {}}
-              className={`relative overflow-hidden rounded-xl border p-6 flex flex-col justify-between h-full transition-all duration-300 ${
-                isMaxLevel
-                  ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200'
-                  : isResearchingThis
-                  ? 'bg-orange-50 border-orange-300'
-                  : 'bg-white border-zinc-200 shadow-sm'
-              }`}
-            >
-              {isMaxLevel && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-              )}
-              
-              <div>
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                  <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-100">
-                    {getIcon(research.category)}
+            const reqRes = researches[reqDef.id];
+            const isReqUnlocked = reqRes && reqRes.current_level > 0;
+            const strokeColor = isReqUnlocked ? '#a855f7' : '#d4d4d8';
+
+            return (
+              <line
+                key={`line-${r.id}`}
+                x1={getX(reqDef.col)}
+                y1={getY(reqDef.row)}
+                x2={getX(def.col)}
+                y2={getY(def.row)}
+                stroke={strokeColor}
+                strokeWidth="4"
+                strokeDasharray={isReqUnlocked ? "0" : "8,8"}
+              />
+            );
+          })}
+        </svg>
+
+        <div className="grid grid-cols-3 grid-rows-3 gap-8 w-full h-full relative z-10 place-items-center">
+          {Object.values(researches || {}).filter((r: any) => r.category === activeCategory).map((research: any) => {
+            const def = RESEARCH_TREE[research.id];
+            if (!def) return null;
+            const reqDef = def.requires ? RESEARCH_TREE[def.requires] : null;
+            const reqRes = reqDef ? researches[reqDef.id] : null;
+            const isLocked = reqRes ? reqRes.current_level === 0 : false;
+
+            const isMaxLevel = research.current_level >= research.max_level;
+            const next = research.next_level_info;
+
+            const canAfford = !isMaxLevel &&
+              !isLocked &&
+              next &&
+              money >= next.cost_money &&
+              xp >= next.cost_xp &&
+              playerLevel >= next.required_player_level &&
+              !activeResearchId;
+
+            const isResearchingThis = activeResearchId === research.id;
+
+            return (
+              <motion.div
+                key={research.id}
+                style={{
+                  gridColumnStart: def.col + 1,
+                  gridRowStart: def.row + 1,
+                }}
+                whileHover={!isMaxLevel && !isLocked ? { scale: 1.02 } : {}}
+                className={`relative overflow-hidden rounded-xl border p-5 flex flex-col justify-between w-full h-full min-h-[220px] transition-all duration-300 ${
+                  isLocked
+                    ? 'bg-zinc-100 border-zinc-200 opacity-70 grayscale-[0.5]'
+                    : isMaxLevel
+                    ? 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200'
+                    : isResearchingThis
+                    ? 'bg-orange-50 border-orange-300'
+                    : 'bg-white border-purple-200 shadow-sm'
+                }`}
+              >
+                {isMaxLevel && (
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                )}
+                
+                <div>
+                  <div className="flex justify-between items-start mb-3 relative z-10">
+                    <div className={`p-2 rounded-lg border ${isLocked ? 'bg-zinc-200 border-zinc-300' : 'bg-purple-50 border-purple-100 text-purple-600'}`}>
+                      {isLocked ? <Lock size={18} className="text-zinc-500" /> : getIcon(research.category)}
+                    </div>
+                    <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${isLocked ? 'bg-zinc-200 text-zinc-500' : 'text-purple-700 bg-purple-100'}`}>
+                      Lvl {research.current_level} / {research.max_level}
+                    </span>
                   </div>
-                  <span className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-100 px-2 py-1 rounded-full">
-                    Lvl {research.current_level} / {research.max_level}
-                  </span>
+
+                  <h3 className="text-base font-bold text-zinc-800 mb-1 relative z-10 leading-tight">{research.name}</h3>
+                  <p className="text-xs text-zinc-600 mb-3 relative z-10 leading-snug">{research.description}</p>
+                  
+                  {research.current_level > 0 && (
+                    <div className="mb-3 p-1.5 bg-blue-50 border border-blue-100 rounded text-xs text-blue-800">
+                      <strong>Bônus Atual:</strong> {def.effectLabel(research.current_level)}
+                    </div>
+                  )}
                 </div>
 
-                <h3 className="text-lg font-bold text-zinc-800 mb-2 relative z-10">{research.name}</h3>
-                <p className="text-sm text-zinc-600 mb-4 relative z-10">{research.description}</p>
-                
-                {research.current_level > 0 && (
-                  <div className="mb-4 p-2 bg-blue-50 border border-blue-100 rounded text-sm text-blue-800">
-                    <strong>Bônus Atual:</strong> +{(research.current_bonus * 100).toFixed(1)}%
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-auto relative z-10">
-                {isResearchingThis ? (
-                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-orange-200 text-orange-800 border border-orange-300">
-                    <Clock size={18} className="animate-spin" /> Em Andamento...
-                  </div>
-                ) : !isMaxLevel && next ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="text-xs bg-zinc-50 p-2 rounded border border-zinc-100 flex flex-col gap-1">
-                      <div className="flex justify-between">
-                        <span>Próximo Bônus:</span>
-                        <span className="font-bold text-emerald-600">+{(next.next_bonus * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Tempo:</span>
-                        <span className="font-bold text-zinc-600">{next.time_days} dias</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Nível Necessário:</span>
-                        <span className={`font-bold ${playerLevel >= next.required_player_level ? 'text-zinc-600' : 'text-red-500'}`}>Lvl {next.required_player_level}</span>
-                      </div>
+                <div className="mt-auto relative z-10">
+                  {isLocked ? (
+                    <div className="w-full py-2 text-xs rounded-lg font-bold flex justify-center items-center gap-1 bg-zinc-200 text-zinc-500">
+                      <Lock size={14} /> Requer {reqDef?.name}
                     </div>
-                    
-                    <div className="flex justify-between items-center text-xs font-bold text-zinc-600 px-1">
-                      <span className="flex items-center gap-1 text-emerald-600">R$ {next.costMoney}</span>
-                      <span className="flex items-center gap-1 text-purple-600">{next.costXP} XP</span>
+                  ) : isResearchingThis ? (
+                    <div className="w-full py-2 text-xs rounded-lg font-bold flex justify-center items-center gap-1 bg-orange-200 text-orange-800 border border-orange-300">
+                      <Clock size={14} className="animate-spin" /> Em Andamento...
                     </div>
+                  ) : !isMaxLevel && next ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[10px] bg-zinc-50 p-1.5 rounded border border-zinc-100 flex flex-col gap-0.5">
+                        <div className="flex justify-between">
+                          <span>Próximo Bônus:</span>
+                          <span className="font-bold text-emerald-600">{def.effectLabel(research.current_level + 1)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Tempo:</span>
+                          <span className="font-bold text-zinc-600">{next.time_days} dias</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Nível Necessário:</span>
+                          <span className={`font-bold ${playerLevel >= next.required_player_level ? 'text-zinc-600' : 'text-red-500'}`}>Lvl {next.required_player_level}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center text-[10px] font-bold text-zinc-600 px-1">
+                        <span className={`flex items-center gap-1 ${money >= next.cost_money ? 'text-emerald-600' : 'text-red-500'}`}>R$ {next.cost_money}</span>
+                        <span className={`flex items-center gap-1 ${xp >= next.cost_xp ? 'text-purple-600' : 'text-red-500'}`}>{next.cost_xp} XP</span>
+                      </div>
 
-                    <button
-                      onClick={() => startResearchApi(research.id)}
-                      disabled={!canAfford}
-                      className={`w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-all duration-300 ${
-                        canAfford
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
-                          : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <ArrowUpCircle size={18} /> {canAfford ? 'Pesquisar' : 'Sem Recursos'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-full py-3 rounded-lg font-bold flex justify-center items-center gap-2 bg-emerald-100 text-emerald-700">
-                    <CheckCircle2 size={18} /> Nível Máximo
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
+                      <button
+                        onClick={() => startResearchApi(research.id)}
+                        disabled={!canAfford}
+                        className={`w-full py-2 text-xs rounded-lg font-bold flex justify-center items-center gap-1 transition-all duration-300 ${
+                          canAfford
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                            : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <ArrowUpCircle size={14} /> {canAfford ? 'Pesquisar' : 'Sem Recursos'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full py-2 text-xs rounded-lg font-bold flex justify-center items-center gap-1 bg-emerald-100 text-emerald-700">
+                      <CheckCircle2 size={14} /> Nível Máximo
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     </PageTransition>
   );
